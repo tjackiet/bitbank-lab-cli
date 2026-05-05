@@ -68,14 +68,7 @@ describe("candles", () => {
       candlestick: [
         {
           type: "1day",
-          ohlcv: Array.from({ length: 365 }, (_, i) => [
-            "100",
-            "110",
-            "90",
-            "105",
-            "50",
-            1000 + i,
-          ]),
+          ohlcv: Array.from({ length: 365 }, (_, i) => ["100", "110", "90", "105", "50", 1000 + i]),
         },
       ],
     };
