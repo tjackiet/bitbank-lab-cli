@@ -3,6 +3,7 @@ import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
 import { compactParams } from "../../params.js";
 import { parseResponse } from "../../parse-response.js";
 import type { Result } from "../../types.js";
+import { validatePair } from "../../validators.js";
 
 const PositionSchema = z.object({
   position_id: z.number(),
@@ -27,7 +28,13 @@ export async function marginPositions(
   opts?: PrivateHttpOptions,
 ): Promise<Result<MarginPosition[]>> {
   const { pair } = args;
-  const params = compactParams({ pair });
+  let normalizedPair = pair;
+  if (pair !== undefined) {
+    const pv = validatePair(pair);
+    if (!pv.success) return pv;
+    normalizedPair = pv.data;
+  }
+  const params = compactParams({ pair: normalizedPair });
 
   const result = await privateGet<unknown>("/user/margin/positions", params, opts);
   return parseResponse(result, ResponseSchema, "positions");
