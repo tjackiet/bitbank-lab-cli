@@ -1,0 +1,160 @@
+// 100行超: paper の指値 fill 解決を 1 ファイルで完結。lastTickAt〜now の
+// 1m 足を取得し、open orders を時系列で突き合わせて約定済みを history に
+// 移す。テスト時は fetchCandles / nowMs を注入し、本番用デフォルトは
+// public candles API を叩く。
+import { type Candle, fetchOne } from "./commands/public/candles-fetch.js";
+import type { HttpOptions } from "./http.js";
+import {
+  DEFAULT_TAKER_FEE_RATE,
+  type OpenOrder,
+  type PaperHistoryEntry,
+  type PaperState,
+  defaultStatePath,
+  loadState,
+  saveState,
+} from "./paper-state.js";
+import type { Result } from "./types.js";
+
+const ONE_MIN_MS = 60_000;
+const MAX_LOOKBACK_MS = 24 * 60 * 60 * 1000;
+
+export type FetchCandles = (
+  pair: string,
+  fromMs: number,
+  toMs: number,
+) => Promise<Result<Candle[]>>;
+
+export type TickOptions = {
+  statePath?: string;
+  pair?: string;
+  fetchCandles?: FetchCandles;
+  nowMs?: number;
+  feeRate?: number;
+  httpOptions?: HttpOptions;
+};
+
+export type TickResult = {
+  filled: PaperHistoryEntry[];
+  warnings: string[];
+  lastTickAt: string;
+};
+
+export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult>> {
+  const path = opts.statePath ?? defaultStatePath();
+  const sr = await loadState(path);
+  if (!sr.success) return sr;
+  const nowMs = opts.nowMs ?? Date.now();
+  const newLastTickAt = new Date(nowMs).toISOString();
+  if (!sr.data)
+    return { success: true, data: { filled: [], warnings: [], lastTickAt: newLastTickAt } };
+  if (sr.data.openOrders.length === 0) {
+    const updated: PaperState = { ...sr.data, lastTickAt: newLastTickAt };
+    const w = await saveState(updated, path);
+    if (!w.success) return w;
+    return { success: true, data: { filled: [], warnings: [], lastTickAt: newLastTickAt } };
+  }
+  const lastTickMs = Date.parse(sr.data.lastTickAt);
+  let fromMs = Math.min(lastTickMs, nowMs);
+  const warnings: string[] = [];
+  if (nowMs - fromMs > MAX_LOOKBACK_MS) {
+    warnings.push(`gap > 24h; limiting to last 24h (lastTickAt=${sr.data.lastTickAt})`);
+    fromMs = nowMs - MAX_LOOKBACK_MS;
+  }
+  const fetchFn = opts.fetchCandles ?? defaultFetchCandles(opts.httpOptions);
+  const feeRate = opts.feeRate ?? DEFAULT_TAKER_FEE_RATE;
+  const pairs = uniquePairs(sr.data.openOrders, opts.pair);
+  let working: PaperState = sr.data;
+  const filled: PaperHistoryEntry[] = [];
+  for (const p of pairs) {
+    const cr = await fetchFn(p, fromMs, nowMs);
+    if (!cr.success) {
+      warnings.push(`fetch candles for ${p} failed: ${cr.error}`);
+      continue;
+    }
+    const sorted = [...cr.data].sort((a, b) => a.timestamp - b.timestamp);
+    for (const candle of sorted) {
+      if (candle.timestamp < fromMs || candle.timestamp > nowMs) continue;
+      const orders = working.openOrders.filter(
+        (o) => o.pair === p && Date.parse(o.createdAt) <= candle.timestamp,
+      );
+      for (const o of orders) {
+        const hits = o.side === "buy" ? candle.low <= o.price : candle.high >= o.price;
+        if (!hits) continue;
+        const r = applyFill(working, o, candle, feeRate);
+        working = r.state;
+        filled.push(r.entry);
+      }
+    }
+  }
+  working = { ...working, lastTickAt: newLastTickAt, updatedAt: newLastTickAt };
+  const w = await saveState(working, path);
+  if (!w.success) return w;
+  for (const msg of warnings) process.stderr.write(`Warning: ${msg}\n`);
+  return { success: true, data: { filled, warnings, lastTickAt: newLastTickAt } };
+}
+
+function uniquePairs(orders: OpenOrder[], filter?: string): string[] {
+  const set = new Set<string>();
+  for (const o of orders) {
+    if (filter && o.pair !== filter) continue;
+    set.add(o.pair);
+  }
+  return [...set];
+}
+
+function applyFill(
+  state: PaperState,
+  o: OpenOrder,
+  candle: Candle,
+  feeRate: number,
+): { state: PaperState; entry: PaperHistoryEntry } {
+  const [base, quote] = o.pair.split("_");
+  const balances = { ...state.balances };
+  const notional = o.price * o.amount;
+  const feeJpy = notional * feeRate;
+  if (o.side === "buy") {
+    balances[quote] = (balances[quote] ?? 0) - (notional + feeJpy);
+    balances[base] = (balances[base] ?? 0) + o.amount;
+  } else {
+    balances[base] = (balances[base] ?? 0) - o.amount;
+    balances[quote] = (balances[quote] ?? 0) + (notional - feeJpy);
+  }
+  const filledAt = new Date(candle.timestamp + ONE_MIN_MS).toISOString();
+  const entry: PaperHistoryEntry = {
+    id: o.id,
+    pair: o.pair,
+    side: o.side,
+    type: "limit",
+    amount: o.amount,
+    fillPrice: o.price,
+    feeJpy,
+    filledAt,
+  };
+  const newState: PaperState = {
+    ...state,
+    balances,
+    history: [...state.history, entry],
+    openOrders: state.openOrders.filter((x) => x.id !== o.id),
+  };
+  return { state: newState, entry };
+}
+
+function ymdLocal(ms: number): string {
+  const d = new Date(ms);
+  return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function defaultFetchCandles(httpOpts?: HttpOptions): FetchCandles {
+  return async (pair, fromMs, toMs) => {
+    const dates = new Set<string>([ymdLocal(fromMs), ymdLocal(toMs)]);
+    const all: Candle[] = [];
+    for (const d of [...dates].sort()) {
+      const r = await fetchOne(pair, "1min", d, httpOpts, true);
+      if (!r.success) return r;
+      for (const c of r.data) {
+        if (c.timestamp >= fromMs && c.timestamp <= toMs) all.push(c);
+      }
+    }
+    return { success: true, data: all };
+  };
+}
