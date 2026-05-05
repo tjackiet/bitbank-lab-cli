@@ -37,12 +37,14 @@ export async function paperInit(args: PaperInitArgs): Promise<Result<PaperState>
   const initialJpy = Number(parsed.data.jpy);
   const now = nowIso();
   const state: PaperState = {
-    version: 1,
+    version: 2,
     createdAt: now,
     updatedAt: now,
     initialJpy,
     balances: { jpy: initialJpy },
     history: [],
+    lastTickAt: now,
+    openOrders: [],
   };
   const w = await saveState(state, path);
   if (!w.success) return w;
