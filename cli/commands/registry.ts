@@ -1,4 +1,5 @@
 import type { CommandEntry } from "./handler-types.js";
+import { paperCommands } from "./paper-handlers.js";
 import { privateCommands } from "./private-handlers.js";
 import { privateTransferCommands } from "./private-transfer-handlers.js";
 import { publicCommands } from "./public-handlers.js";
@@ -13,3 +14,5 @@ export const COMMANDS: Record<string, CommandEntry> = {
 };
 
 export const TRADE_COMMANDS: Record<string, CommandEntry> = { ...tradeCommands };
+
+export const PAPER_COMMANDS: Record<string, CommandEntry> = { ...paperCommands };

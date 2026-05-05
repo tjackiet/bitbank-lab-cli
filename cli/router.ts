@@ -1,18 +1,23 @@
 import type { CommandEntry } from "./commands/handler-types.js";
-import { COMMANDS, TRADE_COMMANDS } from "./commands/registry.js";
+import { COMMANDS, PAPER_COMMANDS, TRADE_COMMANDS } from "./commands/registry.js";
 import type { Format } from "./types.js";
 
 export type ResolvedCommand = {
   isTrade: boolean;
+  isPaper: boolean;
   command: string | undefined;
   entry: CommandEntry | undefined;
 };
 
 export function resolveCommand(positionals: string[]): ResolvedCommand {
   const isTrade = positionals[0] === "trade";
-  const command = isTrade ? positionals[1] : positionals[0];
-  const entry = isTrade ? (command ? TRADE_COMMANDS[command] : undefined) : COMMANDS[command ?? ""];
-  return { isTrade, command, entry };
+  const isPaper = positionals[0] === "paper";
+  const command = isTrade || isPaper ? positionals[1] : positionals[0];
+  let entry: CommandEntry | undefined;
+  if (isTrade) entry = command ? TRADE_COMMANDS[command] : undefined;
+  else if (isPaper) entry = command ? PAPER_COMMANDS[command] : undefined;
+  else entry = COMMANDS[command ?? ""];
+  return { isTrade, isPaper, command, entry };
 }
 
 export async function handleSpecialCommand(
@@ -28,12 +33,11 @@ export async function handleSpecialCommand(
   }
   if (command === "schema") {
     const { buildSchemaHandler } = await import("./commands/schema/handler.js");
-    const desc = Object.fromEntries(
-      [...Object.entries(COMMANDS), ...Object.entries(TRADE_COMMANDS)].map(([k, v]) => [
-        k,
-        v.description,
-      ]),
-    );
+    const desc = Object.fromEntries([
+      ...Object.entries(COMMANDS).map(([k, v]) => [k, v.description] as const),
+      ...Object.entries(TRADE_COMMANDS).map(([k, v]) => [`trade ${k}`, v.description] as const),
+      ...Object.entries(PAPER_COMMANDS).map(([k, v]) => [`paper ${k}`, v.description] as const),
+    ]);
     await buildSchemaHandler(desc)(args, opts, format);
     return true;
   }

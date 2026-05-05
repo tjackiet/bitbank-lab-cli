@@ -1,4 +1,4 @@
-import { COMMANDS, TRADE_COMMANDS } from "./commands/registry.js";
+import { COMMANDS, PAPER_COMMANDS, TRADE_COMMANDS } from "./commands/registry.js";
 
 export function showHelp(): void {
   console.log("Usage: bitbank <command> [options]\n");
@@ -10,6 +10,9 @@ export function showHelp(): void {
   }
   console.log(
     `  ${"trade <subcommand>".padEnd(24)} Fund-affecting operations (run 'bitbank trade' for list)`,
+  );
+  console.log(
+    `  ${"paper <subcommand>".padEnd(24)} Paper trading sim with virtual funds (run 'bitbank paper' for list)`,
   );
   console.log("\nOptions:");
   console.log("  --profile=<name>         Use .env.<name> for credentials");
@@ -26,4 +29,16 @@ export function showTradeHelp(): void {
     console.log(`  ${name.padEnd(24)} ${description}`);
   }
   console.log("\nRun 'bitbank trade <subcommand> --help' for subcommand options.");
+}
+
+export function showPaperHelp(): void {
+  console.log("Usage: bitbank paper <subcommand> [options]\n");
+  console.log(
+    "Paper trading sim. Uses live public ticker for pricing — no private/trade API calls.\n",
+  );
+  console.log("Subcommands:");
+  for (const [name, { description }] of Object.entries(PAPER_COMMANDS)) {
+    console.log(`  ${name.padEnd(24)} ${description}`);
+  }
+  console.log("\nRun 'bitbank paper <subcommand> --help' for subcommand options.");
 }
