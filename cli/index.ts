@@ -2,7 +2,7 @@
 import { parseArgs } from "node:util";
 import { COMMON_OPTIONS } from "./common-options.js";
 import { EXIT, type ExitCode } from "./exit-codes.js";
-import { showHelp, showTradeHelp } from "./help-print.js";
+import { showHelp, showPaperHelp, showTradeHelp } from "./help-print.js";
 import { machineOutput } from "./output.js";
 import { applyProfile } from "./profile.js";
 import { handleSpecialCommand, resolveCommand, runCommandHelp } from "./router.js";
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { isTrade, command, entry } = resolveCommand(p1);
+  const { isTrade, isPaper, command, entry } = resolveCommand(p1);
   const merged = { ...COMMON_OPTIONS, ...(entry?.options ?? {}) };
   const { values, positionals } = parseArgs({
     allowPositionals: true,
@@ -48,23 +48,25 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (isTrade) {
+  if (isTrade || isPaper) {
+    const label = isTrade ? "trade" : "paper";
     if (!command) {
-      showTradeHelp();
+      if (isTrade) showTradeHelp();
+      else showPaperHelp();
       return;
     }
     if (!entry) {
       fail(
         machine,
-        `Unknown trade subcommand "${command}". Run 'bitbank trade' for the list.`,
+        `Unknown ${label} subcommand "${command}". Run 'bitbank ${label}' for the list.`,
         EXIT.PARAM,
       );
       return;
     }
     if (values.help && (await runCommandHelp(command, entry.description))) return;
-    const [, , ...tradeArgs] = positionals;
+    const [, , ...subArgs] = positionals;
     const opts = values as Record<string, string | boolean | undefined>;
-    await entry.handler(tradeArgs, opts, format);
+    await entry.handler(subArgs, opts, format);
     return;
   }
 
