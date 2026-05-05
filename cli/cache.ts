@@ -78,7 +78,10 @@ export function writeCache(pair: string, type: string, date: string, data: unkno
   try {
     writeFileSync(tmp, JSON.stringify(data));
     renameSync(tmp, p);
-  } catch {
+  } catch (e) {
+    // mem は更新済み・ディスクは未更新の齟齬が出るため、失敗を可視化
+    const msg = e instanceof Error ? e.message : String(e);
+    process.stderr.write(`Warning: cache write failed for ${p}: ${msg}\n`);
     try {
       unlinkSync(tmp);
     } catch {

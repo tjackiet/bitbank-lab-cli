@@ -158,7 +158,8 @@ describe("writeTradeLog", () => {
     cleanup.push(f);
     const record = buildLogRecord("createOrder", {}, { success: true, data: {} });
     await writeTradeLog(f, record);
-    // umask に依存しない: appendFile は新規作成時に指定 mode を適用
+    // appendFile の mode は mode & ~umask で適用される。0o600 は group/other ビットを
+    // 持たないため、一般的な umask (0o022/0o027/0o077) でクリアされず必ず 0o600 になる
     expect(statSync(f).mode & 0o777).toBe(0o600);
   });
 
