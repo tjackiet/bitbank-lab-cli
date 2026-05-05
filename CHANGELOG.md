@@ -7,6 +7,12 @@
 
 ### Breaking Changes
 
+- `engines.node` を `>=18` から `>=20` に引き上げ。Node 18 は 2025-04 に EOL を
+  迎えており、セキュリティパッチの供給対象外となるため。Node 20 未満の環境では
+  `npm install` 時に警告（または `--engine-strict` 設定下では失敗）するように
+  なった。あわせて CI (`.github/workflows/ci.yml`) の Node version も 20 に更新。
+- `typescript` の version range を `^5.9.0-beta` から安定版 `^5.7.0` に変更。
+  pre-release 版は dev tooling の予期せぬ挙動変動を招くため、安定版に固定する。
 - `--profile=<name>` で読み込まれる `.env.<profile>` ファイルから、
   `BITBANK_*` 以外の env 変数が反映されなくなった。それ以外のキーが
   含まれる場合は stderr に警告を出して無視する。
