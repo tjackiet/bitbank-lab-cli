@@ -1,11 +1,6 @@
 import { EXIT } from "../../exit-codes.js";
 import { nowIso } from "../../paper-state.js";
-import {
-  type ProfilesFile,
-  emptyProfilesFile,
-  loadProfiles,
-  saveProfiles,
-} from "../../profiles-store.js";
+import { type ProfilesFile, loadProfiles, saveProfiles } from "../../profiles-store.js";
 import type { Result } from "../../types.js";
 import { type Prompts, defaultPrompts } from "./prompt.js";
 
@@ -32,9 +27,12 @@ export async function profileAdd(
     return { success: false, error: "Invalid profile name", exitCode: EXIT.PARAM };
   }
 
+  // loadProfiles は ENOENT のみ空 file を返す。schema/permission エラーをここで
+  // 握り潰すと、既存 profiles.json を空 file で上書きしてしまうため必ず伝播する
   const file = loadProfiles();
-  const current: ProfilesFile = file.success ? file.data : emptyProfilesFile();
-  if (current.profiles[name]) {
+  if (!file.success) return file;
+  const current = file.data;
+  if (Object.hasOwn(current.profiles, name)) {
     return {
       success: false,
       error: `Profile "${name}" already exists`,

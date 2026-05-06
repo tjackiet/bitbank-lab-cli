@@ -7,19 +7,45 @@ export type Prompts = {
   readHidden: (prompt: string) => Promise<string>;
 };
 
+// 連続する readChunkedLine 呼び出し間で改行を跨ぐ追加データを保持する。
+// パイプから "key\nsecret\n" を 1 chunk で受け取った場合に 2 回目以降の
+// 呼び出しが取り残されないようにする
+let pendingBuf = "";
+
+function takeBufferedLine(): string | null {
+  const nl = pendingBuf.indexOf("\n");
+  if (nl === -1) return null;
+  const line = pendingBuf.slice(0, nl).replace(/\r$/, "");
+  pendingBuf = pendingBuf.slice(nl + 1);
+  return line;
+}
+
 function readChunkedLine(): Promise<string> {
+  const buffered = takeBufferedLine();
+  if (buffered !== null) return Promise.resolve(buffered);
   return new Promise((resolve) => {
-    let buf = "";
+    const cleanup = () => {
+      process.stdin.removeListener("data", onData);
+      process.stdin.removeListener("end", onEnd);
+      process.stdin.pause();
+    };
     const onData = (chunk: Buffer) => {
-      buf += chunk.toString("utf-8");
-      const nl = buf.indexOf("\n");
-      if (nl !== -1) {
-        process.stdin.removeListener("data", onData);
-        process.stdin.pause();
-        resolve(buf.slice(0, nl).replace(/\r$/, ""));
+      pendingBuf += chunk.toString("utf-8");
+      const line = takeBufferedLine();
+      if (line !== null) {
+        cleanup();
+        resolve(line);
       }
     };
+    const onEnd = () => {
+      // EOF: flush whatever is buffered without a trailing newline
+      const rest = pendingBuf.replace(/\r$/, "");
+      pendingBuf = "";
+      cleanup();
+      resolve(rest);
+    };
     process.stdin.on("data", onData);
+    process.stdin.once("end", onEnd);
     process.stdin.resume();
   });
 }
@@ -41,10 +67,13 @@ async function readHidden(prompt: string): Promise<string> {
     const finish = (val: string) => {
       process.stdin.setRawMode(false);
       process.stdin.removeListener("data", onData);
+      process.stdin.removeListener("end", onEnd);
+      process.stdin.removeListener("close", onEnd);
       process.stdin.pause();
       process.stderr.write("\n");
       resolve(val);
     };
+    const onEnd = () => finish(buf);
     const onData = (chunk: Buffer) => {
       const s = chunk.toString("utf-8");
       for (const ch of s) {
@@ -63,6 +92,8 @@ async function readHidden(prompt: string): Promise<string> {
       }
     };
     process.stdin.on("data", onData);
+    process.stdin.once("end", onEnd);
+    process.stdin.once("close", onEnd);
   });
 }
 

@@ -1,3 +1,7 @@
+// 隔離: BITBANK_PROFILES_PATH と profiles.json の per-test リセットは
+// cli/__tests__/setup.ts のグローバル設定で行われている前提（resolver が
+// default profile を返さないことに依存）。ここでは BITBANK_PROFILE を含む
+// env 群を明示的にクリアする。
 import { afterEach, describe, expect, it } from "vitest";
 import { resolveCredentials } from "../../../profiles-resolver.js";
 

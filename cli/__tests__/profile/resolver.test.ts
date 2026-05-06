@@ -1,3 +1,4 @@
+// 100行超: credential 解決の優先度（BITBANK_PROFILE > default profile > legacy env vars）を 1 ファイルで網羅
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

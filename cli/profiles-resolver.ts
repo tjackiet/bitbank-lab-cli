@@ -1,16 +1,20 @@
+import type { ApiCredentials } from "./auth.js";
 import { EXIT } from "./exit-codes.js";
 import { loadProfiles } from "./profiles-store.js";
 import type { Result } from "./types.js";
 
-export type ApiCredentials = {
-  apiKey: string;
-  apiSecret: string;
-};
+export type { ApiCredentials };
 
 const NOT_CONFIGURED =
   "BITBANK API credentials are not configured. " +
   "Add a profile with `bitbank profile add <name>`, " +
   'or set "BITBANK_API_KEY" and "BITBANK_API_SECRET" environment variables.';
+
+function lookup(profiles: Record<string, { key: string; secret: string }>, name: string) {
+  // Object.hasOwn で prototype 経由（"__proto__"/"toString" 等）を弾く
+  if (!Object.hasOwn(profiles, name)) return undefined;
+  return profiles[name];
+}
 
 /** Credential resolution: BITBANK_PROFILE env → profiles.json default → legacy env vars.
  * The `--profile=<name>` CLI flag is funnelled through BITBANK_PROFILE by cli/index.ts,
@@ -20,7 +24,7 @@ export function resolveCredentials(): Result<ApiCredentials> {
   if (profileName) {
     const file = loadProfiles();
     if (!file.success) return { success: false, error: file.error, exitCode: EXIT.AUTH };
-    const p = file.data.profiles[profileName];
+    const p = lookup(file.data.profiles, profileName);
     if (!p) {
       const names = Object.keys(file.data.profiles);
       const avail = names.length > 0 ? names.join(", ") : "(none)";
@@ -34,7 +38,7 @@ export function resolveCredentials(): Result<ApiCredentials> {
   }
   const file = loadProfiles();
   if (file.success && file.data.default) {
-    const p = file.data.profiles[file.data.default];
+    const p = lookup(file.data.profiles, file.data.default);
     if (p) return { success: true, data: { apiKey: p.key, apiSecret: p.secret } };
   }
   const apiKey = process.env.BITBANK_API_KEY;

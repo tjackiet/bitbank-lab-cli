@@ -154,11 +154,14 @@ describe("startPrivateStream", () => {
       resolveCredentials: () => ({ success: false, error: "missing api key", exitCode: 2 }),
     }));
     vi.resetModules();
-    const { startPrivateStream: freshStart } = await import("../../commands/stream/private.js");
-    const result = await freshStart({ format: "json" });
-    expect(result.success).toBe(false);
-    if (!result.success) expect(result.error).toContain("missing api key");
-    vi.doUnmock("../../profiles-resolver.js");
-    vi.resetModules();
+    try {
+      const { startPrivateStream: freshStart } = await import("../../commands/stream/private.js");
+      const result = await freshStart({ format: "json" });
+      expect(result.success).toBe(false);
+      if (!result.success) expect(result.error).toContain("missing api key");
+    } finally {
+      vi.doUnmock("../../profiles-resolver.js");
+      vi.resetModules();
+    }
   });
 });

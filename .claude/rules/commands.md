@@ -14,6 +14,10 @@
 メタコマンドは bitbank API ではなく CLI 自体の情報（コマンド一覧・補完スクリプト）を返す。
 `COMMANDS` / `TRADE_COMMANDS` / `PAPER_COMMANDS` / `PROFILE_COMMANDS` には登録せず、`router.ts` の `handleSpecialCommand` で個別にディスパッチする。
 
+`profile`（単数形）と `profiles`（複数形）は別物なので注意:
+- `profile <subcommand>` は `PROFILE_COMMANDS` に登録される profile カテゴリ（add / list / show / remove / set-default）。実体は `cli/commands/profile/`
+- `profiles` は legacy meta コマンドで `cwd` 配下の `.env.*` ファイル一覧を返すだけ。`router.ts` の `handleSpecialCommand` で個別ディスパッチされ、registry には入らない。新規に `profiles` を再登録しない
+
 
 trade / paper / profile だけサブコマンド形式にしているのは、フラット一覧での誤爆を減らすため（discoverability・視覚的警告）。
 trade の安全ガード自体は `--execute` / `--confirm` フラグ側にある（`trading-safety.md`）。

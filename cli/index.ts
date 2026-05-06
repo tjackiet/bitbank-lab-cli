@@ -37,9 +37,10 @@ async function main(): Promise<void> {
   });
   const machine = values.machine === true;
   if (typeof values.profile === "string") {
-    // profiles.json を優先、無ければ .env.<name> にフォールバック（後方互換）
+    // profiles.json を優先、無ければ .env.<name> にフォールバック（後方互換）。
+    // Object.hasOwn で prototype 経由の ("__proto__", "toString" 等) を弾く
     const file = loadProfiles();
-    if (file.success && file.data.profiles[values.profile]) {
+    if (file.success && Object.hasOwn(file.data.profiles, values.profile)) {
       process.env.BITBANK_PROFILE = values.profile;
     } else {
       const r = applyProfile(values.profile);

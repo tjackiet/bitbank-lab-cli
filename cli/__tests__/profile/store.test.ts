@@ -1,3 +1,4 @@
+// 100行超: profiles.json の I/O・schema・permission 警告・last-write-wins を 1 ファイルに集約
 import {
   chmodSync,
   existsSync,
@@ -88,7 +89,10 @@ describe("profiles-store: empty + load/save", () => {
     spy.mockRestore();
   });
 
-  it("saveProfiles is atomic — concurrent saves don't lose all data", () => {
+  // 注: tmp+rename の atomicity 自体はここでは検証しない。fault injection や
+  // 並列レースは別 suite を立てる必要がある。ここは last-write-wins の
+  // セマンティクス（途中で torn ファイルが残らない）だけを確認する
+  it("saveProfiles last-write-wins (sequential)", () => {
     saveProfiles(
       {
         version: 1,
