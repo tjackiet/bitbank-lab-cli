@@ -1,7 +1,8 @@
 // 100行超: paper サブコマンド専用のローカル状態管理。
 // CLI 全体は API データの取得・整形のみを責務とするが、
 // paper はライブ価格 × 仮想資金のシミュレーションを行うため例外的に
-// state を持つ（CLAUDE.md 参照）。スキーマ・I/O・ヘルパーをまとめて集約。
+// state を持つ（CLAUDE.md 参照）。スキーマ・I/O・v1→v2 マイグレーション・
+// 残高ロック集計をまとめて集約。
 import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
@@ -12,14 +13,24 @@ export const PaperHistoryEntrySchema = z.object({
   id: z.string(),
   pair: z.string(),
   side: z.enum(["buy", "sell"]),
-  type: z.literal("market"),
+  type: z.enum(["market", "limit"]),
   amount: z.number(),
   fillPrice: z.number(),
   feeJpy: z.number(),
   filledAt: z.string(),
 });
 
-export const PaperStateSchema = z.object({
+export const OpenOrderSchema = z.object({
+  id: z.string(),
+  pair: z.string(),
+  side: z.enum(["buy", "sell"]),
+  type: z.literal("limit"),
+  price: z.number(),
+  amount: z.number(),
+  createdAt: z.string(),
+});
+
+const PaperStateSchemaV1 = z.object({
   version: z.literal(1),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -28,8 +39,22 @@ export const PaperStateSchema = z.object({
   history: z.array(PaperHistoryEntrySchema),
 });
 
+export const PaperStateSchema = z.object({
+  version: z.literal(2),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+  initialJpy: z.number(),
+  balances: z.record(z.string(), z.number()),
+  history: z.array(PaperHistoryEntrySchema),
+  lastTickAt: z.string(),
+  openOrders: z.array(OpenOrderSchema),
+});
+
+const PaperStateAnySchema = z.discriminatedUnion("version", [PaperStateSchemaV1, PaperStateSchema]);
+
 export type PaperState = z.infer<typeof PaperStateSchema>;
 export type PaperHistoryEntry = z.infer<typeof PaperHistoryEntrySchema>;
+export type OpenOrder = z.infer<typeof OpenOrderSchema>;
 
 // bitbank 公称テイカー手数料 0.12%
 // 出典: https://bitbank.cc/docs/fees/
@@ -50,15 +75,56 @@ export function genId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
+function migrateToV2(parsed: z.infer<typeof PaperStateAnySchema>): PaperState {
+  if (parsed.version === 2) return parsed;
+  return {
+    version: 2,
+    createdAt: parsed.createdAt,
+    updatedAt: parsed.updatedAt,
+    initialJpy: parsed.initialJpy,
+    balances: parsed.balances,
+    history: parsed.history,
+    lastTickAt: parsed.updatedAt,
+    openOrders: [],
+  };
+}
+
+export function computeLocked(
+  state: PaperState,
+  feeRate: number = DEFAULT_TAKER_FEE_RATE,
+): Record<string, number> {
+  const locked: Record<string, number> = {};
+  for (const o of state.openOrders) {
+    const [base, quote] = o.pair.split("_");
+    if (o.side === "buy") {
+      const cost = o.price * o.amount * (1 + feeRate);
+      locked[quote] = (locked[quote] ?? 0) + cost;
+    } else {
+      locked[base] = (locked[base] ?? 0) + o.amount;
+    }
+  }
+  return locked;
+}
+
+export function availableOf(
+  state: PaperState,
+  asset: string,
+  feeRate: number = DEFAULT_TAKER_FEE_RATE,
+): number {
+  const total = state.balances[asset] ?? 0;
+  const locked = computeLocked(state, feeRate)[asset] ?? 0;
+  return total - locked;
+}
+
 export async function loadState(path = defaultStatePath()): Promise<Result<PaperState | null>> {
   try {
     const buf = await readFile(path, "utf-8");
     const json = JSON.parse(buf) as unknown;
-    const parsed = PaperStateSchema.safeParse(json);
+    const parsed = PaperStateAnySchema.safeParse(json);
     if (!parsed.success) {
       return { success: false, error: `Invalid paper state: ${parsed.error.message}` };
     }
-    return { success: true, data: parsed.data };
+    return { success: true, data: migrateToV2(parsed.data) };
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") {
       return { success: true, data: null };

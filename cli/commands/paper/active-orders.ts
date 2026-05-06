@@ -1,17 +1,17 @@
 import { type FetchCandles, runTick } from "../../paper-fill.js";
-import { type PaperHistoryEntry, defaultStatePath, loadState } from "../../paper-state.js";
+import { type OpenOrder, defaultStatePath, loadState } from "../../paper-state.js";
 import type { Result } from "../../types.js";
 
-export type PaperTradeHistoryArgs = {
+export type PaperActiveOrdersArgs = {
   statePath?: string;
   fetchCandles?: FetchCandles;
   nowMs?: number;
   feeRate?: number;
 };
 
-export async function paperTradeHistory(
-  args: PaperTradeHistoryArgs = {},
-): Promise<Result<PaperHistoryEntry[]>> {
+export async function paperActiveOrders(
+  args: PaperActiveOrdersArgs = {},
+): Promise<Result<OpenOrder[]>> {
   const path = args.statePath ?? defaultStatePath();
   const tick = await runTick({
     statePath: path,
@@ -28,5 +28,5 @@ export async function paperTradeHistory(
       error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
     };
   }
-  return { success: true, data: r.data.history };
+  return { success: true, data: r.data.openOrders };
 }
