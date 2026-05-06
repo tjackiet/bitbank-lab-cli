@@ -86,6 +86,7 @@ describe("computePnl: weighted-average cost basis", () => {
       history: [entry("btc_jpy", "buy", 2, 100, 0), entry("btc_jpy", "sell", 1, 150, 5)],
       tickerByPair: { btc_jpy: 150 },
     });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     const row = r.data.perPair.btc_jpy;
     // realized = (150 - 100) * 1 - 5 = 45
@@ -98,6 +99,7 @@ describe("computePnl: weighted-average cost basis", () => {
 
   it("buy fee is included in avgCost via per-unit fee", () => {
     const r = computePositions([entry("btc_jpy", "buy", 4, 100, 8)]);
+    expect(r.success).toBe(true);
     if (!r.success) return;
     // perUnitFee = 8/4 = 2 → avgCost = 100 + 2 = 102
     expect(r.data.btc_jpy.avgCost).toBeCloseTo(102, 9);
@@ -108,6 +110,7 @@ describe("computePnl: weighted-average cost basis", () => {
       history: [entry("btc_jpy", "buy", 2, 100, 0)],
       tickerByPair: { btc_jpy: 150 },
     });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.data.perPair.btc_jpy.unrealizedPnl).toBeCloseTo(100, 9);
   });
@@ -117,6 +120,7 @@ describe("computePnl: weighted-average cost basis", () => {
       history: [entry("btc_jpy", "buy", 1, 100, 0), entry("eth_jpy", "buy", 2, 50, 0)],
       tickerByPair: { btc_jpy: 200, eth_jpy: 60 },
     });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     // btc unrealized = (200-100)*1 = 100; eth = (60-50)*2 = 20
     expect(r.data.total.unrealizedPnl).toBeCloseTo(120, 9);
@@ -129,6 +133,7 @@ describe("computePnl: weighted-average cost basis", () => {
       history: [entry("btc_jpy", "buy", 1, 100, 0), entry("btc_jpy", "sell", 1, 100, 0)],
       tickerByPair: { btc_jpy: 100 },
     });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     expect(Object.keys(r.data.perPair)).not.toContain("btc_jpy");
   });
@@ -138,6 +143,7 @@ describe("computePnl: weighted-average cost basis", () => {
       history: [entry("btc_jpy", "buy", 1, 100, 0), entry("btc_jpy", "sell", 1, 200, 0)],
       tickerByPair: { btc_jpy: 200 },
     });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.data.perPair.btc_jpy).toBeDefined();
     expect(r.data.perPair.btc_jpy.position).toBe(0);
@@ -152,6 +158,7 @@ describe("computePnl: weighted-average cost basis", () => {
       entry("btc_jpy", "sell", 1, 100, 0),
       entry("btc_jpy", "buy", 1, 200, 0),
     ]);
+    expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.data.btc_jpy.position).toBe(1);
     // After full sell, avgCost stays at 100; new buy on position 0 -> avgCost = 200.
@@ -167,6 +174,7 @@ describe("computePnl: weighted-average cost basis", () => {
 
   it("empty history → empty perPair and zero totals", () => {
     const r = computePnl({ history: [], tickerByPair: {} });
+    expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.data.perPair).toEqual({});
     expect(r.data.total).toEqual({ realizedPnl: 0, unrealizedPnl: 0, totalPnl: 0 });
