@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXIT } from "../../exit-codes.js";
 import { type FetchCandles, type TickResult, runTick } from "../../paper-fill.js";
 import type { Result } from "../../types.js";
 import { PairSchema } from "../../validators.js";
@@ -16,7 +17,11 @@ export type PaperTickArgs = {
 export async function paperTick(args: PaperTickArgs = {}): Promise<Result<TickResult>> {
   const parsed = InputSchema.safeParse({ pair: args.pair });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+    return {
+      success: false,
+      error: parsed.error.issues.map((i) => i.message).join("; "),
+      exitCode: EXIT.PARAM,
+    };
   }
   return runTick({
     statePath: args.statePath,

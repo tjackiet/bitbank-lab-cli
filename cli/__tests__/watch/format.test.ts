@@ -51,4 +51,10 @@ describe("watch format", () => {
     expect(writes[1]).toContain("last=105");
     expect(writes[1]).toContain("@10:00:00");
   });
+
+  it("formatJsonl throws on circular payloads", () => {
+    const circular: Record<string, unknown> = { ...sample };
+    circular.self = circular;
+    expect(() => formatJsonl(circular as unknown as TickerData)).toThrow();
+  });
 });

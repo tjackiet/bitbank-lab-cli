@@ -221,9 +221,12 @@ npx bitbank watch ticker btc_jpy --duration=10 --format=json | jq -r '.last'
 
 - 終了条件: `--duration=<秒>` / `--count=<n>` / SIGINT
 - 切断時は指数バックオフで自動再接続（1, 2, 4, 8, 16, 32, 32...）。
-  上限は `--max-retries=<n>`、上限到達時は exit code 5
+  上限は `--max-retries=<n>`、上限到達時は `EXIT.NETWORK`（exit code 5）
 - 無音検出は `--idle-timeout=<秒>`（既定 30）で発火し再接続フローへ
 - depth / transactions など他チャネルは MVP 対象外（`bitbank stream` を使う）
+
+Exit code は `cli/exit-codes.ts` の `EXIT` 定数で定義: `SUCCESS`(0) /
+`GENERAL`(1) / `AUTH`(2) / `RATE_LIMIT`(3) / `PARAM`(4) / `NETWORK`(5)。
 
 ## 出力フォーマット
 

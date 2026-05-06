@@ -2,6 +2,7 @@
 // fetch + 即時 fill、指値は openOrders へ積むだけ + 残高ロック検証 + lazy
 // tick で過去ギャップを解消。
 import { z } from "zod";
+import { EXIT } from "../../exit-codes.js";
 import type { HttpOptions } from "../../http.js";
 import { type FetchCandles, runTick } from "../../paper-fill.js";
 import {
@@ -69,7 +70,11 @@ export async function paperCreateOrder(
     price: args.price,
   });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+    return {
+      success: false,
+      error: parsed.error.issues.map((i) => i.message).join("; "),
+      exitCode: EXIT.PARAM,
+    };
   }
   const path = args.statePath ?? defaultStatePath();
   const tick = await runTick({

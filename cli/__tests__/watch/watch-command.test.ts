@@ -1,3 +1,4 @@
+// 100行超: watch CLI フラグ/出口分岐を網羅
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { watchCommand } from "../../commands/watch/index.js";
 import { EXIT } from "../../exit-codes.js";
@@ -36,6 +37,7 @@ describe("watchCommand", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     process.removeAllListeners("SIGINT");
     process.removeAllListeners("SIGTERM");
   });

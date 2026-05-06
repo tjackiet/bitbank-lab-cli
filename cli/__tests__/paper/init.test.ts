@@ -3,6 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { paperInit } from "../../commands/paper/init.js";
+import { EXIT } from "../../exit-codes.js";
 
 let dir: string;
 let statePath: string;
@@ -34,6 +35,13 @@ describe("paper init", () => {
   it("rejects non-positive jpy", async () => {
     const r = await paperInit({ jpy: "0", statePath });
     expect(r.success).toBe(false);
+    if (!r.success) expect(r.exitCode).toBe(EXIT.PARAM);
+  });
+
+  it("rejects negative jpy", async () => {
+    const r = await paperInit({ jpy: "-1", statePath });
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.exitCode).toBe(EXIT.PARAM);
   });
 
   it("refuses to overwrite existing state without --force", async () => {
