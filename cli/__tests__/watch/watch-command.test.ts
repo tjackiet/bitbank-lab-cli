@@ -37,6 +37,7 @@ describe("watchCommand", () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => {
     vi.useRealTimers();
+    vi.restoreAllMocks();
     process.removeAllListeners("SIGINT");
     process.removeAllListeners("SIGTERM");
   });

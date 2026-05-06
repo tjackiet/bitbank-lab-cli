@@ -40,6 +40,21 @@ describe("parseTicker", () => {
     const t = parseTicker("btc_jpy", { last: "100" });
     expect(t.ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
   });
+
+  it("coerces missing/null fields to empty strings without throwing", () => {
+    const t = parseTicker("btc_jpy", {});
+    expect(t.last).toBe("");
+    expect(t.bid).toBe("");
+    expect(t.ask).toBe("");
+    expect(t.ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
+
+  it("coerces non-string numeric fields to strings", () => {
+    const t = parseTicker("btc_jpy", { last: 123, buy: null, timestamp: "bad" });
+    expect(t.last).toBe("123");
+    expect(t.bid).toBe("");
+    expect(t.ts).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  });
 });
 
 describe("startTickerSocket", () => {
@@ -71,6 +86,19 @@ describe("startTickerSocket", () => {
     expect(onTicker).toHaveBeenCalledWith(
       expect.objectContaining({ pair: "btc_jpy", last: "200" }),
     );
+  });
+
+  it("ignores malformed messages without throwing", () => {
+    const { socket, listeners } = makeMockSocket();
+    const onTicker = vi.fn();
+    startTickerSocket(
+      "btc_jpy",
+      { onConnect: vi.fn(), onTicker, onDisconnect: vi.fn() },
+      factoryFor(socket),
+    );
+    expect(() => listeners.message?.({ room_name: "ticker_btc_jpy" })).not.toThrow();
+    expect(() => listeners.message?.({ room_name: "ticker_btc_jpy", message: {} })).not.toThrow();
+    expect(onTicker).not.toHaveBeenCalled();
   });
 
   it("ignores messages for other rooms", () => {
