@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXIT } from "../../exit-codes.js";
 import { type FetchCandles, runTick } from "../../paper-fill.js";
 import {
   type OpenOrder,
@@ -25,7 +26,11 @@ export async function paperCancelOrder(
 ): Promise<Result<{ canceled: OpenOrder }>> {
   const parsed = InputSchema.safeParse({ id: args.id });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+    return {
+      success: false,
+      error: parsed.error.issues.map((i) => i.message).join("; "),
+      exitCode: EXIT.PARAM,
+    };
   }
   const path = args.statePath ?? defaultStatePath();
   // 価格に触れていれば cancel より fill を優先する（先に lazy tick で解決）。

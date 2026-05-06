@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { paperCreateOrder } from "../../commands/paper/create-order.js";
 import { paperInit } from "../../commands/paper/init.js";
+import { EXIT } from "../../exit-codes.js";
 import { mockFetchData } from "../test-helpers.js";
 
 const tickerOf = (last: string) =>
@@ -112,6 +113,44 @@ describe("paper create-order", () => {
     expect(raw.history[0].pair).toBe("btc_jpy");
     expect(raw.history[0].fillPrice).toBe(5000000);
     expect(existsSync(statePath)).toBe(true);
+  });
+
+  it("rejects --amount=0 with PARAM exit code", async () => {
+    await paperInit({ jpy: "1000000", statePath });
+    const r = await paperCreateOrder(
+      { pair: "btc_jpy", side: "buy", type: "market", amount: "0", feeRate: 0, statePath },
+      { fetch: tickerOf("5000000"), retries: 0 },
+    );
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.exitCode).toBe(EXIT.PARAM);
+  });
+
+  it("rejects negative --amount with PARAM exit code", async () => {
+    await paperInit({ jpy: "1000000", statePath });
+    const r = await paperCreateOrder(
+      { pair: "btc_jpy", side: "buy", type: "market", amount: "-1", feeRate: 0, statePath },
+      { fetch: tickerOf("5000000"), retries: 0 },
+    );
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.exitCode).toBe(EXIT.PARAM);
+  });
+
+  it("rejects --price=0 on limit orders with PARAM exit code", async () => {
+    await paperInit({ jpy: "1000000", statePath });
+    const r = await paperCreateOrder(
+      {
+        pair: "btc_jpy",
+        side: "buy",
+        type: "limit",
+        amount: "0.001",
+        price: "0",
+        feeRate: 0,
+        statePath,
+      },
+      { fetch: tickerOf("5000000"), retries: 0 },
+    );
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.exitCode).toBe(EXIT.PARAM);
   });
 
   it("applies taker fee to buy cost", async () => {

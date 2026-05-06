@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { EXIT } from "../../exit-codes.js";
 import {
   type PaperState,
   defaultStatePath,
@@ -23,7 +24,11 @@ export type PaperInitArgs = {
 export async function paperInit(args: PaperInitArgs): Promise<Result<PaperState>> {
   const parsed = InitInputSchema.safeParse({ jpy: args.jpy, force: args.force });
   if (!parsed.success) {
-    return { success: false, error: parsed.error.issues.map((i) => i.message).join("; ") };
+    return {
+      success: false,
+      error: parsed.error.issues.map((i) => i.message).join("; "),
+      exitCode: EXIT.PARAM,
+    };
   }
   const path = args.statePath ?? defaultStatePath();
   const existing = await loadState(path);
