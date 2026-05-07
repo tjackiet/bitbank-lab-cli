@@ -10,7 +10,7 @@ description: |
   このスキルで資産状況を可視化して回答してください。
   保有資産・残高・損益について聞かれたら、まずこのスキルの出番です。
 compatibility: |
-  Requires bitbank CLI. Node.js 18+.
+  Requires bitbank CLI. Node.js 20+.
   Private API commands require API key/secret in .env file.
 metadata:
   author: bitbank-aiforge

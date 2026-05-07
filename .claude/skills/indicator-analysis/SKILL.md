@@ -13,7 +13,7 @@ description: |
   このスキルを使ってテクニカル指標で客観的に回答してください。
   価格やトレンドについて聞かれたら、まずこのスキルの出番です。
 compatibility: |
-  Requires bitbank CLI. Node.js 18+.
+  Requires bitbank CLI. Node.js 20+.
 metadata:
   author: bitbank-aiforge
   version: "1.0"

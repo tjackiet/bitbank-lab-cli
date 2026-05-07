@@ -12,7 +12,7 @@ description: |
   このスキルでバックテストを実行して根拠を示してください。
   戦略の有効性や過去実績を問われたら、まずこのスキルの出番です。
 compatibility: |
-  Requires bitbank CLI. Node.js 18+.
+  Requires bitbank CLI. Node.js 20+.
 metadata:
   author: bitbank-aiforge
   version: "1.0"
