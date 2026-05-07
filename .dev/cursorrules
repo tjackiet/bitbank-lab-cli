@@ -87,7 +87,7 @@ trade コマンドの変更時に重点確認:
 paper コマンドの変更時:
 
 - `paper reset` に `--confirm` ガードがあるか（state の誤削除防止）
-- 実 API を叩いていないか（public ticker のみ）
+- 実 API を叩いていないか（public ticker / 1m candles のみ）
 - state ファイル（`~/.bitbank/paper-state.json` または `$XDG_DATA_HOME/bitbank/paper-state.json`）の atomic write が保たれているか
 
 profile コマンドの変更時:
@@ -191,9 +191,9 @@ cli/commands/trade/dry-run.ts  — ドライラン出力
 cli/http.ts                    — Public HTTP ヘルパー
 cli/http-private.ts            — Private GET ヘルパー（HMAC 認証）
 cli/http-private-post.ts       — Private POST ヘルパー（HMAC 認証）
-cli/paper-fill.ts / paper-pnl.ts / paper-state.ts
+cli/paper-fill.ts / cli/paper-pnl.ts / cli/paper-state.ts
                                — Paper の状態管理・約定解決ロジック
-cli/profiles-mutate.ts / profiles-resolver.ts / profiles-store.ts
+cli/profiles-mutate.ts / cli/profiles-resolver.ts / cli/profiles-store.ts
                                — Profile の永続化と解決
 cli/__tests__/                 — テスト
 cli/__tests__/chaos/           — chaos テスト（規約検証）
