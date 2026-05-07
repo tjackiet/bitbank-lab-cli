@@ -38,6 +38,9 @@ git log --oneline --merges -5
 | `cli/commands/public/<name>.ts` | `cli/__tests__/<name>.test.ts`, `cli/commands/public-handlers.ts` への登録, `cli/commands/schema/defs-public-*.ts` |
 | `cli/commands/private/<name>.ts` | `cli/__tests__/<name>.test.ts`, `cli/commands/private-handlers.ts` への登録, `cli/commands/schema/defs-private-*.ts` |
 | `cli/commands/trade/<name>.ts` | `cli/__tests__/trade/<name>.test.ts`, `cli/commands/trade-handlers.ts` への登録, `cli/commands/schema/defs-trade.ts`, `cli/commands/trade/dry-run.ts` |
+| `cli/commands/paper/<name>.ts` | `cli/__tests__/paper/<name>.test.ts`, `cli/commands/paper-handlers.ts` への登録, `cli/commands/schema/` の paper 関連 defs（あれば）, `cli/paper-fill.ts` / `cli/paper-pnl.ts` / `cli/paper-state.ts` の状態管理ロジック |
+| `cli/commands/profile/<name>.ts` | `cli/__tests__/profile/<name>.test.ts`, `cli/commands/profile-handlers.ts` への登録, `cli/profiles-mutate.ts` / `cli/profiles-resolver.ts` / `cli/profiles-store.ts` |
+| `cli/commands/watch/<name>.ts` | `cli/__tests__/watch/<name>.test.ts`, `cli/commands/watch-handler.ts` への登録 |
 | `cli/commands/schema/*.ts` | 利用側のコマンドファイル, `cli/commands/shared-schemas.ts` |
 | `cli/commands/stream/*.ts` | `cli/__tests__/stream/<name>.test.ts`, `cli/commands/stream-handler.ts` |
 | `cli/http*.ts` | `cli/__tests__/http*.test.ts`, 利用側のコマンド |
@@ -66,9 +69,11 @@ git log --oneline --merges -5
 
 ### 2. コマンド分類の妥当性
 
-- public / private / trade の分類が正しいか（`.claude/rules/commands.md` 参照）
+- public / private / trade / paper / profile / meta の分類が正しいか（`.claude/rules/commands.md` 参照）
 - private コマンドが認証ヘルパー（`cli/http-private.ts` / `cli/http-private-post.ts`）を使っているか
 - trade コマンドが `--execute` ガードを実装しているか（`.claude/rules/trading-safety.md` 参照）
+- paper コマンドが実 API（private/trade）を叩いていないか確認（public ticker / 1m candles のみ許可）
+- profile コマンドが API を叩いていないか確認（profiles.json の管理のみ）
 
 ### 3. 取引安全ガードの遵守
 
@@ -78,6 +83,18 @@ trade コマンドの変更時に重点確認:
 - ドライランメッセージが表示されるか
 - withdraw の場合、`--confirm` による追加ガードがあるか
 - テストでドライランのデフォルト動作を検証しているか
+
+paper コマンドの変更時:
+
+- `paper reset` に `--confirm` ガードがあるか（state の誤削除防止）
+- 実 API を叩いていないか（public ticker のみ）
+- state ファイル（`~/.bitbank/paper-state.json` または `$XDG_DATA_HOME/bitbank/paper-state.json`）の atomic write が保たれているか
+
+profile コマンドの変更時:
+
+- `profile remove` に `--confirm` ガードがあるか
+- secret が CLI flag で受け取れないこと（shell 履歴に残るため）
+- profiles.json が 0600 で atomic write されているか
 
 ### 4. セキュリティポリシー遵守
 
@@ -151,9 +168,13 @@ private / trade コマンドの変更時に確認:
 
 ```
 cli/index.ts                   — CLI エントリポイント
+cli/router.ts                  — サブコマンドルーター（meta コマンドの handleSpecialCommand を含む）
 cli/commands/public/<name>.ts  — Public コマンド（認証不要、マーケットデータ）
 cli/commands/private/<name>.ts — Private コマンド（認証必要、アカウント情報）
 cli/commands/trade/<name>.ts   — Trade コマンド（認証必要、資金影響あり）
+cli/commands/paper/<name>.ts   — Paper コマンド（仮想資金 × ライブ価格）
+cli/commands/profile/<name>.ts — Profile コマンド（API キー切替）
+cli/commands/watch/<name>.ts   — WebSocket watch コマンド
 cli/commands/stream/           — WebSocket ストリーミングコマンド
 cli/commands/schema/           — Zod スキーマ定義（型の単一ソース）
 cli/commands/*-handlers.ts     — カテゴリ別ハンドラ集約
@@ -162,6 +183,10 @@ cli/commands/trade/dry-run.ts  — ドライラン出力
 cli/http.ts                    — Public HTTP ヘルパー
 cli/http-private.ts            — Private GET ヘルパー（HMAC 認証）
 cli/http-private-post.ts       — Private POST ヘルパー（HMAC 認証）
+cli/paper-fill.ts / paper-pnl.ts / paper-state.ts
+                               — Paper の状態管理・約定解決ロジック
+cli/profiles-mutate.ts / profiles-resolver.ts / profiles-store.ts
+                               — Profile の永続化と解決
 cli/__tests__/                 — テスト
 cli/__tests__/chaos/           — chaos テスト（規約検証）
 .claude/rules/                 — Claude Code 向けルールファイル
