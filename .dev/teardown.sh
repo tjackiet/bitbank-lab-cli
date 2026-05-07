@@ -8,4 +8,5 @@ cd "$REPO_ROOT"
 rm -f .claude/settings.json
 rm -f .claude/hooks/*.sh
 rmdir .claude/hooks 2>/dev/null || true
+rm -f .cursorrules
 echo "✅ symlink を解除しました。"

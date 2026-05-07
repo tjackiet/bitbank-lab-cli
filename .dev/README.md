@@ -7,7 +7,8 @@ clone して CLI / Skills を使うだけのユーザーは無視してよい。
 
 - `hooks/` — Claude Code 用の品質ガード hook（lint / test / 設定保護）
 - `claude-settings.json` — 上記 hook を発火させる Claude Code 設定
-- `setup.sh` — `.claude/` 配下に symlink を張って hook を有効化
+- `cursorrules` — Cursor の評価担当用指示書（root に symlink される）
+- `setup.sh` — `.claude/` 配下と root に symlink を張って有効化
 - `teardown.sh` — symlink を外す
 
 ## セットアップ
@@ -29,3 +30,7 @@ Claude Code を立ち上げると hook が発火するようになる。
 **このリポジトリの開発時にだけ動いてほしい** ものなので、配布物に混ぜず
 `.dev/` に退避している（クローン者の Claude Code で Stop イベントごとに
 `npm test` が発火する事故を防ぐため）。
+
+`.cursorrules` も同じ理由で `.dev/cursorrules` を実体に置き、root には
+symlink として配置している。配布物には含まれないが、メンテナの編集は
+git で追えるようになっている。
