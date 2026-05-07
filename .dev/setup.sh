@@ -25,6 +25,14 @@ fi
 ln -s "../.dev/claude-settings.json" "$target"
 echo "linked: $target -> .dev/claude-settings.json"
 
+# .cursorrules を symlink で復元
+target=".cursorrules"
+if [ -L "$target" ] || [ -e "$target" ]; then
+  rm -f "$target"
+fi
+ln -s ".dev/cursorrules" "$target"
+echo "linked: $target -> .dev/cursorrules"
+
 echo ""
 echo "✅ 開発者用 hook と settings をリンクしました。"
-echo "   .claude/settings.json と .claude/hooks/ は .gitignore 済みです。"
+echo "   .claude/settings.json / .claude/hooks/ / .cursorrules は .gitignore 済みです。"
