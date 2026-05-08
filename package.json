@@ -8,8 +8,10 @@
   },
   "files": [
     "bin/",
-    "cli/",
-    "!cli/__tests__",
+    "cli/*.ts",
+    "cli/commands/",
+    "cli/completion/",
+    "cli/watch/",
     "skills/",
     "AGENTS.md",
     "CLAUDE.md",

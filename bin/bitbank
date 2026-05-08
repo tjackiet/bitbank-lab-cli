@@ -16,6 +16,10 @@ const tsxCli = require.resolve("tsx/cli");
 const child = spawn(process.execPath, [tsxCli, entry, ...process.argv.slice(2)], {
   stdio: "inherit",
 });
+child.on("error", (err) => {
+  process.stderr.write(`bitbank: failed to start tsx: ${err.message}\n`);
+  process.exit(1);
+});
 child.on("exit", (code, signal) => {
   if (signal) process.kill(process.pid, signal);
   else process.exit(code ?? 0);
