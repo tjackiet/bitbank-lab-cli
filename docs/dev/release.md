@@ -43,6 +43,9 @@ provenance 表示が無くなる点に注意。
    environment は空でよい
 3. アカウント側で 2FA を `auth-and-writes` に設定（手動 publish 時の保険）
 
+その他のリポジトリ側初回設定（branch protection / private vulnerability
+reporting 等）は [`repo-security.md`](repo-security.md) を参照。
+
 `patch` / `minor` / `major` は SemVer に従う。0.x は SemVer 上 minor で
 breaking 可なので初期改修は `npm version patch` で増やしていく。
 
