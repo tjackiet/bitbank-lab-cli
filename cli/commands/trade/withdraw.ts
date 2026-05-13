@@ -37,12 +37,9 @@ const AccountSchema = z.object({
 const AccountsResponseSchema = z.object({ accounts: z.array(AccountSchema) });
 
 export type WithdrawResponse = z.infer<typeof WithdrawResponseSchema>;
+type WithdrawInput = z.infer<typeof WithdrawInputSchema>;
 
-export type WithdrawArgs = {
-  asset?: string;
-  to?: string;
-  amount?: string;
-  token?: string;
+export type WithdrawArgs = Partial<WithdrawInput> & {
   execute?: boolean;
   confirm?: boolean;
 };
