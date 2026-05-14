@@ -136,6 +136,13 @@ knowledge_base:
         - CHANGELOG.md: 公式 API の最近の変更で CLI 側が追随すべき項目が
           ないか。特に新規エンドポイント追加・既存パラメータの仕様変更。
 
-        HMAC-SHA256 署名対象文字列の構築仕様 (ACCESS-NONCE + request_path +
-        query / body) は cli/auth.ts の実装と rest-api.md の認証セクションを
-        照合すること。
+        HMAC-SHA256 署名と認証ヘッダは rest-api.md の認証セクションを
+        cli/auth.ts と照合すること。現状の CLI 実装は ACCESS-NONCE 方式
+        (signature = HMAC(nonce + /v1 + path + queryString) / HMAC(nonce + body))
+        のみを用い、ACCESS-TIME-WINDOW は固定値 "5000" を付加ヘッダとして
+        送出している。公式 docs に別方式 (ACCESS-REQUEST-TIME +
+        ACCESS-TIME-WINDOW を署名対象に含める方式など) の記述があれば、
+        その差分・移行要否を指摘すること。
+        併せて以下も確認: GET の連結順序 (nonce + /v1 + path + query) /
+        POST の連結順序 (nonce + body) / 必須ヘッダ (ACCESS-KEY /
+        ACCESS-SIGNATURE / ACCESS-NONCE / ACCESS-TIME-WINDOW)。
