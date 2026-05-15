@@ -1,0 +1,8 @@
+{
+  "$schema": "https://code.claude.com/schemas/marketplace.json",
+  "version": "1.0",
+  "name": "bitbank-cli-skills",
+  "plugins": [
+    { "name": "bitbank-cli-skills", "source": "." }
+  ]
+}
