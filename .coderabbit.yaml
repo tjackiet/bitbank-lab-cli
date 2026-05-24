@@ -19,7 +19,7 @@ reviews:
 
     ## Category
     Show all that apply:
-    - 🔒 Security (cli/auth*, cli/http-private*, cli/profile*, cli/withdrawal-allowlist*)
+    - 🔒 Security (cli/auth*, cli/http-private*, cli/profile*)
     - 💰 Trade (cli/commands/trade/**)
     - 🧪 Paper (cli/commands/paper/**)
     - 🤖 Skill (skills/**)
@@ -77,12 +77,6 @@ reviews:
         - エラーパスで API を叩いていないか
         - 失敗時に副作用が残らないか (POST は冪等でない前提)
 
-    - path: "cli/withdrawal-allowlist.ts"
-      instructions: |-
-        出金 allowlist。ラベル → UUID 解決は bitbank API 側 backstop に
-        依存している (.claude/rules/trading-safety.md 参照)。
-        ローカル改ざんで UUID 捏造ができない設計を崩していないかを確認。
-
     - path: "cli/profile*.ts"
       instructions: |-
         Credential 取扱い。0600 強制 / atomic write / process.env 非汚染、
@@ -98,7 +92,7 @@ reviews:
 
   labeling_instructions:
     - label: security
-      instructions: cli/auth*, cli/http-private*, cli/profile*, cli/withdrawal-allowlist* への変更
+      instructions: cli/auth*, cli/http-private*, cli/profile* への変更
     - label: trade
       instructions: cli/commands/trade/** への変更
     - label: paper
@@ -124,7 +118,7 @@ knowledge_base:
         - rest-api.md (Private REST API): cli/commands/private/** および
           cli/commands/trade/** の各コマンドが、公式仕様のエンドポイント・
           HTTP メソッド・パスパラメータ・リクエストボディの型と一致しているか。
-          特に create-order / cancel-order / cancel-orders / withdraw の
+          特に create-order / cancel-order / cancel-orders の
           引数バリデーション (price, amount, side, type, asset 等の型と必須性)。
         - public-api.md (Public API): cli/commands/public/** の ticker /
           depth / transactions / candles / pairs / circuit-break / status

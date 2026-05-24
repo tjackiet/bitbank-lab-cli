@@ -6,7 +6,7 @@
 |---------|------------|-------------|------|------|
 | public | `cli/commands/public/` | `bitbank <cmd>` | 不要 | 公開マーケットデータ（ticker, candles 等）。WebSocket 経由のライブ購読 `bitbank stream` / `bitbank watch <channel> <pair>` も同カテゴリ |
 | private | `cli/commands/private/` | `bitbank <cmd>` | 必要 | アカウント情報の読み取り（assets, orders 等） |
-| trade | `cli/commands/trade/` | `bitbank trade <cmd>` | 必要 | 資金に影響する操作（create-order, withdraw 等） |
+| trade | `cli/commands/trade/` | `bitbank trade <cmd>` | 必要 | 資金に影響する操作（create-order, cancel-order 等） |
 | paper | `cli/commands/paper/` | `bitbank paper <cmd>` | 不要 | 仮想資金での練習用（ライブ価格 × ローカル state、実 API は public ticker のみ） |
 | profile | `cli/commands/profile/` | `bitbank profile <cmd>` | 不要 | API キー切替用プロファイル管理（`profiles.json` 0600 / atomic write、API は叩かない） |
 | meta | （登録なし、`router.ts` の `handleSpecialCommand` で振り分け） | `bitbank <cmd>` | 不要 | API を叩かないユーティリティ（`schema`, `profiles`, `completion`） |

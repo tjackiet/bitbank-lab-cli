@@ -7,6 +7,10 @@
 
 ### Breaking Changes
 
+- `trade withdraw` コマンドを削除。出金機能は bitbank Web UI / アプリで行うこと。
+  関連して `cli/withdrawal-allowlist.ts` および
+  `~/.bitbank/withdrawal-allowlist.json` も削除（allowlist は withdraw 専用だったため）。
+  セキュリティ強化の一環。
 - `trade withdraw` の出金先指定方法を変更。`--uuid=<UUID>` を **廃止** し、
   `--to=<bitbank ラベル>` を必須化。あわせてローカル allowlist
   (`~/.bitbank/withdrawal-allowlist.json`) を導入し、allowlist に登録された
