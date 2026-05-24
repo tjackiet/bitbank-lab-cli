@@ -20,6 +20,8 @@
     "README.md"
   ],
   "scripts": {
+    "cli": "tsx cli/index.ts",
+    "cli:env": "tsx --env-file=.env cli/index.ts",
     "test": "vitest",
     "lint": "biome check cli/",
     "lint:fix": "biome check --fix cli/",

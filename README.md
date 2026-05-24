@@ -154,6 +154,14 @@ npx tsx cli/index.ts ticker btc_jpy
 npx tsx --env-file=.env cli/index.ts assets
 ```
 
+毎回 `npx tsx ...` を打つのが手間なら、`npm run` の短縮 alias も使えます（`--` 以降が CLI 引数）。
+
+```bash
+npm run cli -- ticker btc_jpy
+# Private API（.env を読み込む版）
+npm run cli:env -- assets
+```
+
 ## セットアップ
 
 ### 1. インストール
