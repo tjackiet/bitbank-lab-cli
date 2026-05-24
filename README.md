@@ -377,6 +377,42 @@ bitbank watch ticker btc_jpy --duration=10 --format=json | jq -r '.last'
 Exit code は `cli/exit-codes.ts` の `EXIT` 定数で定義: `SUCCESS`(0) /
 `GENERAL`(1) / `AUTH`(2) / `RATE_LIMIT`(3) / `PARAM`(4) / `NETWORK`(5)。
 
+## Troubleshooting
+
+初回セットアップで踏みやすい事象とその対処。
+
+### `bitbank: command not found`
+
+CLI がグローバルインストールされていない、または `npm i -g` 後に PATH へ
+反映されていない可能性。`npm i -g bitbank-lab-cli` でインストールするか、
+クローン済み環境では [クイックスタート](#クイックスタート) のフォールバック
+手順（`npx tsx cli/index.ts ...`）で代替できます。
+
+### `BITBANK API credentials are not configured` 系のエラー
+
+Private API / Trade コマンドは認証情報が必要です。`bitbank profile add`
+でプロファイルを登録するか、`BITBANK_API_KEY` / `BITBANK_API_SECRET` env
+を設定してください。詳細は [セットアップ](#セットアップ) の
+「API キーを設定する」節を参照。
+
+### `npm test` が `sh: 1: vitest: not found` で落ちる
+
+依存パッケージが入っていません。クローン直後は先に `npm ci` を実行して
+ください（`CLAUDE.md` のコマンド節とも整合）。
+
+### HTTP 429 / レートリミット
+
+bitbank API のレートリミットに到達すると CLI は exit code 3
+（`EXIT.RATE_LIMIT`）で終了します。API エラーコードと exit code の
+マッピングは `cli/error-codes.ts` を参照。
+
+### WebSocket が突然切れる / 再接続を繰り返す
+
+`bitbank watch ticker` は指数バックオフで自動再接続し、無音検出で
+再接続フローへ入ります。挙動とオプションの詳細は
+[ライブ価格 watch（WebSocket ticker）](#ライブ価格-watchwebsocket-ticker)
+を参照してください。
+
 ## 出力フォーマット
 
 全コマンドで `--format` オプションが使えます:
