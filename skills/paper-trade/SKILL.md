@@ -141,7 +141,7 @@ bitbank paper cancel-order --id=<id> --format=json
 bitbank paper reset --confirm --format=json
 ```
 
-`--confirm` なしでは Err。実発注の `withdraw` と同じ思想で誤爆を防ぐ。
+`--confirm` なしでは Err。実発注の `create-order` と同じく誤爆を防ぐ思想。
 
 ## 出力フォーマット
 

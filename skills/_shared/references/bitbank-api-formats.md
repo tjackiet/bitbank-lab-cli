@@ -17,7 +17,7 @@ bitbank 公開 API ドキュメント（`rest-api.md` 等）上の整理:
 
 **CLI 側（`cli/validators.ts` の `UuidSchema`）:** RFC 4122 形式（`8-4-4-4-12` の hex）に **厳格マッチ**。ドキュメントの「string のみ」とは形式上ずれるが、**公式例はすべて当該形式を意図しており、齟齬は実質ない**と判断してよい。
 
-**運用上の前提:** ユーザーが UUID を手組みする想定ではなく、`withdrawal-accounts` 等で取得した値を `trade withdraw --uuid=...` にそのまま渡す **ラウンドトリップ** が前提。サーバが上記形式を返す限り、CLI の strict 検証による **false-reject は構造的に起きにくい**。bitbank 側が形式を変更した場合は `validators.ts` を見直す。
+**運用上の前提:** ユーザーが UUID を手組みする想定ではなく、`withdrawal-accounts` / `withdrawal-history` などのレスポンスとして返ってきた値を CLI 側で読み取る **ラウンドトリップ** が前提。サーバが上記形式を返す限り、CLI の strict 検証による **false-reject は構造的に起きにくい**。bitbank 側が形式を変更した場合は `validators.ts` を見直す。
 
 ## candles コマンド
 
