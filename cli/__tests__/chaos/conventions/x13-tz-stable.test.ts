@@ -42,7 +42,18 @@ describe("Chaos X-13: date utilities are TZ-stable (JST 固定)", () => {
   });
 
   it("todayDate and isCompletePeriod are identical under TZ=UTC and TZ=Asia/Tokyo", () => {
+    // 子プロセスを 2 回 spawn する間に JST 日付境界をまたぐと todayDate が
+    // ズレて flake する。Date.now() / new Date() を REGRESSION_MS に固定して回避。
     const code = [
+      `const FIXED = ${REGRESSION_MS};`,
+      "const RealDate = Date;",
+      "globalThis.Date = class extends RealDate {",
+      "  constructor(...args) {",
+      "    if (args.length === 0) { super(FIXED); return; }",
+      "    super(...args);",
+      "  }",
+      "  static now() { return FIXED; }",
+      "};",
       "Promise.all([import('./cli/date-utils.ts'), import('./cli/cache.ts')]).then(([d, c]) =>",
       "process.stdout.write(JSON.stringify({",
       "today1h: d.todayDate('1hour'),",
@@ -56,6 +67,10 @@ describe("Chaos X-13: date utilities are TZ-stable (JST 固定)", () => {
     const utc = runUnderTz("UTC", code);
     const jst = runUnderTz("Asia/Tokyo", code);
     expect(utc).toBe(jst);
+    // FIXED = 2026-01-01T22:00Z = JST 2026-01-02 07:00 で計算される値
+    const parsed = JSON.parse(utc);
+    expect(parsed.today1h).toBe("20260102");
+    expect(parsed.today1d).toBe("2026");
   });
 
   it("todayDate and isCompletePeriod are callable in-process (sanity)", () => {
