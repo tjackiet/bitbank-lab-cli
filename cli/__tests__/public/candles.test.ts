@@ -295,6 +295,35 @@ describe("candles auto-merge", () => {
     );
     expect(result.success).toBe(true);
     expect(callCount).toBe(101); // 1 initial + 100 older (HARD_MAX_SEGMENTS)
+    if (result.success) {
+      expect(result.partial).toBe(true);
+      expect(result.meta?.truncated).toBe(true);
+      expect(result.meta?.reason).toBe("HARD_MAX_SEGMENTS");
+      expect(result.meta?.requestedLimit).toBe(1_000_000);
+      expect(result.meta?.returnedRows).toBe(result.data.length);
+    }
+  });
+
+  it("does not set truncated meta when limit fits within HARD_MAX_SEGMENTS", async () => {
+    const dayData = {
+      candlestick: [
+        {
+          type: "1hour",
+          ohlcv: Array.from({ length: 24 }, (_, i) => ["100", "110", "90", "105", "50", 1000 + i]),
+        },
+      ],
+    };
+    const fetchHours: typeof globalThis.fetch = async () =>
+      new Response(JSON.stringify({ success: 1, data: dayData }));
+    const result = await candles(
+      { pair: "btc_jpy", type: "1hour", limit: 200, noCache: true },
+      { fetch: fetchHours, retries: 0 },
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.partial).toBeUndefined();
+      expect(result.meta?.truncated).toBeUndefined();
+    }
   });
 
   it("uses 366 (not 365) for segment count when starting year is leap (1day)", async () => {

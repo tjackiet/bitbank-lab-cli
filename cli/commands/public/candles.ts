@@ -50,7 +50,8 @@ async function fetchAutoMerge(
   const year = YEARLY_TYPES.has(type) ? Number(dateStr) : undefined;
   const perSegment = rowsPerSegment(type, year) || Math.max(firstData.length, 1);
   const remaining = Math.max(0, limit - firstData.length);
-  const needed = Math.min(Math.ceil(remaining / perSegment), HARD_MAX_SEGMENTS);
+  const idealNeeded = Math.ceil(remaining / perSegment);
+  const needed = Math.min(idealNeeded, HARD_MAX_SEGMENTS);
   if (needed === 0) return { success: true, data: firstData.slice(-limit) };
   const dates = olderDates(dateStr, type, needed);
   const olderChunks: Candle[][] = new Array(dates.length);
@@ -70,7 +71,21 @@ async function fetchAutoMerge(
   }
   const ordered = olderChunks.filter(Boolean).reverse();
   const allRows = ([] as Candle[]).concat(...ordered, firstData);
-  return { success: true, data: allRows.slice(-limit) };
+  const data = allRows.slice(-limit);
+  if (idealNeeded > HARD_MAX_SEGMENTS) {
+    return {
+      success: true,
+      data,
+      partial: true,
+      meta: {
+        truncated: true,
+        requestedLimit: limit,
+        returnedRows: data.length,
+        reason: "HARD_MAX_SEGMENTS",
+      },
+    };
+  }
+  return { success: true, data };
 }
 
 export async function candles(args: CandlesArgs, opts?: HttpOptions): Promise<Result<Candle[]>> {
