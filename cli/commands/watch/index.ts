@@ -35,8 +35,14 @@ export async function watchCommand(args: WatchArgs): Promise<Result<void>> {
       exitCode: EXIT.PARAM,
     };
   }
-  const info =
-    args.format === "table" ? await resolvePairInfo(args.pair, args.getPairs) : undefined;
+  let info: PairInfo | undefined;
+  if (args.format === "table") {
+    try {
+      info = await resolvePairInfo(args.pair, args.getPairs);
+    } catch {
+      info = undefined;
+    }
+  }
   return runWatch(args, args.pair, info);
 }
 
