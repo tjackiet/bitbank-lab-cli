@@ -23,8 +23,16 @@ const LEAP_BONUS: Record<string, number> = {
   "1day": 1,
 };
 
-function isLeapYear(y: number): boolean {
+export function isLeapYear(y: number): boolean {
   return (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+}
+
+const MONTH_DAYS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+
+/** 指定年月（month=1-12）の最終日。閏年の 2 月は 29。範囲外は 0。 */
+export function daysInMonth(year: number, month: number): number {
+  if (month < 1 || month > 12) return 0;
+  return month === 2 && isLeapYear(year) ? 29 : MONTH_DAYS[month - 1];
 }
 
 /**
