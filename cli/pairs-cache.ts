@@ -51,17 +51,22 @@ export function defaultPairsCachePath(): string {
 export async function loadPairsCache(
   path = defaultPairsCachePath(),
 ): Promise<Result<PairsCacheEntry | null>> {
+  let buf: string;
   try {
-    const buf = await readFile(path, "utf-8");
-    const parsed = PairsCacheSchema.safeParse(JSON.parse(buf));
-    if (!parsed.success) {
-      return { success: false, error: `Invalid pairs cache: ${parsed.error.message}` };
-    }
-    return { success: true, data: parsed.data };
+    buf = await readFile(path, "utf-8");
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === "ENOENT") return { success: true, data: null };
     const msg = e instanceof Error ? e.message : String(e);
     return { success: false, error: `Failed to read pairs cache: ${msg}` };
+  }
+  // JSON / Zod parse 失敗（破損 or 旧 schema）は cache miss として扱い、上位で再フェッチさせる。
+  // I/O エラーだけは黙って吞まずに上に返す。
+  try {
+    const parsed = PairsCacheSchema.safeParse(JSON.parse(buf));
+    if (!parsed.success) return { success: true, data: null };
+    return { success: true, data: parsed.data };
+  } catch {
+    return { success: true, data: null };
   }
 }
 

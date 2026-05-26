@@ -77,10 +77,42 @@ describe("pairs-cache: round-trip", () => {
     if (r.success) expect(r.data).toBe(null);
   });
 
-  it("rejects malformed cache file as error", async () => {
+  it("treats malformed JSON as cache miss (fallback to refetch)", async () => {
     writeFileSync(cachePath, "not json");
     const r = await loadPairsCache(cachePath);
-    expect(r.success).toBe(false);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data).toBe(null);
+  });
+
+  it("treats stale-schema cache as cache miss (fallback to refetch)", async () => {
+    // 旧 schema (*_fee_rate_base_quote) が手元に残っている前提
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 1,
+        fetchedAt: "2025-01-01T00:00:00.000Z",
+        pairs: [
+          {
+            name: "btc_jpy",
+            base_asset: "btc",
+            quote_asset: "jpy",
+            maker_fee_rate_base_quote: 0,
+            taker_fee_rate_base_quote: 0.001,
+            unit_amount: 0.0001,
+            limit_max_amount: 1000,
+            market_max_amount: 10,
+            price_digits: 0,
+            amount_digits: 4,
+            is_enabled: true,
+            stop_order: false,
+            stop_order_and_cancel: false,
+          },
+        ],
+      }),
+    );
+    const r = await loadPairsCache(cachePath);
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data).toBe(null);
   });
 
   it("saves file with 0600 mode (owner read/write only)", async () => {
@@ -149,6 +181,34 @@ describe("getPairsWithCache: hit / miss / TTL / refresh", () => {
     expect(calls()).toBe(1);
     const raw = JSON.parse(readFileSync(cachePath, "utf-8"));
     expect(raw.pairs[0].unit_amount).toBe(0.0001);
+  });
+
+  it("stale-schema cache → re-fetches and overwrites with new shape", async () => {
+    writeFileSync(
+      cachePath,
+      JSON.stringify({
+        version: 1,
+        fetchedAt: "2025-01-01T00:00:00.000Z",
+        pairs: [
+          {
+            name: "btc_jpy",
+            maker_fee_rate_base_quote: 0,
+            taker_fee_rate_base_quote: 0.001,
+          },
+        ],
+      }),
+    );
+    const { fn, calls } = trackingFetch([samplePair]);
+    const r = await getPairsWithCache({
+      path: cachePath,
+      fetchPairs: fn,
+      nowMs: Date.parse("2025-01-01T00:00:00.000Z"),
+    });
+    expect(r.success).toBe(true);
+    expect(calls()).toBe(1);
+    const raw = JSON.parse(readFileSync(cachePath, "utf-8"));
+    expect(raw.pairs[0].taker_fee_rate_quote).toBe(0.0012);
+    expect(raw.pairs[0].maker_fee_rate_base_quote).toBeUndefined();
   });
 
   it("propagates fetch error without writing cache", async () => {
