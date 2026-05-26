@@ -89,6 +89,7 @@ export async function paperCreateOrder(
     parsed.data.type,
     Number(parsed.data.amount),
     pairsR.data,
+    parsed.data.price !== undefined ? Number(parsed.data.price) : undefined,
   );
   if (!v.success) return { ...v, exitCode: EXIT.PARAM };
   const path = args.statePath ?? defaultStatePath();

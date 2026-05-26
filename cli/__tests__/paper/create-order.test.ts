@@ -342,6 +342,46 @@ describe("paper create-order: unit_amount validation", () => {
   it("uses default pairs from MOCK_PAIRS", () => {
     expect(MOCK_PAIRS.find((p) => p.name === "btc_jpy")?.unit_amount).toBe(0.0001);
   });
+
+  it("rejects amount that is not a multiple of unit_amount with PARAM exit code", async () => {
+    await paperInit({ jpy: "1000000", statePath });
+    const r = await paperCreateOrder(
+      {
+        pair: "btc_jpy",
+        side: "buy",
+        type: "market",
+        amount: "0.00015",
+        feeRate: 0,
+        statePath,
+        getPairs: mockGetPairs,
+      },
+      { fetch: tickerOf("5000000"), retries: 0 },
+    );
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain("unit_amount");
+      expect(r.exitCode).toBe(EXIT.PARAM);
+    }
+  });
+
+  it("rejects limit price exceeding price_digits with PARAM exit code", async () => {
+    await paperInit({ jpy: "100000000", statePath });
+    const r = await paperCreateOrder({
+      pair: "btc_jpy",
+      side: "buy",
+      type: "limit",
+      price: "5000000.5",
+      amount: "0.001",
+      feeRate: 0,
+      statePath,
+      getPairs: mockGetPairs,
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain("price_digits");
+      expect(r.exitCode).toBe(EXIT.PARAM);
+    }
+  });
 });
 
 describe("paper create-order: JPY integer rounding", () => {
