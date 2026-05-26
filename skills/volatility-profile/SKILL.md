@@ -62,27 +62,33 @@ metadata:
 
 ```bash
 # デフォルト: 短期 1hour + 長期 1day
-bitbank candles <pair> --type=1hour --format=json
-bitbank candles <pair> --type=1day --format=json
+bitbank candles <pair> --type=1hour --format=json --machine
+bitbank candles <pair> --type=1day --format=json --machine
 ```
 
 ユーザー指定がある場合の例:
+
 ```bash
 # 期間指定
-bitbank candles btc_jpy --type=1hour --from=20240401 --to=20241231 --format=json
-bitbank candles btc_jpy --type=1day --from=20240401 --to=20241231 --format=json
+bitbank candles btc_jpy --type=1hour --from=20240401 --to=20241231 --format=json --machine
+bitbank candles btc_jpy --type=1day --from=20240401 --to=20241231 --format=json --machine
 
 # 件数指定
-bitbank candles eth_jpy --type=15min --limit=5000 --format=json
+bitbank candles eth_jpy --type=15min --limit=5000 --format=json --machine
 ```
 
 ユーザーが片方の足種だけを指定した場合は、その足種だけで計算し、
 **√T スケーリング項目はスキップ**する（残り 4 項目は計算）。
 
-データは `data.candlestick[0].ohlcv` 配列から取り出す。
-各要素は `[open, high, low, close, volume, timestamp]`。
+envelope の `success` を確認後、`data.candlestick[0].ohlcv` 配列から OHLCV
+を取り出す。各要素は `[open, high, low, close, volume, timestamp]`。
 価格・出来高は文字列で返るので **数値変換してから計算する**（Gotchas 参照）。
 配列は **古い順**（先頭が最古）。
+
+`meta.lastIsIncomplete: true` なら末尾足は未確定。**分布統計を歪めるため
+リターン計算から除外する**（リターン定義 `log(close[t]/close[t-1])` で
+末尾が未確定だと std が過小になる）。`gaps` がある場合は欠損区間を
+リターン系列から外し、件数をサマリーに明示する。
 
 ## デフォルト分析セット
 
@@ -234,8 +240,10 @@ Spearman: 0.51
 ## 実行手順
 
 1. ペアと（指定があれば）期間・足種を確認
-2. 短期足・長期足それぞれを CLI で取得（`--format=json`）
-3. `data.candlestick[0].ohlcv` から OHLCV を取り出し、文字列を数値変換
+2. 短期足・長期足それぞれを CLI で取得（`--format=json --machine`）
+3. envelope の `success` を確認後、`data.candlestick[0].ohlcv` から OHLCV を取り出し、
+   文字列を数値変換。`meta.lastIsIncomplete: true` なら末尾足を除外、
+   `gaps` があれば欠損区間を系列から外しサマリーに明示
 4. 対数リターン `log(close[t]/close[t-1])` を計算（先頭は欠損）
 5. 5 セットの分析を計算（短期足のみ指定時は √T 以外の 4 セット）
 6. Validation Loop の 5 項目を点検

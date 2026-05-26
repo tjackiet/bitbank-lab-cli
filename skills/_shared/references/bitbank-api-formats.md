@@ -65,6 +65,47 @@ bitbank 公開 API ドキュメント（`rest-api.md` 等）上の整理:
 - 価格・数量は API 側では**すべて文字列**で返る（数値変換が必要）
 - エラー時: `{ "success": 0, "data": { "code": 10000 } }`
 
+## CLI machine output envelope（`--machine`）
+
+skill から one-shot コマンドを呼ぶときは `--format=json --machine` を併用する
+（規約は `cli-conventions.md`）。`--machine` で吐かれるのは bitbank API の
+raw レスポンス（上記の `success: 1 / data: ...`）を **CLI 側の Result envelope
+で包んだ二重構造** で、形は以下:
+
+成功時:
+
+```json
+{
+  "success": true,
+  "data": { "candlestick": [{ "type": "1day", "ohlcv": [...] }] },
+  "meta": {
+    "lastIsIncomplete": true,
+    "gaps": [{ "from": 1735603200000, "to": 1735776000000, "missing": 2 }],
+    "dedupedCount": 0
+  },
+  "partial": false
+}
+```
+
+失敗時:
+
+```json
+{ "success": false, "error": "60001: 残高不足", "exitCode": 1 }
+```
+
+- 外側の `success` / `error` / `exitCode` は **CLI 側の Result**。
+  `success === true` でなければ `data` を読まない
+- 内側の `data` は bitbank API のレスポンス本体（`data.candlestick[0].ohlcv` 等）。
+  CLI が数値正規化済みのため文字列 → 数値変換は不要（後述）
+- `meta` は CLI が付与する補助情報。candles なら `lastIsIncomplete` / `gaps` /
+  `dedupedCount` / `truncated` が入りうる。読み方は `cli-conventions.md`
+  「`--machine` envelope の読み方」を参照
+- `partial: true` は一部 fetch が失敗した結果での部分データ。完全性が必要な
+  分析では再取得を提案
+
+`--format=json` 単独（`--machine` なし）では `data` 配下しか出ない。skill
+経路では meta が読めなくなるため、必ず `--machine` を併用する。
+
 ### CLI 出力での数値正規化（PR #6 以降）
 
 CLI は `cli/schema-helpers.ts` の `numStr` / `nullableNumStr` を使って

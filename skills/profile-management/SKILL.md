@@ -74,38 +74,45 @@ env vars が事前に export されていれば対話プロンプトはスキッ
 #### 一覧
 
 ```bash
-bitbank profile list --format=json
-# → [{ name, default, description }, ...]
+bitbank profile list --format=json --machine
+# → data: [{ name, default, description }, ...]
 # secret / key は出力されない
 ```
 
 #### 詳細
 
 ```bash
-bitbank profile show main --format=json
-# → { name, default, keyMasked, secretMasked, description, createdAt }
+bitbank profile show main --format=json --machine
+# → data: { name, default, keyMasked, secretMasked, description, createdAt }
 # secret / key は **** + 末尾 4 桁にマスクされる
 ```
 
 #### default 切替
 
 ```bash
-bitbank profile set-default sub --format=json
+bitbank profile set-default sub --format=json --machine
 ```
 
 #### 削除（--confirm 必須）
 
 ```bash
-bitbank profile remove sub --confirm --format=json
+bitbank profile remove sub --confirm --format=json --machine
 # default だった場合は default = null になる
 ```
 
 #### 別 profile での実行
 
 ```bash
-bitbank --profile=sub assets --format=json
+bitbank --profile=sub assets --format=json --machine
 bitbank --profile=sub --execute trade create-order ...
 ```
+
+#### `--machine` を付けない例外: `profile add`
+
+`profile add` は対話プロンプトで API key / secret を hidden 入力させる
+**インタラクティブコマンド**。`--machine` は付けず、`--format=json` 単独
+（または `--format=table`）で起動する。共通規約の例外として `cli-conventions.md`
+にも記載済み。
 
 ## Gotchas
 

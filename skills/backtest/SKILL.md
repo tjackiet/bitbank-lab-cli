@@ -41,12 +41,17 @@ metadata:
 ### Step 2: データ取得
 
 ```bash
-bitbank candles <pair> --type=<timeframe> --limit=<N> --format=json
+bitbank candles <pair> --type=<timeframe> --limit=<N> --format=json --machine
 ```
 
 - バックテストには十分なデータが必要。最低でも SMA の長期期間 × 2 以上
 - 1回で足りない場合は `--date` を変えて複数回取得し結合する
-- `--format=json` を使う。JSON はモデルがパースしやすいため
+- `--format=json --machine` を併用する（`_shared/references/cli-conventions.md`）。
+  envelope の `success` を確認後、`data.candlestick[0].ohlcv` から OHLCV を
+  取り出す。`meta.lastIsIncomplete: true` なら末尾足を **必ずシミュレーション
+  から外す**（未確定足でエントリー判定すると将来データを参照したのと同じ
+  リーク源になる）。`gaps` / `truncated` はバックテスト期間の信頼性に直結する
+  ため、検出時は実行前にユーザーに確認する
 
 ### Step 3: ドライラン（検証）
 

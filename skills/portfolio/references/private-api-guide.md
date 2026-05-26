@@ -16,7 +16,7 @@ BITBANK_API_SECRET=your_api_secret
 
 ```bash
 set -a; source .env; set +a
-bitbank <command> --format=json
+bitbank <command> --format=json --machine
 ```
 
 ## assets レスポンス形式
