@@ -80,20 +80,24 @@ metadata:
 ### CLI 取得（各ペアごとに 1 コマンド）
 
 ```bash
-bitbank candles btc_jpy --type=1day --limit=1000 --format=json
-bitbank candles eth_jpy --type=1day --limit=1000 --format=json
-bitbank candles xrp_jpy --type=1day --limit=1000 --format=json
+bitbank candles btc_jpy --type=1day --limit=1000 --format=json --machine
+bitbank candles eth_jpy --type=1day --limit=1000 --format=json --machine
+bitbank candles xrp_jpy --type=1day --limit=1000 --format=json --machine
 ```
 
 期間指定時:
 
 ```bash
-bitbank candles btc_jpy --type=1day --from=20240101 --to=20241231 --format=json
+bitbank candles btc_jpy --type=1day --from=20240101 --to=20241231 --format=json --machine
 ```
 
 ### 整列（inner join）
 
-- `data.candlestick[0].ohlcv` から OHLCV を取り出し、`close` と `timestamp` を数値変換
+- envelope の `success` を確認後、`data.candlestick[0].ohlcv` から OHLCV を
+  取り出し、`close` と `timestamp` を数値変換
+- 各ペアの **`meta.lastIsIncomplete: true` なら末尾足をリターン計算から除外**
+  （未確定足を含めると当日の相関が安定しない）。`gaps` がある場合は欠損
+  区間を取り除いてから inner join する
 - 各ペアの close 系列を **timestamp で inner join**（全ペアに存在する足だけ残す）
 - 整列後の close 配列に `pct_change`（または対数リターン）を適用してリターン化
 - **以降のすべての計算はリターンベース**

@@ -35,15 +35,20 @@ indicator-analysis / backtest / portfolio の前段として自動実行は**し
 ## データ取得
 
 ```bash
-bitbank candles <pair> --type=<timeframe> --format=json
+bitbank candles <pair> --type=<timeframe> --format=json --machine
 ```
 
 ユーザーが期間を指定した場合:
 ```bash
-bitbank candles <pair> --type=<timeframe> --from=YYYYMMDD --to=YYYYMMDD --format=json
+bitbank candles <pair> --type=<timeframe> --from=YYYYMMDD --to=YYYYMMDD --format=json --machine
 ```
 
 指定がなければ直近データ（デフォルト 1000 本）で検証する。
+
+`--machine` envelope の `meta.gaps` / `dedupedCount` / `truncated` は本 skill
+の検証項目（欠損足・重複・時系列連続性）と直接対応する。CLI が既に検出した
+ものは項目 1〜8 の集計に組み込み、再検出ではなく **既知の検出結果として
+そのまま報告**する（取得側 vs 計算側で二重検出すると件数が合わなくなる）。
 
 ## 検証項目
 

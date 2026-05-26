@@ -439,6 +439,23 @@ bitbank ticker btc_jpy | jq '.last'
 bitbank candles btc_jpy --type=1day --format=csv > btc_daily.csv
 ```
 
+### `--machine`（プログラム・Skill 経由の利用）
+
+スクリプトや Agent Skill から読む場合は `--format=json --machine` を併用してください。
+`--machine` を付けると `{ success, data, partial?, meta? }` envelope が出力され、
+candles の `meta.lastIsIncomplete` / `gaps` / `dedupedCount` / `truncated` といった
+データ完全性メタが取れます（`--format=json` 単独だと `data` 配下しか出ません）。
+
+```bash
+bitbank candles btc_jpy --type=1day --format=json --machine
+# → {"success":true,"data":{...},"meta":{"lastIsIncomplete":true,...}}
+```
+
+例外として `watch` / `stream`（JSONL ストリーム）、`completion`（補完出力）、
+`profile add`（対話入力）には `--machine` を付けません。詳細は
+[`skills/_shared/references/cli-conventions.md`](skills/_shared/references/cli-conventions.md)
+を参照してください。
+
 ## Shell 補完
 
 `bitbank completion <shell>` で補完スクリプトを stdout に出力します。

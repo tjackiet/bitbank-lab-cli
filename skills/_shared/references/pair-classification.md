@@ -92,9 +92,9 @@ bitbank 上の実際の出来高シェアに基づくペアの流動性カテゴ
 
 ```bash
 # 全ペアの ticker を取得して出来高を確認
-bitbank ticker --pair=btc_jpy --format=json
-bitbank ticker --pair=xrp_jpy --format=json
-# ... 各ペアの vol フィールドを比較
+bitbank ticker --pair=btc_jpy --format=json --machine
+bitbank ticker --pair=xrp_jpy --format=json --machine
+# ... 各ペアの vol フィールドを比較（data.vol）
 ```
 
 出来高シェアが大きく変動した場合（例: 新規上場ペアが急成長）、

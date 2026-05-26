@@ -53,7 +53,7 @@ metadata:
 ユーザーが残高や履歴を聞いてきた場合は、まず以下を試す:
 
 ```bash
-bitbank paper assets --format=json
+bitbank paper assets --format=json --machine
 ```
 
 `success: false` で `not initialized` が返ったら、初期 JPY をユーザーに
@@ -62,7 +62,7 @@ bitbank paper assets --format=json
 ### Step 2: 仮想口座を初期化
 
 ```bash
-bitbank paper init --jpy=1000000 --format=json
+bitbank paper init --jpy=1000000 --format=json --machine
 ```
 
 既存 state があると Err になる。上書きしたい場合は `--force` を付ける。
@@ -73,7 +73,7 @@ bitbank paper init --jpy=1000000 --format=json
 
 ```bash
 bitbank paper create-order \
-  --pair=btc_jpy --side=buy --type=market --amount=0.01 --format=json
+  --pair=btc_jpy --side=buy --type=market --amount=0.01 --format=json --machine
 ```
 
 指値（GTC）は `openOrders` に積まれ、`price * amount + fee` 相当が JPY
@@ -81,7 +81,7 @@ bitbank paper create-order \
 
 ```bash
 bitbank paper create-order \
-  --pair=btc_jpy --side=buy --type=limit --price=10000000 --amount=0.001 --format=json
+  --pair=btc_jpy --side=buy --type=limit --price=10000000 --amount=0.001 --format=json --machine
 ```
 
 - 成行は live の `bitbank ticker <pair>` 相当の last 価格で即時 fill
@@ -97,11 +97,11 @@ bitbank paper create-order \
 ### Step 4: 未約定 / 残高 / 履歴の確認
 
 ```bash
-bitbank paper active-orders --format=json
-bitbank paper assets --format=json
-bitbank paper trade-history --format=json
+bitbank paper active-orders --format=json --machine
+bitbank paper assets --format=json --machine
+bitbank paper trade-history --format=json --machine
 # 明示的に fill 解決を走らせたいとき:
-bitbank paper tick --format=json
+bitbank paper tick --format=json --machine
 ```
 
 `paper assets` は各通貨ごとに `total` / `locked` / `available` を返す。
@@ -112,9 +112,9 @@ bitbank paper tick --format=json
 
 ```bash
 # 全ペア + 合計
-bitbank paper pnl --format=json
+bitbank paper pnl --format=json --machine
 # 単一ペアに絞る
-bitbank paper pnl --pair=btc_jpy --format=json
+bitbank paper pnl --pair=btc_jpy --format=json --machine
 ```
 
 - `paper trade-history` から加重平均でコスト基底を再構築し、`realizedPnl`
@@ -129,7 +129,7 @@ bitbank paper pnl --pair=btc_jpy --format=json
 ### Step 6: 指値のキャンセル
 
 ```bash
-bitbank paper cancel-order --id=<id> --format=json
+bitbank paper cancel-order --id=<id> --format=json --machine
 ```
 
 `active-orders` が返す `id` を渡す。キャンセル後はロックが解除され、
@@ -138,14 +138,14 @@ bitbank paper cancel-order --id=<id> --format=json
 ### Step 7: リセット（必要な場合のみ）
 
 ```bash
-bitbank paper reset --confirm --format=json
+bitbank paper reset --confirm --format=json --machine
 ```
 
 `--confirm` なしでは Err。実発注の `create-order` と同じく誤爆を防ぐ思想。
 
 ## 出力フォーマット
 
-CLI を呼ぶときは必ず `--format=json` を付ける（共通規約。
+CLI を呼ぶときは必ず `--format=json --machine` を付ける（共通規約。
 `_shared/references/cli-conventions.md` 参照）。`table` / `csv` は
 人間向けなのでモデルがパースしない。
 

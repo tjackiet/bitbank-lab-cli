@@ -37,7 +37,9 @@ WebSocket 経由で bitbank の `ticker_<pair>` チャネルを購読し、JSONL
    - 件数固定: `--count=<件>`（例: 20 イベント）
    - 両方併用も可（早く来た方で止まる）
 3. Skill 経路では `--format=json` を付けて JSONL を取得し、`jq` などで
-   後処理する。
+   後処理する。**`--machine` は付けない**: JSONL は 1 行 1 イベントが完結した
+   JSON で envelope の概念がないため、共通規約（`_shared/references/cli-conventions.md`）
+   でも `watch` / `stream` は `--machine` 例外として明記されている。
 
 ### Validate
 
