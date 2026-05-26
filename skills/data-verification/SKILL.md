@@ -39,6 +39,7 @@ bitbank candles <pair> --type=<timeframe> --format=json --machine
 ```
 
 ユーザーが期間を指定した場合:
+
 ```bash
 bitbank candles <pair> --type=<timeframe> --from=YYYYMMDD --to=YYYYMMDD --format=json --machine
 ```

@@ -67,6 +67,7 @@ bitbank candles <pair> --type=1day --format=json --machine
 ```
 
 ユーザー指定がある場合の例:
+
 ```bash
 # 期間指定
 bitbank candles btc_jpy --type=1hour --from=20240401 --to=20241231 --format=json --machine

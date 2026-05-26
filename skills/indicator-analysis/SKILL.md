@@ -33,6 +33,7 @@ bitbank candles <pair> --type=<timeframe> --format=json --machine
 ```
 
 例:
+
 ```bash
 # BTC/JPY の日足を取得
 bitbank candles btc_jpy --type=1day --format=json --machine
