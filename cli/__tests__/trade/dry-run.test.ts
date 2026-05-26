@@ -84,4 +84,22 @@ describe("buildExecuteHint", () => {
       expect(hint).toContain(`--confirm=${phrase}`);
     }
   });
+
+  it("does not duplicate --execute / --confirm if args already contain them", () => {
+    const hint = buildExecuteHint({
+      command: "create-order",
+      endpoint: "/v1/user/spot/order",
+      body: { pair: "btc_jpy" },
+      args: {
+        pair: "btc_jpy",
+        execute: true,
+        confirm: "anything-that-would-have-been-wrong",
+      },
+    });
+    // The canonical --execute / --confirm=<phrase> appear exactly once, with the correct phrase.
+    expect(hint.match(/--execute\b/g)?.length).toBe(1);
+    expect(hint.match(/--confirm=/g)?.length).toBe(1);
+    expect(hint).toContain("--confirm=I-UNDERSTAND-CREATE-ORDER");
+    expect(hint).not.toContain("anything-that-would-have-been-wrong");
+  });
 });

@@ -39,18 +39,22 @@ function tradeCommandFiles(): string[] {
 }
 
 describe("Chaos X-10b: trade commands enforce --execute + --confirm via Zod", () => {
-  it("every trade command references refineExecuteConfirm (the shared guard)", () => {
+  it("every trade command applies refineExecuteConfirm(<command>) (not just imports it)", () => {
     const files = tradeCommandFiles();
     expect(files.length, "expected to discover trade command files").toBeGreaterThan(0);
+    // Match an actual call with a string-literal argument, e.g.
+    //   refineExecuteConfirm("create-order")
+    //   .superRefine(refineExecuteConfirm("cancel-order"))
+    // This excludes bare imports / comments that happen to mention the symbol.
     const missing = files.filter((f) => {
-      const hit = execSync(`grep -E "refineExecuteConfirm" ${f} || true`, {
+      const hit = execSync(`grep -E 'refineExecuteConfirm\\("[a-z-]+"\\)' ${f} || true`, {
         encoding: "utf-8",
       }).trim();
       return hit === "";
     });
     expect(
       missing,
-      `Trade commands missing refineExecuteConfirm (see .claude/rules/trading-safety.md "--confirm フラグ"):\n${missing.join("\n")}`,
+      `Trade commands missing refineExecuteConfirm("<command>") call (see .claude/rules/trading-safety.md "--confirm フラグ"):\n${missing.join("\n")}`,
     ).toEqual([]);
   });
 

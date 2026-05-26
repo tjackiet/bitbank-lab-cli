@@ -42,6 +42,8 @@ export type TradeDryRunInput = {
 export function buildExecuteHint(input: TradeDryRunInput): string {
   const flags: string[] = [];
   for (const [k, v] of Object.entries(input.args)) {
+    // execute / confirm は末尾で必ず付与するので、args に紛れ込んでいても二重化させない
+    if (k === "execute" || k === "confirm") continue;
     if (v === undefined || v === null || v === false) continue;
     const flag = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
     if (SENSITIVE_FLAGS.has(k) || SENSITIVE_FLAGS.has(flag)) {
