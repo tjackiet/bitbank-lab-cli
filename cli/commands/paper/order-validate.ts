@@ -45,7 +45,7 @@ export function validateOrderSize(
       error: `amount > ${type}_max_amount: ${pair} max ${max}`,
     };
   }
-  if (price !== undefined && !hasAtMostDigits(price, info.price_digits)) {
+  if (type === "limit" && price !== undefined && !hasAtMostDigits(price, info.price_digits)) {
     return {
       success: false,
       error: `price exceeds price_digits: ${pair} price_digits=${info.price_digits}`,

@@ -59,4 +59,10 @@ describe("validateOrderSize: price_digits", () => {
   it("skips price check when price is undefined (market orders)", () => {
     expect(validateOrderSize("btc_jpy", "market", 0.001, MOCK_PAIRS).success).toBe(true);
   });
+
+  it("skips price check for market orders even when price is provided", () => {
+    // market は ticker から価格を取るため、引数の price は意味を持たない。
+    // price_digits 違反でも reject しない。
+    expect(validateOrderSize("btc_jpy", "market", 0.001, MOCK_PAIRS, 5000000.5).success).toBe(true);
+  });
 });
