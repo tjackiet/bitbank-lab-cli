@@ -1,10 +1,12 @@
-// 100行超: paper の指値 fill 解決を 1 ファイルで完結。lastTickAt〜now の
-// 1m 足を取得し、open orders を時系列で突き合わせて約定済みを history に
-// 移す。テスト時は fetchCandles / nowMs を注入し、本番用デフォルトは
-// public candles API を叩く。
+// 100行超: paper の指値 fill 解決を 1 ファイルで完結。
+// async な candles fetch は updateState の lock 外で済ませ、fresh state に
+// 対する fill の reconcile（sync）だけを lock 内で実行する。
+// テスト時は fetchCandles / nowMs を注入し、本番用デフォルトは public
+// candles API を叩く。
 import { type Candle, fetchOne } from "./commands/public/candles-fetch.js";
 import { ymdUtc } from "./date-utils.js";
 import type { HttpOptions } from "./http.js";
+import { updateState } from "./paper-state-mutate.js";
 import {
   DEFAULT_TAKER_FEE_RATE,
   type OpenOrder,
@@ -12,7 +14,6 @@ import {
   type PaperState,
   defaultStatePath,
   loadState,
-  saveState,
 } from "./paper-state.js";
 import type { Result } from "./types.js";
 
@@ -42,62 +43,92 @@ export type TickResult = {
 
 export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult>> {
   const path = opts.statePath ?? defaultStatePath();
-  const sr = await loadState(path);
-  if (!sr.success) return sr;
   const nowMs = opts.nowMs ?? Date.now();
   const newLastTickAt = new Date(nowMs).toISOString();
-  if (!sr.data)
-    return { success: true, data: { filled: [], warnings: [], lastTickAt: newLastTickAt } };
-  if (sr.data.openOrders.length === 0) {
-    const updated: PaperState = { ...sr.data, lastTickAt: newLastTickAt };
-    const w = await saveState(updated, path);
-    if (!w.success) return w;
+  // Peek to know what to fetch outside the lock. lock 内で fresh state を
+  // 再読み込みするので、ここで読んだ openOrders はあくまで「どの pair の
+  // candles を取りに行くか」のヒント。
+  const peek = await loadState(path);
+  if (!peek.success) return peek;
+  if (!peek.data) {
     return { success: true, data: { filled: [], warnings: [], lastTickAt: newLastTickAt } };
   }
-  const lastTickMs = Date.parse(sr.data.lastTickAt);
-  let fromMs = Math.min(lastTickMs, nowMs);
   const warnings: string[] = [];
-  if (nowMs - fromMs > MAX_LOOKBACK_MS) {
-    warnings.push(`gap > 24h; limiting to last 24h (lastTickAt=${sr.data.lastTickAt})`);
-    fromMs = nowMs - MAX_LOOKBACK_MS;
-  }
-  const fetchFn = opts.fetchCandles ?? defaultFetchCandles(opts.httpOptions);
-  const feeRate = opts.feeRate ?? DEFAULT_TAKER_FEE_RATE;
-  const pairs = uniquePairs(sr.data.openOrders, opts.pair);
-  let working: PaperState = sr.data;
-  const filled: PaperHistoryEntry[] = [];
+  const candlesByPair = new Map<string, Candle[]>();
   let anyFetchFailed = false;
-  for (const p of pairs) {
-    const cr = await fetchFn(p, fromMs, nowMs);
-    if (!cr.success) {
-      anyFetchFailed = true;
-      warnings.push(`fetch candles for ${p} failed: ${cr.error}`);
-      continue;
+  if (peek.data.openOrders.length > 0) {
+    let fromMs = Math.min(Date.parse(peek.data.lastTickAt), nowMs);
+    if (nowMs - fromMs > MAX_LOOKBACK_MS) {
+      warnings.push(`gap > 24h; limiting to last 24h (lastTickAt=${peek.data.lastTickAt})`);
+      fromMs = nowMs - MAX_LOOKBACK_MS;
     }
-    const sorted = [...cr.data].sort((a, b) => a.timestamp - b.timestamp);
-    for (const candle of sorted) {
-      if (candle.timestamp < fromMs || candle.timestamp > nowMs) continue;
-      const orders = working.openOrders.filter(
-        (o) => o.pair === p && Date.parse(o.createdAt) <= candle.timestamp,
-      );
-      for (const o of orders) {
-        const hits = o.side === "buy" ? candle.low <= o.price : candle.high >= o.price;
-        if (!hits) continue;
-        const r = applyFill(working, o, candle, feeRate);
-        working = r.state;
-        filled.push(r.entry);
+    const fetchFn = opts.fetchCandles ?? defaultFetchCandles(opts.httpOptions);
+    const pairs = uniquePairs(peek.data.openOrders, opts.pair);
+    for (const p of pairs) {
+      const cr = await fetchFn(p, fromMs, nowMs);
+      if (!cr.success) {
+        anyFetchFailed = true;
+        warnings.push(`fetch candles for ${p} failed: ${cr.error}`);
+        continue;
       }
+      candlesByPair.set(
+        p,
+        [...cr.data].sort((a, b) => a.timestamp - b.timestamp),
+      );
     }
   }
-  // 部分 tick（pair 限定 or fetch 失敗）では lastTickAt を進めない。
-  // 進めると未処理 pair / 未処理区間が永久に評価されなくなる。
-  const advanceTick = !anyFetchFailed && opts.pair === undefined;
-  const persistedLastTickAt = advanceTick ? newLastTickAt : working.lastTickAt;
-  working = { ...working, lastTickAt: persistedLastTickAt, updatedAt: newLastTickAt };
-  const w = await saveState(working, path);
-  if (!w.success) return w;
-  for (const msg of warnings) process.stderr.write(`Warning: ${msg}\n`);
-  return { success: true, data: { filled, warnings, lastTickAt: persistedLastTickAt } };
+  const feeRate = opts.feeRate ?? DEFAULT_TAKER_FEE_RATE;
+  const res = await updateState<TickResult>(
+    (state) => {
+      if (!state) {
+        return {
+          success: false,
+          error: "paper state was removed during tick",
+        };
+      }
+      let working: PaperState = state;
+      const filled: PaperHistoryEntry[] = [];
+      // fresh state から fromMs を再導出（他の tick が進めている可能性がある）。
+      let fromMs = Math.min(Date.parse(state.lastTickAt), nowMs);
+      if (nowMs - fromMs > MAX_LOOKBACK_MS) fromMs = nowMs - MAX_LOOKBACK_MS;
+      for (const [p, candles] of candlesByPair) {
+        for (const candle of candles) {
+          if (candle.timestamp < fromMs || candle.timestamp > nowMs) continue;
+          const orders = working.openOrders.filter(
+            (o) => o.pair === p && Date.parse(o.createdAt) <= candle.timestamp,
+          );
+          for (const o of orders) {
+            const hits = o.side === "buy" ? candle.low <= o.price : candle.high >= o.price;
+            if (!hits) continue;
+            const r = applyFill(working, o, candle, feeRate);
+            working = r.state;
+            filled.push(r.entry);
+          }
+        }
+      }
+      // 部分 tick（pair 限定 or fetch 失敗）では lastTickAt を進めない。
+      // 進めると未処理 pair / 未処理区間が永久に評価されなくなる。
+      const advanceTick = !anyFetchFailed && opts.pair === undefined;
+      const persistedLastTickAt = advanceTick ? newLastTickAt : working.lastTickAt;
+      const newState: PaperState = {
+        ...working,
+        lastTickAt: persistedLastTickAt,
+        updatedAt: newLastTickAt,
+      };
+      return {
+        success: true,
+        data: {
+          state: newState,
+          result: { filled, warnings, lastTickAt: persistedLastTickAt },
+        },
+      };
+    },
+    { path },
+  );
+  if (res.success) {
+    for (const msg of res.data.warnings) process.stderr.write(`Warning: ${msg}\n`);
+  }
+  return res;
 }
 
 function uniquePairs(orders: OpenOrder[], filter?: string): string[] {

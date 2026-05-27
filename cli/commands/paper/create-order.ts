@@ -6,6 +6,7 @@ import { EXIT } from "../../exit-codes.js";
 import type { HttpOptions } from "../../http.js";
 import { type CachedPair, getPairsWithCache } from "../../pairs-cache.js";
 import { type FetchCandles, runTick } from "../../paper-fill.js";
+import { updateState } from "../../paper-state-mutate.js";
 import {
   DEFAULT_TAKER_FEE_RATE,
   type OpenOrder,
@@ -13,9 +14,7 @@ import {
   availableOf,
   defaultStatePath,
   genId,
-  loadState,
   nowIso,
-  saveState,
 } from "../../paper-state.js";
 import type { Result } from "../../types.js";
 import { PairSchema, PositiveDecimalSchema } from "../../validators.js";
@@ -100,22 +99,13 @@ export async function paperCreateOrder(
     feeRate: args.feeRate,
   });
   if (!tick.success) return tick;
-  const sr = await loadState(path);
-  if (!sr.success) return sr;
-  if (!sr.data) {
-    return {
-      success: false,
-      error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
-    };
-  }
   if (parsed.data.type === "limit") {
-    return placeLimit(sr.data, parsed.data, args.feeRate, path);
+    return placeLimit(parsed.data, args.feeRate, path);
   }
-  return fillMarket(sr.data, parsed.data, args.feeRate, path, opts);
+  return fillMarket(parsed.data, args.feeRate, path, opts);
 }
 
 async function placeLimit(
-  state: PaperState,
   input: { pair: string; side: "buy" | "sell"; amount: string; price?: string },
   feeRateArg: number | undefined,
   path: string,
@@ -124,31 +114,39 @@ async function placeLimit(
   const price = Number(input.price);
   const feeRate = feeRateArg ?? DEFAULT_TAKER_FEE_RATE;
   const [base, quote] = input.pair.split("_");
-  const order: OpenOrder = {
-    id: genId(),
-    pair: input.pair,
-    side: input.side,
-    type: "limit",
-    price,
-    amount,
-    createdAt: nowIso(),
-  };
-  const projected: PaperState = { ...state, openOrders: [...state.openOrders, order] };
-  if (input.side === "buy") {
-    if (availableOf(projected, quote, feeRate) < 0) {
-      return { success: false, error: `insufficient ${quote} for limit buy lock` };
-    }
-  } else if (availableOf(projected, base, feeRate) < 0) {
-    return { success: false, error: `insufficient ${base} for limit sell lock` };
-  }
-  const newState: PaperState = { ...projected, updatedAt: order.createdAt };
-  const w = await saveState(newState, path);
-  if (!w.success) return w;
-  return { success: true, data: { placed: order } };
+  return updateState<PaperLimitPlaced>(
+    (state) => {
+      if (!state) {
+        return {
+          success: false,
+          error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
+        };
+      }
+      const order: OpenOrder = {
+        id: genId(),
+        pair: input.pair,
+        side: input.side,
+        type: "limit",
+        price,
+        amount,
+        createdAt: nowIso(),
+      };
+      const projected: PaperState = { ...state, openOrders: [...state.openOrders, order] };
+      if (input.side === "buy") {
+        if (availableOf(projected, quote, feeRate) < 0) {
+          return { success: false, error: `insufficient ${quote} for limit buy lock` };
+        }
+      } else if (availableOf(projected, base, feeRate) < 0) {
+        return { success: false, error: `insufficient ${base} for limit sell lock` };
+      }
+      const newState: PaperState = { ...projected, updatedAt: order.createdAt };
+      return { success: true, data: { state: newState, result: { placed: order } } };
+    },
+    { path },
+  );
 }
 
 async function fillMarket(
-  state: PaperState,
   input: { pair: string; side: "buy" | "sell"; amount: string },
   feeRateArg: number | undefined,
   path: string,
@@ -168,44 +166,35 @@ async function fillMarket(
   const notional = amount * last;
   const rawFee = notional * feeRate;
   const feeQuote = isJpy ? Math.round(rawFee) : rawFee;
-  const balances = { ...state.balances };
-  if (input.side === "buy") {
-    const cost = isJpy ? Math.round(notional + rawFee) : notional + rawFee;
-    const avail = availableOf(state, quote, feeRate);
-    if (avail < cost) {
-      return { success: false, error: `insufficient ${quote}: need ${cost}, have ${avail}` };
-    }
-    balances[quote] = (balances[quote] ?? 0) - cost;
-    balances[base] = (balances[base] ?? 0) + amount;
-  } else {
-    const avail = availableOf(state, base, feeRate);
-    if (avail < amount) {
-      return { success: false, error: `insufficient ${base}: need ${amount}, have ${avail}` };
-    }
-    const proceeds = isJpy ? Math.round(notional - rawFee) : notional - rawFee;
-    balances[base] = (balances[base] ?? 0) - amount;
-    balances[quote] = (balances[quote] ?? 0) + proceeds;
-  }
-  const filledAt = nowIso();
-  const id = genId();
-  const fill: PaperFill = {
-    id,
-    pair: input.pair,
-    side: input.side,
-    type: "market",
-    amount,
-    fillPrice: last,
-    feeQuote,
-    filledAt,
-    balances,
-  };
-  const newState: PaperState = {
-    ...state,
-    updatedAt: filledAt,
-    balances,
-    history: [
-      ...state.history,
-      {
+  return updateState<PaperFill>(
+    (state) => {
+      if (!state) {
+        return {
+          success: false,
+          error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
+        };
+      }
+      const balances = { ...state.balances };
+      if (input.side === "buy") {
+        const cost = isJpy ? Math.round(notional + rawFee) : notional + rawFee;
+        const avail = availableOf(state, quote, feeRate);
+        if (avail < cost) {
+          return { success: false, error: `insufficient ${quote}: need ${cost}, have ${avail}` };
+        }
+        balances[quote] = (balances[quote] ?? 0) - cost;
+        balances[base] = (balances[base] ?? 0) + amount;
+      } else {
+        const avail = availableOf(state, base, feeRate);
+        if (avail < amount) {
+          return { success: false, error: `insufficient ${base}: need ${amount}, have ${avail}` };
+        }
+        const proceeds = isJpy ? Math.round(notional - rawFee) : notional - rawFee;
+        balances[base] = (balances[base] ?? 0) - amount;
+        balances[quote] = (balances[quote] ?? 0) + proceeds;
+      }
+      const filledAt = nowIso();
+      const id = genId();
+      const fill: PaperFill = {
         id,
         pair: input.pair,
         side: input.side,
@@ -214,10 +203,28 @@ async function fillMarket(
         fillPrice: last,
         feeQuote,
         filledAt,
-      },
-    ],
-  };
-  const w = await saveState(newState, path);
-  if (!w.success) return w;
-  return { success: true, data: fill };
+        balances,
+      };
+      const newState: PaperState = {
+        ...state,
+        updatedAt: filledAt,
+        balances,
+        history: [
+          ...state.history,
+          {
+            id,
+            pair: input.pair,
+            side: input.side,
+            type: "market",
+            amount,
+            fillPrice: last,
+            feeQuote,
+            filledAt,
+          },
+        ],
+      };
+      return { success: true, data: { state: newState, result: fill } };
+    },
+    { path },
+  );
 }
