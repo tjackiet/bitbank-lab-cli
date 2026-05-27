@@ -174,13 +174,14 @@ function seedPairsCache(path: string): void {
 type SpawnResult = { code: number; stdout: string; stderr: string };
 
 function spawnCmd(args: string[], env: NodeJS.ProcessEnv): Promise<SpawnResult> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const child = spawn("npx", ["tsx", "cli/index.ts", ...args], {
       env: { ...process.env, ...env },
       stdio: ["ignore", "pipe", "pipe"],
     });
     let stdout = "";
     let stderr = "";
+    child.on("error", (err) => reject(err));
     child.stdout.on("data", (d) => {
       stdout += String(d);
     });

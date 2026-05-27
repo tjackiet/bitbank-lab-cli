@@ -84,7 +84,9 @@ describe("updateState lock semantics", () => {
     );
     expect(r2.success).toBe(true);
     const loaded = await loadState(statePath);
-    if (loaded.success && loaded.data) expect(loaded.data.initialJpy).toBe(222);
+    expect(loaded.success).toBe(true);
+    if (!loaded.success || !loaded.data) return;
+    expect(loaded.data.initialJpy).toBe(222);
   });
 
   it("releases lock on mutator-returned error (next call can acquire)", async () => {
@@ -147,7 +149,9 @@ describe("updateState lock semantics", () => {
     );
     expect(r.success).toBe(true);
     const loaded = await loadState(statePath);
-    if (loaded.success && loaded.data) expect(loaded.data.initialJpy).toBe(4242);
+    expect(loaded.success).toBe(true);
+    if (!loaded.success || !loaded.data) return;
+    expect(loaded.data.initialJpy).toBe(4242);
   });
 
   it("does not take over a fresh lock (mtime within TTL)", async () => {
@@ -202,6 +206,8 @@ describe("updateState with uninitialized state", () => {
     expect(r.success).toBe(true);
     expect(received).toBeNull();
     const loaded = await loadState(statePath);
-    if (loaded.success && loaded.data) expect(loaded.data.initialJpy).toBe(12345);
+    expect(loaded.success).toBe(true);
+    if (!loaded.success || !loaded.data) return;
+    expect(loaded.data.initialJpy).toBe(12345);
   });
 });
