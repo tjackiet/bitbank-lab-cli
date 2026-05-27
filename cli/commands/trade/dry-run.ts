@@ -1,7 +1,10 @@
+import { CONFIRM_PHRASES, type TradeCommandKey } from "./confirm-guard.js";
+
 export type DryRunInfo = {
   endpoint: string;
   body: Record<string, unknown>;
   executeHint: string;
+  confirmPhrase?: string;
 };
 
 const SENSITIVE_FLAGS = new Set(["token", "otp_token"]);
@@ -19,22 +22,28 @@ export function printDryRun(info: DryRunInfo): void {
     lines.push(`    ${k}: ${display}`);
   }
   lines.push("");
-  lines.push("実行するには --execute を付けてください:");
+  const phrase = info.confirmPhrase;
+  lines.push(
+    phrase
+      ? `実行するには --execute と --confirm=${phrase} を付けてください:`
+      : "実行するには --execute を付けてください:",
+  );
   lines.push(`  ${info.executeHint}`);
   process.stdout.write(`${lines.join("\n")}\n`);
 }
 
 export type TradeDryRunInput = {
-  command: string;
+  command: TradeCommandKey;
   endpoint: string;
   body: Record<string, unknown>;
   args: Record<string, unknown>;
-  extraFlags?: string[];
 };
 
 export function buildExecuteHint(input: TradeDryRunInput): string {
   const flags: string[] = [];
   for (const [k, v] of Object.entries(input.args)) {
+    // execute / confirm は末尾で必ず付与するので、args に紛れ込んでいても二重化させない
+    if (k === "execute" || k === "confirm") continue;
     if (v === undefined || v === null || v === false) continue;
     const flag = k.replace(/[A-Z]/g, (m) => `-${m.toLowerCase()}`);
     if (SENSITIVE_FLAGS.has(k) || SENSITIVE_FLAGS.has(flag)) {
@@ -43,8 +52,9 @@ export function buildExecuteHint(input: TradeDryRunInput): string {
     }
     flags.push(typeof v === "boolean" ? `--${flag}` : `--${flag}=${v}`);
   }
-  for (const f of input.extraFlags ?? ["--execute"]) flags.push(f);
-  return `npx bitbank ${input.command} ${flags.join(" ")}`;
+  flags.push("--execute");
+  flags.push(`--confirm=${CONFIRM_PHRASES[input.command]}`);
+  return `npx bitbank trade ${input.command} ${flags.join(" ")}`;
 }
 
 export function dryRunResult(input: TradeDryRunInput): {
@@ -55,6 +65,7 @@ export function dryRunResult(input: TradeDryRunInput): {
     endpoint: input.endpoint,
     body: input.body,
     executeHint: buildExecuteHint(input),
+    confirmPhrase: CONFIRM_PHRASES[input.command],
   });
   return { success: true, data: { dryRun: true } };
 }
