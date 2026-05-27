@@ -13,7 +13,20 @@ const PAGE_SIZE = 1000;
 // 既定の最大ページ数。誤起動・API 仕様変更で無限化しないための安全弁
 export const MAX_PAGES_DEFAULT = 1000;
 
-const MaxPagesSchema = z.string().regex(/^[1-9]\d*$/, "max-pages must be a positive integer");
+const MaxPagesSchema = z
+  .string()
+  .regex(/^[1-9]\d*$/, "max-pages must be a positive integer")
+  .transform((s, ctx) => {
+    const n = Number(s);
+    if (!Number.isSafeInteger(n)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "max-pages must be a safe integer (≤ 2^53 - 1)",
+      });
+      return z.NEVER;
+    }
+    return n;
+  });
 
 type TradeHistoryAllArgs = {
   pair: string | undefined;
@@ -35,7 +48,7 @@ export async function tradeHistoryAll(
     if (!parsed.success) {
       return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
     }
-    maxPages = Number(parsed.data);
+    maxPages = parsed.data;
   }
 
   const allTrades: Trade[] = [];

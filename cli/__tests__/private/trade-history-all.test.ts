@@ -152,4 +152,24 @@ describe("tradeHistoryAll", () => {
       expect(result.exitCode).toBe(4);
     }
   });
+
+  it("rejects --max-pages with digits that overflow to Infinity (safe-integer guard)", async () => {
+    const huge = "9".repeat(400);
+    const result = await tradeHistoryAll({ pair: "btc_jpy", maxPages: huge });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("safe integer");
+      expect(result.exitCode).toBe(4);
+    }
+  });
+
+  it("rejects --max-pages just above Number.MAX_SAFE_INTEGER", async () => {
+    // 2^53 = 9007199254740992, the first integer that loses precision.
+    const result = await tradeHistoryAll({ pair: "btc_jpy", maxPages: "9007199254740992" });
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error).toContain("safe integer");
+      expect(result.exitCode).toBe(4);
+    }
+  });
 });

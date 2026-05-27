@@ -18,7 +18,15 @@ export const MaxRetriesSchema = z.string().transform((s, ctx) => {
     });
     return z.NEVER;
   }
-  return Number(s);
+  const n = Number(s);
+  if (!Number.isSafeInteger(n)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: `max-retries must be a safe integer (≤ 2^53 - 1) or "infinite"`,
+    });
+    return z.NEVER;
+  }
+  return n;
 });
 
 export function parseMaxRetries(v: ParsedValues): Result<number> {
