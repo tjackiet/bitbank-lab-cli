@@ -1,14 +1,8 @@
 import { z } from "zod";
 import { EXIT } from "../../exit-codes.js";
 import { type FetchCandles, runTick } from "../../paper-fill.js";
-import {
-  type OpenOrder,
-  type PaperState,
-  defaultStatePath,
-  loadState,
-  nowIso,
-  saveState,
-} from "../../paper-state.js";
+import { updateState } from "../../paper-state-mutate.js";
+import { type OpenOrder, type PaperState, defaultStatePath, nowIso } from "../../paper-state.js";
 import type { Result } from "../../types.js";
 
 const InputSchema = z.object({ id: z.string().trim().min(1, "--id is required") });
@@ -41,28 +35,29 @@ export async function paperCancelOrder(
     feeRate: args.feeRate,
   });
   if (!tick.success) return tick;
-  const r = await loadState(path);
-  if (!r.success) return r;
-  if (!r.data) {
-    return {
-      success: false,
-      error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
-    };
-  }
-  const target = r.data.openOrders.find((o) => o.id === parsed.data.id);
-  if (!target) {
-    return {
-      success: false,
-      error: `open order not found: ${parsed.data.id} (may have already filled)`,
-    };
-  }
-  const updatedAt = nowIso();
-  const newState: PaperState = {
-    ...r.data,
-    updatedAt,
-    openOrders: r.data.openOrders.filter((o) => o.id !== parsed.data.id),
-  };
-  const w = await saveState(newState, path);
-  if (!w.success) return w;
-  return { success: true, data: { canceled: target } };
+  return updateState<{ canceled: OpenOrder }>(
+    (state) => {
+      if (!state) {
+        return {
+          success: false,
+          error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
+        };
+      }
+      const target = state.openOrders.find((o) => o.id === parsed.data.id);
+      if (!target) {
+        return {
+          success: false,
+          error: `open order not found: ${parsed.data.id} (may have already filled)`,
+        };
+      }
+      const updatedAt = nowIso();
+      const newState: PaperState = {
+        ...state,
+        updatedAt,
+        openOrders: state.openOrders.filter((o) => o.id !== parsed.data.id),
+      };
+      return { success: true, data: { state: newState, result: { canceled: target } } };
+    },
+    { path },
+  );
 }

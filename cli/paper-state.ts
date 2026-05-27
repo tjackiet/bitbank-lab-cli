@@ -170,6 +170,9 @@ export async function loadState(path = defaultStatePath()): Promise<Result<Paper
   }
 }
 
+// 単発上書き用の atomic write。load -> mutate -> save の一連処理で並行
+// アクセスが起き得る場面では使わない（lost update の原因になる）。
+// 並行を伴う変更は paper-state-mutate.ts の updateState 経由にする。
 export async function saveState(
   state: PaperState,
   path = defaultStatePath(),
