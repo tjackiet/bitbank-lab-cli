@@ -80,6 +80,35 @@ API キーや境界判定には JST を持ち込まない。
 > CLI が数値正規化済み、`type` 時間軸ラベルは落ちる）になる。詳細は下記
 > 「CLI machine output envelope」節。
 
+## depth コマンド（板情報）
+
+`bitbank <pair> depth` は板（order book）のスナップショットを返す。raw は 10 フィールドで、
+価格・数量・`sequenceId` は **すべて文字列**で来る（CLI は `numStr` で number に正規化。
+下記「CLI 出力での数値正規化」節）。`DepthSchema`（`cli/commands/public/depth.ts`）は
+この 10 フィールドを**全て必須**で宣言する（実 API が常時返すため）。
+
+| フィールド | 型（CLI 正規化後） | 意味 |
+|---|---|---|
+| `asks` | `[price, amount][]` | 売り指値の板。**価格昇順**（最安の売り板が先頭） |
+| `bids` | `[price, amount][]` | 買い指値の板。**価格降順**（最高の買い板が先頭） |
+| `asks_over` | number | asks の最高値より上にある売り注文の数量 |
+| `asks_under` | number | asks の最安値より下にある売り注文の数量。通常（`NORMAL`）モードでは `0` |
+| `bids_over` | number | bids の最高値より上にある買い注文の数量。通常（`NORMAL`）モードでは `0` |
+| `bids_under` | number | bids の最安値より下にある買い注文の数量 |
+| `ask_market` | number | 未約定の成行売り注文量。通常（`NORMAL`）モードでは `0` |
+| `bid_market` | number | 未約定の成行買い注文量。通常（`NORMAL`）モードでは `0` |
+| `timestamp` | number | 板の発行時刻（ミリ秒 UNIX） |
+| `sequenceId` | number | 板のシーケンス番号。単調増加だが連番とは限らない |
+
+**注意:**
+- `*_over` / `*_under` は板に並ぶ価格帯の外側（`over`=上端より上、`under`=下端より下）に
+  ある注文数量。公式 depth docs によると通常（`NORMAL`）モードでは `asks_under` /
+  `bids_over` / `ask_market` / `bid_market` は `"0"` になりやすい。
+- raw では数量系も `sequenceId` も文字列（例 `"0"`、`sequenceId` は `"987654321"` のような
+  数字列）で、null は来ない。CLI が `numStr` で number 化するため、出力では number として読める。
+- `sequenceId` は板の新旧判定や WS `depth_diff_<pair>` との差分同期に使う整合キー。
+- 配列順序（`asks` 昇順 / `bids` 降順）は下記「配列順序」表とも一致。
+
 ## レスポンス共通
 
 - `success: 1` で成功、`success: 0` でエラー

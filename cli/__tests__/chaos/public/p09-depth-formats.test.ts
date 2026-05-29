@@ -12,7 +12,14 @@ const MOCK_DEPTH = {
     ["5000000", "0.3"],
     ["4999000", "0.4"],
   ],
+  asks_over: "12.34",
+  asks_under: "0",
+  bids_over: "0",
+  bids_under: "56.78",
+  ask_market: "0",
+  bid_market: "0",
   timestamp: 1700000000000,
+  sequenceId: "987654321",
 };
 
 describe("Chaos P-09: depth output in all formats", () => {
