@@ -8,7 +8,14 @@ const MOCK_DEPTH = {
     ["101", "2.0"],
   ],
   bids: [["99", "1.5"]],
+  asks_over: "10.5",
+  asks_under: "0",
+  bids_over: "0",
+  bids_under: "5.25",
+  ask_market: "0",
+  bid_market: "0",
   timestamp: 1000,
+  sequenceId: "1234567890",
 };
 
 describe("depth", () => {
@@ -30,6 +37,14 @@ describe("depth", () => {
       expect(typeof result.data.asks[0][1]).toBe("number");
       expect(result.data.asks[0][0]).toBe(100);
       expect(result.data.asks[0][1]).toBe(1);
+      // API が文字列で返す板外集計・成行量・sequenceId が number に正規化される
+      expect(typeof result.data.sequenceId).toBe("number");
+      expect(result.data.sequenceId).toBe(1234567890);
+      expect(typeof result.data.asks_over).toBe("number");
+      expect(result.data.asks_over).toBe(10.5);
+      expect(result.data.bids_under).toBe(5.25);
+      expect(result.data.ask_market).toBe(0);
+      expect(result.data.bid_market).toBe(0);
     }
   });
 
