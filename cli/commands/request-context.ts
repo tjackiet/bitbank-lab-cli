@@ -1,9 +1,9 @@
 import { nowIso } from "../date-utils.js";
-import type { RequestContext, Result, ResultMeta } from "../types.js";
+import type { RequestContext, Result, ResultMeta, Source } from "../types.js";
 
 /** modulePath ("./public/ticker.js") から { source, command } を取り出す。
  *  取得コンテキスト付与は public / private のみ（paper / trade 等は undefined）。 */
-function classify(modulePath: string): { source: string; command: string } | undefined {
+function classify(modulePath: string): { source: Source; command: string } | undefined {
   const segs = modulePath.replace(/\.js$/, "").split("/");
   const source = segs[segs.length - 2];
   if (source !== "public" && source !== "private") return undefined;
