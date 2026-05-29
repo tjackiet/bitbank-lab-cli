@@ -98,19 +98,27 @@ describe("CLI E2E", () => {
   const describeE2E = process.env.TEST_E2E === "1" ? describe : describe.skip;
 
   describeE2E("live API (TEST_E2E=1)", () => {
-    it("status command returns exchange statuses", async () => {
+    it("status command returns exchange statuses in a meta envelope", async () => {
       const { stdout, exitCode } = await run("status");
       expect(exitCode).toBe(0);
-      const data = JSON.parse(stdout);
+      const { success, data, meta } = JSON.parse(stdout);
+      expect(success).toBe(true);
       expect(Array.isArray(data)).toBe(true);
       expect(data[0]).toHaveProperty("pair");
       expect(data[0]).toHaveProperty("status");
+      // 既定 json も envelope + 取得コンテキストを返す（PR4）
+      expect(meta.request.command).toBe("status");
+      expect(meta.source).toBe("public");
+      expect(meta.timezone).toBe("UTC");
+      expect(meta.returnedRows).toBe(data.length);
+      expect(typeof meta.fetchedAt).toBe("string");
     });
 
-    it("pairs command returns pair settings", async () => {
+    it("pairs command returns pair settings in a meta envelope", async () => {
       const { stdout, exitCode } = await run("pairs");
       expect(exitCode).toBe(0);
-      const data = JSON.parse(stdout);
+      const { success, data } = JSON.parse(stdout);
+      expect(success).toBe(true);
       expect(Array.isArray(data)).toBe(true);
       expect(data[0]).toHaveProperty("name");
     });

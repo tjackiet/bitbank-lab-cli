@@ -23,8 +23,9 @@ describe("Chaos F-02: nested object in table format", () => {
     output({ success: true, data: NESTED }, "json");
     const out = spy.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(out);
-    expect(parsed.meta.exchange).toBe("bitbank");
-    expect(parsed.tags).toEqual(["btc", "jpy"]);
+    // NESTED.meta は envelope の meta と別物。data 配下から読む
+    expect(parsed.data.meta.exchange).toBe("bitbank");
+    expect(parsed.data.tags).toEqual(["btc", "jpy"]);
     spy.mockRestore();
   });
 

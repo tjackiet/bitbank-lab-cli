@@ -2,11 +2,11 @@ import { describe, expect, it, vi } from "vitest";
 import { output } from "../../../output.js";
 
 describe("Chaos F-01: empty data array in all formats", () => {
-  it("json: outputs empty array", () => {
+  it("json: outputs empty array in envelope data", () => {
     const spy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     output({ success: true, data: [] }, "json");
     const out = spy.mock.calls.map((c) => c[0]).join("");
-    expect(out.trim()).toBe("[]");
+    expect(JSON.parse(out).data).toEqual([]);
     spy.mockRestore();
   });
 

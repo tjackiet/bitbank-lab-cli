@@ -34,6 +34,81 @@ describe("handler", () => {
   });
 });
 
+describe("handler request context (meta)", () => {
+  it("attaches request/timezone/source/fetchedAt/returnedRows for public commands", async () => {
+    const cap = captureStdout();
+    const h = handler(
+      new URL("../commands/public/candles.js", import.meta.url).pathname,
+      "candles",
+      (a, v) => ({ pair: a[0], type: v.type, limit: 100 }),
+    );
+    vi.spyOn(await import("../commands/public/candles.js"), "candles").mockResolvedValue({
+      success: true,
+      data: [
+        { open: 1, high: 2, low: 1, close: 2, vol: 10, timestamp: 1000 },
+        { open: 2, high: 3, low: 2, close: 3, vol: 20, timestamp: 2000 },
+      ],
+    });
+
+    await h(["btc_jpy"], { type: "1day" }, "json");
+    const { meta } = JSON.parse(cap.read());
+    cap.restore();
+    vi.restoreAllMocks();
+
+    expect(meta.request).toEqual({ command: "candles", pair: "btc_jpy", type: "1day", limit: 100 });
+    expect(meta.timezone).toBe("UTC");
+    expect(meta.source).toBe("public");
+    expect(meta.returnedRows).toBe(2);
+    expect(meta.fetchedAt).toMatch(/^\d{4}-\d{2}-\d{2}T.*Z$/);
+  });
+
+  it("preserves existing meta (gaps) while merging context", async () => {
+    const cap = captureStdout();
+    const h = handler(
+      new URL("../commands/public/candles.js", import.meta.url).pathname,
+      "candles",
+      (a) => ({ pair: a[0] }),
+    );
+    vi.spyOn(await import("../commands/public/candles.js"), "candles").mockResolvedValue({
+      success: true,
+      data: [{ open: 1, high: 2, low: 1, close: 2, vol: 10, timestamp: 1000 }],
+      meta: { gaps: [{ from: 1, to: 2, missing: 1 }], lastIsIncomplete: true },
+    });
+
+    await h(["btc_jpy"], {}, "json");
+    const { meta } = JSON.parse(cap.read());
+    cap.restore();
+    vi.restoreAllMocks();
+
+    expect(meta.gaps).toEqual([{ from: 1, to: 2, missing: 1 }]);
+    expect(meta.lastIsIncomplete).toBe(true);
+    expect(meta.source).toBe("public");
+    expect(meta.request.command).toBe("candles");
+  });
+
+  it("does not attach context for paper commands (D3: market data only)", async () => {
+    const cap = captureStdout();
+    const h = handler(
+      new URL("../commands/paper/assets.js", import.meta.url).pathname,
+      "paperAssets",
+      () => ({}),
+    );
+    const row = { asset: "jpy", total: 1000, locked: 0, available: 1000 };
+    vi.spyOn(await import("../commands/paper/assets.js"), "paperAssets").mockResolvedValue({
+      success: true,
+      data: [row],
+    });
+
+    await h([], {}, "json");
+    const parsed = JSON.parse(cap.read());
+    cap.restore();
+    vi.restoreAllMocks();
+
+    expect("meta" in parsed).toBe(false);
+    expect(parsed.data).toEqual([row]);
+  });
+});
+
 describe("tradeHandler", () => {
   it("skips output on dry run result", async () => {
     const cap = captureStdout();

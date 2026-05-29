@@ -13,7 +13,7 @@ describe("Chaos F-04: large data (10000 rows)", () => {
     output({ success: true, data: bigData }, "json");
     const out = spy.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(out);
-    expect(parsed.length).toBe(10000);
+    expect(parsed.data.length).toBe(10000);
     spy.mockRestore();
   });
 

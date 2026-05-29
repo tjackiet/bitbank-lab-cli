@@ -82,6 +82,12 @@ export function todayDate(type: string): string {
   return YEARLY_TYPES.has(type) ? yearUtc(now.getTime()) : ymdUtc(now.getTime());
 }
 
+/** 現在時刻を ISO 8601（UTC）文字列で返す。取得コンテキストの fetchedAt 用。
+ *  toISOString は常に UTC（host TZ 非依存）なので X-13 の TZ 安定性を保つ。 */
+export function nowIso(): string {
+  return new Date().toISOString();
+}
+
 // 足 1 本あたりの周期（ms）。1month は可変なので含めない（nextBoundaryMs で別処理）。
 const STEP_MS_PER_TYPE: Record<string, number> = {
   "1min": 60_000,
