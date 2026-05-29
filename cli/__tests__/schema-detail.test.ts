@@ -13,7 +13,7 @@ describe("schema detail", () => {
     const c = captureStdout();
     try {
       await buildSchemaHandler(DESC)(["ticker"], {}, "json");
-      const data = JSON.parse(c.read());
+      const { data } = JSON.parse(c.read());
       expect(data.command).toBe("ticker");
       expect(data.category).toBe("public");
       expect(data.params.type).toBe("object");
@@ -29,7 +29,7 @@ describe("schema detail", () => {
     const c = captureStdout();
     try {
       await buildSchemaHandler(DESC)(["candles"], {}, "json");
-      const data = JSON.parse(c.read());
+      const { data } = JSON.parse(c.read());
       expect(data.params.properties.type.enum).toContain("1hour");
       expect(data.params.properties.limit.default).toBe(1000);
     } finally {
@@ -58,7 +58,7 @@ describe("schema detail", () => {
     const c = captureStdout();
     try {
       await buildSchemaHandler(DESC)(["create-order"], {}, "json");
-      const data = JSON.parse(c.read());
+      const { data } = JSON.parse(c.read());
       expect(data.category).toBe("trade");
       expect(data.command).toBe("trade create-order");
       expect(data.params.properties.execute).toBeDefined();
@@ -72,7 +72,7 @@ describe("schema detail", () => {
     const c = captureStdout();
     try {
       await buildSchemaHandler(DESC)(["trade", "create-order"], {}, "json");
-      const data = JSON.parse(c.read());
+      const { data } = JSON.parse(c.read());
       expect(data.command).toBe("trade create-order");
       expect(data.category).toBe("trade");
     } finally {

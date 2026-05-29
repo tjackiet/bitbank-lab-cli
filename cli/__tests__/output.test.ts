@@ -19,8 +19,38 @@ describe("output", () => {
     process.exitCode = undefined;
   });
 
-  it("outputs JSON format", () => {
+  it("outputs JSON envelope by default (non-raw)", () => {
     output({ success: true, data: { a: 1 } }, "json");
+    expect(JSON.parse(stdout)).toEqual({ success: true, data: { a: 1 } });
+  });
+
+  it("includes meta in the default JSON envelope", () => {
+    output(
+      { success: true, data: [1, 2], meta: { rateLimit: { remaining: 5, limit: 10, reset: 1 } } },
+      "json",
+    );
+    const parsed = JSON.parse(stdout);
+    expect(parsed.success).toBe(true);
+    expect(parsed.data).toEqual([1, 2]);
+    expect(parsed.meta.rateLimit).toEqual({ remaining: 5, limit: 10, reset: 1 });
+  });
+
+  it("includes partial in the default JSON envelope", () => {
+    output({ success: true, data: [1], partial: true }, "json");
+    const parsed = JSON.parse(stdout);
+    expect(parsed.partial).toBe(true);
+    expect(parsed.data).toEqual([1]);
+  });
+
+  it("omits meta/partial keys from the envelope when absent", () => {
+    output({ success: true, data: { a: 1 } }, "json");
+    const parsed = JSON.parse(stdout);
+    expect("meta" in parsed).toBe(false);
+    expect("partial" in parsed).toBe(false);
+  });
+
+  it("outputs bare data (no envelope) when raw=true", () => {
+    output({ success: true, data: { a: 1 }, meta: { returnedRows: 1 } }, "json", true);
     expect(JSON.parse(stdout)).toEqual({ a: 1 });
   });
 

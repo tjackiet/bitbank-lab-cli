@@ -4,6 +4,7 @@ import { output } from "../output.js";
 import { buildLogRecord, writeTradeLog } from "../trade-log.js";
 import type { CommandHandler, ParsedValues, RuntimeContext } from "./handler-types.js";
 import { valStr } from "./handler-types.js";
+import { withRequestContext } from "./request-context.js";
 
 const DEFAULT_TRADE_LOG = join(homedir(), ".bitbank-trade.log");
 
@@ -25,7 +26,9 @@ export function handler(
     const opts = ctxOpts(ctx);
     const result =
       Object.keys(params).length > 0 ? await mod[fnName](params, opts) : await mod[fnName](opts);
-    output(result, fmt, values.raw === true, values.machine === true);
+    // public / private のみ取得コンテキストを付与（paper / trade は素通し）。
+    const withCtx = withRequestContext(result, modulePath, params);
+    output(withCtx, fmt, values.raw === true, values.machine === true);
   };
 }
 

@@ -12,8 +12,8 @@ describe("Chaos F-05: null/undefined fields", () => {
     output({ success: true, data: DATA_WITH_NULLS }, "json");
     const out = spy.mock.calls.map((c) => c[0]).join("");
     const parsed = JSON.parse(out);
-    expect(parsed[0].price).toBeNull();
-    expect(parsed[0].name).toBe("btc");
+    expect(parsed.data[0].price).toBeNull();
+    expect(parsed.data[0].name).toBe("btc");
     spy.mockRestore();
   });
 

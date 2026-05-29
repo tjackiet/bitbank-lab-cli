@@ -1,3 +1,4 @@
+import { printCsv, printTable } from "./output-tabular.js";
 import type { Format, Result } from "./types.js";
 
 export function output<T>(result: Result<T>, format: Format, raw = false, machine = false): void {
@@ -18,8 +19,9 @@ export function output<T>(result: Result<T>, format: Format, raw = false, machin
   const data = result.data;
   switch (format) {
     case "json":
+      // 既定 json は envelope（meta 込み）を pretty 出力。--raw のときだけ data のみ compact。
       process.stdout.write(
-        `${JSON.stringify(data, raw ? undefined : null, raw ? undefined : 2)}\n`,
+        `${JSON.stringify(raw ? data : successEnvelope(result), null, raw ? undefined : 2)}\n`,
       );
       break;
     case "table":
@@ -31,69 +33,21 @@ export function output<T>(result: Result<T>, format: Format, raw = false, machin
   }
 }
 
+/** 成功 Result を { success, data, partial?, meta? } envelope に変換する。
+ *  既定 json（pretty）と --machine（compact）で共通の形を保証する。 */
+function successEnvelope<T>(r: Extract<Result<T>, { success: true }>): Record<string, unknown> {
+  const env: Record<string, unknown> = { success: true, data: r.data };
+  if (r.partial) env.partial = true;
+  if (r.meta) env.meta = r.meta;
+  return env;
+}
+
 export function machineOutput<T>(result: Result<T>): void {
   if (result.success) {
-    const envelope: Record<string, unknown> = { success: true, data: result.data };
-    if (result.partial) envelope.partial = true;
-    if (result.meta) envelope.meta = result.meta;
-    process.stdout.write(`${JSON.stringify(envelope)}\n`);
+    process.stdout.write(`${JSON.stringify(successEnvelope(result))}\n`);
   } else {
     const exitCode = result.exitCode ?? 1;
     process.stdout.write(`${JSON.stringify({ success: false, error: result.error, exitCode })}\n`);
     process.exitCode = exitCode;
   }
-}
-
-function toRows(data: unknown): Record<string, unknown>[] {
-  if (Array.isArray(data)) return data as Record<string, unknown>[];
-  if (typeof data === "object" && data !== null) return [data as Record<string, unknown>];
-  return [{ value: data }];
-}
-
-function printTable(data: unknown): void {
-  const rows = toRows(data);
-  if (rows.length === 0) return;
-  const keys = Object.keys(rows[0]);
-
-  // 列幅を1パスで計算
-  const widths = keys.map((k) => k.length);
-  const cells: string[][] = [];
-  for (const row of rows) {
-    const rowCells: string[] = [];
-    for (let i = 0; i < keys.length; i++) {
-      const s = String(row[keys[i]] ?? "");
-      if (s.length > widths[i]) widths[i] = s.length;
-      rowCells.push(s);
-    }
-    cells.push(rowCells);
-  }
-
-  const parts: string[] = [];
-  parts.push(keys.map((k, i) => k.padEnd(widths[i])).join("  "));
-  parts.push(widths.map((w) => "-".repeat(w)).join("  "));
-  for (const rowCells of cells) {
-    parts.push(rowCells.map((s, i) => s.padEnd(widths[i])).join("  "));
-  }
-  process.stdout.write(`${parts.join("\n")}\n`);
-}
-
-// OWASP CSV Injection: 先頭が = + - @ \t \r なら式評価される恐れがあるため強制クォート
-const NEEDS_QUOTE_RE = /^[=+\-@\t\r]|[,"\n]/;
-
-function escapeCsvField(value: string): string {
-  if (NEEDS_QUOTE_RE.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
-  }
-  return value;
-}
-
-function printCsv(data: unknown): void {
-  const rows = toRows(data);
-  if (rows.length === 0) return;
-  const keys = Object.keys(rows[0]);
-  const parts: string[] = [keys.map(escapeCsvField).join(",")];
-  for (const row of rows) {
-    parts.push(keys.map((k) => escapeCsvField(String(row[k] ?? ""))).join(","));
-  }
-  process.stdout.write(`${parts.join("\n")}\n`);
 }

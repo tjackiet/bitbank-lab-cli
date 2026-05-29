@@ -15,7 +15,7 @@ describe("schema list", () => {
     const c = captureStdout();
     try {
       await buildSchemaHandler(DESC)([], {}, "json");
-      const data = JSON.parse(c.read());
+      const { data } = JSON.parse(c.read());
       expect(Array.isArray(data)).toBe(true);
       expect(data.length).toBeGreaterThan(0);
       const ticker = data.find((d: { command: string }) => d.command === "ticker");

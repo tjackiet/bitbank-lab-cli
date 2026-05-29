@@ -14,10 +14,12 @@
 
 - skill が **one-shot コマンド**（candles / ticker / assets / paper / profile 等）
   を呼ぶときは **必ず `--format=json --machine` を併用する**
-- `--machine` は `{ success, data, partial?, meta? }` envelope を吐く。
-  `--format=json` 単独だと `data` 配下しか出力されず、`meta`
-  （`lastIsIncomplete` / `gaps` / `dedupedCount` / `truncated`）が落ちて
-  データ完全性が判定できなくなる
+- `--machine` は `{ success, data, partial?, meta? }` envelope を **1 行 compact** で吐く
+  （機械処理向けの canonical 形）。既定の `--format=json` 単独でも **同じ envelope を
+  pretty で返す**ので `meta`（`lastIsIncomplete` / `gaps` / `dedupedCount` / `truncated` や
+  取得コンテキスト `request` / `source` / `fetchedAt` / `returnedRows`）は落ちない。
+  skill 経路では出力の揺れを抑えるため compact な `--machine` を使う
+- `--raw` を付けたときだけ従来どおり `data` のみ（envelope なし・compact、jq パイプ用）
 - 例外: `--machine` を **付けない** コマンド:
   - `watch` / `stream`: JSONL・継続ストリーム系。1 行 1 イベントが完結した
     JSON で、envelope の概念がない
@@ -70,6 +72,10 @@ skill 側のパース規律:
   - `truncated: true` → ハードリミットで切り詰めた（`requestedLimit` / `returnedRows` を併記）
 - `partial: true` がある場合は一部 fetch が失敗している。データ完全性が必要な
   分析では再取得 or 部分結果である旨をユーザーに明示する
+- public / private の取得系コマンドは `meta` に取得コンテキストも付ける:
+  `request`（叩いたコマンドと該当時の `pair` / `type` / `date` / `from` / `to` / `limit`）、
+  `source`（`"public"` / `"private"`）、`timezone`（`"UTC"`）、`fetchedAt`（取得時刻 ISO 8601）、
+  `returnedRows`（配列結果の件数）。再現性・鮮度の確認に使う（売買判断には使わない）
 
 ## Result パターン
 
