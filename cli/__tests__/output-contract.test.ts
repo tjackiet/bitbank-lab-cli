@@ -3,7 +3,7 @@
 // 破壊的変更（例: --machine の dry-run が人間向けテキストを出す PR2 不具合）を CI で検知する。
 // envelope の shape 検査は machine-output.test.ts、整形の単体は output.test.ts と一部重なるが、
 // ここでは「安定契約」として鍵集合・行構造を明示 equality で宣言するのが目的。
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { buildHelp } from "../commands/schema/help.js";
 import { showHelp, showTradeHelp } from "../help-print.js";
 import { machineOutput, output } from "../output.js";
@@ -48,6 +48,11 @@ describe("output contract", () => {
   beforeEach(() => {
     streams = captureStreams();
     process.exitCode = undefined;
+  });
+
+  // stdout/stderr のスパイを毎テスト後に復元してテスト独立性を保つ（後続ファイルへ漏らさない）。
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   // ─────────────────────────────────────────────────────────
