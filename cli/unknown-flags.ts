@@ -15,8 +15,13 @@ export function unknownLongFlags(
   tokens: readonly ArgToken[],
   known: Readonly<Record<string, unknown>>,
 ): string[] {
+  // known は通常オブジェクト合成のため `in` ではなく Object.hasOwn を使う。`in` だと
+  // toString / constructor / __proto__ 等のプロトタイプ継承プロパティが known 扱いになり、
+  // --toString のような未知 flag を取りこぼす（in に戻さないこと）。
   const hits = tokens.flatMap((t) =>
-    t.kind === "option" && t.rawName.startsWith("--") && !(t.name in known) ? [t.rawName] : [],
+    t.kind === "option" && t.rawName.startsWith("--") && !Object.hasOwn(known, t.name)
+      ? [t.rawName]
+      : [],
   );
   return [...new Set(hits)];
 }

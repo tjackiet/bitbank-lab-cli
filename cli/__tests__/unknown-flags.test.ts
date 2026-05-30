@@ -39,7 +39,14 @@ describe("unknownLongFlags", () => {
     ]);
   });
 
-  it("preserves the inline rawName for typos with =value (--machien=foo)", () => {
+  it("flags inherited Object.prototype names (--toString, --constructor) as unknown", () => {
+    const tokens = [opt("toString"), opt("constructor"), opt("__proto__")];
+    expect(unknownLongFlags(tokens, known)).toEqual(["--toString", "--constructor", "--__proto__"]);
+  });
+
+  // parseArgs は `--machien=foo` の rawName を `--machien`（=foo を除いた形）で返すため、
+  // ヘルパーも inline value 付き typo を bare な rawName で報告する。
+  it("reports the bare rawName for an inline-value typo (--machien=foo → --machien)", () => {
     expect(unknownLongFlags([opt("machien")], known)).toEqual(["--machien"]);
   });
 });

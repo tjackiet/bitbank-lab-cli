@@ -185,6 +185,13 @@ describe("CLI E2E", () => {
     expect(stderr).toContain("--bar");
   });
 
+  // Object.prototype 継承名（--toString 等）も黙殺せず弾く。`in` 判定だと取りこぼす回帰。
+  it("rejects inherited prototype names like --toString with exit 4", async () => {
+    const { stderr, exitCode } = await run("ticker", "btc_jpy", "--toString");
+    expect(exitCode).toBe(4);
+    expect(stderr).toContain("Unknown option");
+  });
+
   // 正常系の非回帰: 正規 flag は従来どおり受理する（schema は network 不要で exit 0）。
   it("still accepts --format=table on a valid command (exit 0)", async () => {
     const { stderr, exitCode } = await run("schema", "--format=table");
