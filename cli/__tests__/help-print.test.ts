@@ -42,6 +42,13 @@ describe("showHelp", () => {
     expect(out).toContain("--machine");
     expect(out).toContain("--help");
   });
+
+  it("出力・ログ系フラグ（--raw / --log-file / --no-log）も案内する", () => {
+    const out = captureLog(showHelp);
+    expect(out).toContain("--raw");
+    expect(out).toContain("--log-file");
+    expect(out).toContain("--no-log");
+  });
 });
 
 describe("showTradeHelp", () => {
