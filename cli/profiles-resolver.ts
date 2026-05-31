@@ -16,9 +16,13 @@ function lookup(profiles: Record<string, { key: string; secret: string }>, name:
   return profiles[name];
 }
 
-/** Credential resolution: BITBANK_PROFILE env → profiles.json default → legacy env vars.
- * The `--profile=<name>` CLI flag is funnelled through BITBANK_PROFILE by cli/index.ts,
- * so this function does not need to know about CLI options directly. */
+/** Credential resolution for the no-flag path: BITBANK_PROFILE env → profiles.json
+ * default → legacy "BITBANK_API_KEY"/"BITBANK_API_SECRET" env vars.
+ * The `--profile=<name>` CLI flag is NOT handled here: cli/startup-credentials.ts
+ * (resolveStartupCredentials) resolves the flag directly against profiles.json /
+ * .env.<name> and only calls this function when no flag was given. The flag does
+ * not pass through BITBANK_PROFILE, so callers must go via resolveStartupCredentials
+ * to honor `--profile` — calling this directly would ignore it. */
 export function resolveCredentials(): Result<ApiCredentials> {
   const profileName = process.env.BITBANK_PROFILE;
   if (profileName) {

@@ -22,6 +22,9 @@ export function showHelp(): void {
   console.log("  --profile=<name>         Use named profile (profiles.json or .env.<name>)");
   console.log("  --format=json|table|csv  Output format (default: json)");
   console.log("  --machine                Machine-readable JSON envelope on stdout");
+  console.log("  --raw                    Output data only (compact, no envelope/meta)");
+  console.log("  --log-file=<path>        Trade audit log path (default: ~/.bitbank-trade.log)");
+  console.log("  --no-log                 Skip writing the trade audit log");
   console.log("  --help                   Show this help");
 }
 
