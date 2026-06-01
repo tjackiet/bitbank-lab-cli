@@ -289,6 +289,17 @@ describe("fetchWithRetry", () => {
     expect(priv).toMatchObject({ success: false, exitCode: EXIT.AUTH });
   });
 
+  it("classifies a persistent HTTP 429 as RATE_LIMIT (not GENERAL)", async () => {
+    const fetch = async () => new Response("", { status: 429, statusText: "Too Many Requests" });
+    const result = await fetchWithRetry(
+      "http://test",
+      {},
+      { fetch: fetch as typeof globalThis.fetch, retries: 0 },
+      parseError,
+    );
+    expect(result).toMatchObject({ success: false, exitCode: EXIT.RATE_LIMIT });
+  });
+
   it("returns NETWORK exit code on exception", async () => {
     const fetch = async () => {
       throw new Error("connection refused");

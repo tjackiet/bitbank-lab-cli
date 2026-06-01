@@ -416,7 +416,7 @@ Private API / Trade コマンドは認証情報が必要です。`bitbank profil
 
 ### public コマンドで HTTP 403 / Forbidden
 
-`ticker` や `candlestick` などの public（API キー不要）コマンドで HTTP 403 が
+`ticker` や `candles` などの public（API キー不要）コマンドで HTTP 403 が
 返る場合、原因は API キーではなく **IP / 地域 / ネットワーク制限**
 （VPN・データセンター IP・地域ブロック・WAF 等）の可能性が高いです。この経路は
 鍵を使わないため、CLI も exit code を `AUTH`(2) ではなく `GENERAL`(1) で返し、

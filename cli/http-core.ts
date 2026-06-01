@@ -62,7 +62,9 @@ async function attemptOnce<T>(
     if (!res.ok) {
       if (shouldRetry(res.status)) {
         const error = `HTTP ${res.status}: ${res.statusText}`;
-        return { kind: "retry", res, error, exitCode: EXIT.GENERAL };
+        // 429 は retry を尽くしても rate-limit として返す（5xx は GENERAL のまま）。
+        const exitCode = res.status === 429 ? EXIT.RATE_LIMIT : EXIT.GENERAL;
+        return { kind: "retry", res, error, exitCode };
       }
       // 401/403 の exit code と public 403 のヒント付与は classifyHttpError に集約。
       const { error, exitCode } = classifyHttpError(res.status, res.statusText, isPublic);
