@@ -6,6 +6,7 @@ bitbank-cli-skills の Skill 一覧。
 - **Recipe Skill** — 複数の primitive を順に呼ぶ複合 Skill。`recipe-` プレフィックス、`metadata.recipe: true` を持つ（→ [`.claude/rules/skills.md`](../.claude/rules/skills.md)）
 
 Skill の追加・recipe 化の原則は [`.claude/rules/skills.md`](../.claude/rules/skills.md) を参照。
+使う順序・組み合わせの流れ（現状把握 → 環境分析 → … → モニタリング）は [Skill 使い所ガイド](../docs/skill-workflow.md) を参照。
 
 ## カテゴリ
 
