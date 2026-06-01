@@ -1,6 +1,10 @@
 # Skill の使い所ガイド
 
-7 つの Skill をどう組み合わせて使うかの一例です。「現状把握 → 環境分析 → 仮説検証 → 戦略評価 → モニタリング」の流れに沿って使い分けるのがおすすめです。
+全 12 の Skill をどう組み合わせて使うかの一例です。「現状把握 → 環境分析 → 仮説検証 → 戦略評価 → モニタリング」の流れに沿って使い分けるのがおすすめです。
+
+内訳は分析コア 7（portfolio / volatility-profile / correlation-analysis / data-verification / indicator-analysis / signal-explorer / backtest）＋ ペーパートレード（paper-trade）＋ ユーティリティ 2（profile-management / watch-live）＋ recipe 2（recipe-pre-trade-check / recipe-portfolio-review）です。
+
+> **各 Skill の責務・カテゴリ・代表トリガーの一覧は正典カタログ [`skills/INDEX.md`](../skills/INDEX.md) に集約しています。** 本ガイドは「どの順で使うか」という流れに絞っているので、個々の Skill の詳細や呼び出し例はそちらを参照してください（数の二重管理を避けるため、列挙は INDEX.md 側を正とします）。
 
 ## 投資ワークフローでの活用
 
@@ -31,6 +35,18 @@
 
 - 実行後は再び **portfolio** で資産推移を追跡。
 - 定期的に **volatility-profile** / **correlation-analysis** で環境変化を再評価。
+- 値動きを張り付いて見たいときは **watch-live**（WebSocket ticker。要 `--duration` / `--count`）。
+
+> 補助系：API キーを口座ごとに切り替える **profile-management**、実 API を叩かず仮想資金で売買練習する **paper-trade** は、上の流れと独立していつでも使えます。
+
+## recipe — このワークフローを束ねたもの
+
+上の流れを毎回手でたどる代わりに、代表的な組み合わせを一気通貫で実行する recipe があります。recipe 自体は計算をせず、各 step で対応する Skill を順に呼び、最後に総合判断を提示します（最終判断は人間が下す前提）。
+
+- **[`recipe-pre-trade-check`](../skills/recipe-pre-trade-check/SKILL.md)**：「買う前に最低限これだけは見る」。`portfolio → volatility-profile → data-verification → indicator-analysis` を順に呼び、GO / WAIT / NO-GO を提示。上記「2. 環境分析」〜「3. 個別銘柄チェック」を束ねたもの。
+- **[`recipe-portfolio-review`](../skills/recipe-portfolio-review/SKILL.md)**：保有ポートフォリオの「総点検」。`portfolio → correlation-analysis → volatility-profile` を順に呼び、健全 / 注意 / 要見直し を提示。上記「1. 現状把握」〜「2. 環境分析」を束ねたもの。
+
+> 「買う前にざっと見て」「ポートフォリオを見直したい」のように全体を束ねたい発話では recipe が、「RSI 見て」「ボラどう？」のような個別の発話では単一 Skill が起動します。
 
 ## 役割の境界（混同しやすいポイント）
 
@@ -40,4 +56,4 @@
 | 指標の**予測力**を測る | `signal-explorer` |
 | コスト込みで**戦略評価** | `backtest` |
 
-この 3 つは似て非なるものなので、目的に応じて使い分けてください。
+この 3 つは似て非なるものなので、目的に応じて使い分けてください。役割の境界の全体像は [`skills/INDEX.md`](../skills/INDEX.md) の「選択ガイド」にもまとまっています。
