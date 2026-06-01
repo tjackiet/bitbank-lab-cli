@@ -164,6 +164,8 @@ bitbank trade create-order \
 >
 > 由来: [`.claude/rules/trading-safety.md`](../.claude/rules/trading-safety.md) 「POST のリトライ無効化（冪等性の保護）」
 
+<!-- -->
+
 > [!TIP]
 > ✅ **本番を回し続ける条件（実行ごと）**
 > - 1 回 POST するごとに `active-orders` / `trade-history` / `assets` で結果を確認する
