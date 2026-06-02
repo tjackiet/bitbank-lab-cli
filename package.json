@@ -17,6 +17,7 @@
     "CLAUDE.md",
     "CONTEXT.md",
     "LICENSE",
+    "llms.txt",
     "README.md"
   ],
   "scripts": {
