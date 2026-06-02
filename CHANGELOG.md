@@ -24,6 +24,9 @@
     regenerate して committed との差分ゼロを検査し、コマンド追加・エラーコード変更時の
     取り込み漏れを CI で止める。
   - `package.json` の `files` に `agents/` を追加し npm 配布物へ同梱。
+  - `npm version <bump>` の `scripts.version` フックが両カタログを再生成・ステージし、
+    `cli_version`（`package.json` の version 由来）の同期漏れ＝version bump 時の
+    ドリフトを防ぐ。
   - `agents/*.json` は plugin の subagent 検出（`agents/*.md`）と拡張子が異なり衝突しない。
 
 ### Breaking Changes
