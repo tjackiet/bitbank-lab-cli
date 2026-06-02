@@ -6,7 +6,7 @@ import { EXIT } from "../../exit-codes.js";
 import { resolveFeeRate } from "../../fees.js";
 import type { HttpOptions } from "../../http.js";
 import { type CachedPair, getPairsWithCache } from "../../pairs-cache.js";
-import { type FetchCandles, runTick } from "../../paper-fill.js";
+import { type FetchCandles, type GetPairs, runTick } from "../../paper-fill.js";
 import { updateState } from "../../paper-state-mutate.js";
 import {
   DEFAULT_TAKER_FEE_RATE,
@@ -45,7 +45,7 @@ export type PaperCreateOrderArgs = {
   fetchCandles?: FetchCandles;
   nowMs?: number;
   refreshPairs?: boolean;
-  getPairs?: () => Promise<Result<CachedPair[]>>;
+  getPairs?: GetPairs;
 };
 
 export type PaperFill = {

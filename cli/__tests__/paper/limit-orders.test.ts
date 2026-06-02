@@ -855,4 +855,26 @@ describe("paper tick: live maker fee", () => {
     expect(btc?.feeQuote).toBe(5);
     expect(eth?.feeQuote).toBe(15);
   });
+
+  it("feeRate override fills even when getPairs fails (no /spot/pairs dependency)", async () => {
+    await paperInit({ jpy: "10000000", statePath });
+    const orderTs = await placeLimitBuy("5000000", "0.001");
+    const t = await paperTick({
+      statePath,
+      fetchCandles: fillingCandleAt(orderTs),
+      // override があればペア手数料は不要。pairs fetch はスキップされるので
+      // getPairs が失敗しても約定し、警告も出ない。
+      getPairs: async () => ({ success: false, error: "pairs endpoint down" }),
+      feeRate: 0,
+      nowMs: orderTs + 120_000,
+    });
+    expect(t.success).toBe(true);
+    if (!t.success) return;
+    expect(t.data.filled).toHaveLength(1);
+    expect(t.data.filled[0].feeQuote).toBe(0);
+    expect(t.data.warnings.join(" ")).not.toContain("fetch pairs failed");
+    const after = await loadState(statePath);
+    if (!after.success || !after.data) return;
+    expect(after.data.balances.jpy).toBe(10000000 - 5000);
+  });
 });

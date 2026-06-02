@@ -83,10 +83,12 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
         [...cr.data].sort((a, b) => a.timestamp - b.timestamp),
       );
     }
-    // 約定時のみペア手数料が要る。候補ローソクが 1 本も無ければ /spot/pairs を
-    // 引かない（無駄 fetch 回避）。引けなければ誤レート確定を避けるため約定を
-    // 見送り、lastTickAt を進めず次 tick で再試行する（candle fetch 失敗と同じ扱い）。
-    if ([...candlesByPair.values()].some((c) => c.length > 0)) {
+    // 約定時のみペア手数料が要る。feeRate override があれば resolveFeeRate が
+    // それを最優先で使うのでペア取得は不要（取得失敗で約定を止めない）。候補
+    // ローソクが 1 本も無ければ /spot/pairs を引かない（無駄 fetch 回避）。引け
+    // なければ誤レート確定を避けるため約定を見送り、lastTickAt を進めず次 tick
+    // で再試行する（candle fetch 失敗と同じ扱い）。
+    if (opts.feeRate === undefined && [...candlesByPair.values()].some((c) => c.length > 0)) {
       const getPairsFn =
         opts.getPairs ?? (() => getPairsWithCache({ httpOptions: opts.httpOptions }));
       const pr = await getPairsFn();
