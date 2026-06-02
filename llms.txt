@@ -1,0 +1,53 @@
+# bitbank CLI & Agent Skills
+
+> bitbank 暗号資産取引所 API への薄い CLI アクセス層と、それを自然言語で操作する Agent Skills（Claude Code / Cursor 用）の 2 層構成スターターキット。CLI は分析ロジックを一切持たず、生の市場データ（ticker / candles / depth 等）を高速に取得・整形することに徹し、指標計算やトレード判断は LLM 側に委ねる。Public（認証不要）/ Private（口座読み取り）/ Trade（ドライランがデフォルト + 二段確認ガード）/ Paper（仮想資金 × ライブ価格）/ Profile（API キー切替）の各カテゴリを提供する。
+
+このファイルは LLM 向けの導線インデックス。各項目の単一ソースはリンク先にあり、ここでは内容を複製しない。
+
+## はじめに（Start here）
+
+- [README.md](README.md): セットアップ・コマンド一覧・使い方・免責事項。プロジェクト全体の入口
+- [AGENTS.md](AGENTS.md): エージェント向けの最上位ガイド（実体は CLAUDE.md）。設計思想・禁止事項・アーキテクチャ
+- [CONTEXT.md](CONTEXT.md): エージェント向けコンテキスト（AGENTS.md / CLAUDE.md と同一実体）
+- [CLAUDE.md](CLAUDE.md): コード品質・責務分離（CLI は薄い層）・Result パターン等のルール本体
+
+## Agent Skills
+
+- [skills/INDEX.md](skills/INDEX.md): 全 Skill のカタログ（Market Read / Risk & Statistics / Signal & Strategy / Portfolio / Operations / Recipes）と選択ガイド
+- [.claude/rules/skills.md](.claude/rules/skills.md): Skill / Recipe の追加手順と設計原則
+- [skills/_shared/references/](skills/_shared/references/): 全 Skill 共通の参照資料（API レスポンス形式・ペア分類・CLI 規約・エラーカタログ）
+
+## CLI の使い方
+
+主要コマンド（全コマンドは [README コマンド一覧](README.md#コマンド一覧) を参照）:
+
+- `bitbank ticker btc_jpy` — 単一ペアのティッカー（Public・認証不要）
+- `bitbank tickers-jpy` — 全 JPY ペア一括ティッカー
+- `bitbank candles btc_jpy --type=1day --format=table` — ローソク足 OHLCV
+- `bitbank depth btc_jpy` — 板情報（asks / bids）
+- `bitbank paper create-order --pair=btc_jpy --side=buy --type=market --amount=0.001` — ペーパートレード（実 API は public ticker のみ）
+
+参照:
+
+- [.claude/rules/commands.md](.claude/rules/commands.md): コマンド分類（public / private / trade / paper / profile / meta）と追加手順
+- [.claude/rules/trading-safety.md](.claude/rules/trading-safety.md): trade の安全ガード（`--execute` / `--confirm` 二段確認 / POST 非リトライ）
+
+## ガイドと設計記録
+
+- [docs/customization-guide.md](docs/customization-guide.md): Skill のカスタマイズ・独自指標の追加
+- [docs/skill-workflow.md](docs/skill-workflow.md): Skill の使い所・組み合わせの流れ
+- [docs/botter-runbook.md](docs/botter-runbook.md): bot 運用フロー（read-only → paper → dry-run → 本番）
+- [docs/adr/001-cli-vs-mcp-separation.md](docs/adr/001-cli-vs-mcp-separation.md): CLI と MCP サーバーの分離方針
+- [docs/adr/002-no-analysis-logic-in-cli.md](docs/adr/002-no-analysis-logic-in-cli.md): CLI に分析ロジックを置かない決定
+
+## コントリビュート
+
+- [CONTRIBUTING.md](CONTRIBUTING.md): 開発フロー・コミット規約
+- [SECURITY.md](SECURITY.md): 脆弱性報告ポリシー
+- [CHANGELOG.md](CHANGELOG.md): 変更履歴
+
+## Optional
+
+- [GitHub リポジトリ](https://github.com/tjackiet/bitbank-cli-skills): ソース・Issue・最新版
+- [npm: bitbank-lab-cli](https://www.npmjs.com/package/bitbank-lab-cli): 配布パッケージ
+- [LICENSE](LICENSE): MIT License
