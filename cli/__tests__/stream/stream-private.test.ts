@@ -9,7 +9,16 @@ const mockPubnub = {
   unsubscribeAll: vi.fn(),
 };
 vi.mock("pubnub", () => ({
-  default: vi.fn(() => mockPubnub),
+  // vitest 4 では mock 実装を new で呼ぶため、アロー関数だと
+  // "is not a constructor" になる。コンストラクタで mockPubnub の
+  // メソッド参照を this にコピーし、new されたインスタンスに行き渡らせる。
+  default: vi.fn(
+    class {
+      constructor() {
+        Object.assign(this, mockPubnub);
+      }
+    },
+  ),
 }));
 
 vi.mock("../../commands/stream/format.js", () => ({
