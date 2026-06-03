@@ -62,7 +62,16 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
     params: {},
     output: {
       type: "object",
-      properties: { equity: nn, margin: nn, free_margin: nn, margin_level: nn, pnl: nn },
+      properties: {
+        status: s,
+        total_margin_balance: n,
+        total_margin_balance_percentage: nn,
+        margin_position_profit_loss: n,
+        margin_call_percentage: nn,
+        losscut_percentage: nn,
+        buy_credit: n,
+        sell_credit: n,
+      },
     },
   },
   "margin-positions": {
