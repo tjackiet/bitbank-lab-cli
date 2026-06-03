@@ -1,4 +1,4 @@
-import type { DryRunData } from "../../types.js";
+import type { DryRunData, DryRunFee } from "../../types.js";
 import { CONFIRM_PHRASES, type TradeCommandKey } from "./confirm-guard.js";
 
 const SENSITIVE_FLAGS = new Set(["token", "otp_token"]);
@@ -8,6 +8,8 @@ export type TradeDryRunInput = {
   endpoint: string;
   body: Record<string, unknown>;
   args: Record<string, unknown>;
+  // create-order だけが渡す手数料見積り。optional なので他コマンドは無改修。
+  fee?: DryRunFee;
 };
 
 export function buildExecuteHint(input: TradeDryRunInput): string {
@@ -49,6 +51,8 @@ export function dryRunResult(input: TradeDryRunInput): { success: true; data: Dr
       body: maskBody(input.body),
       executeHint: buildExecuteHint(input),
       confirmPhrase: CONFIRM_PHRASES[input.command],
+      // fee 未指定の cancel-* 等で envelope に fee: undefined を出さないよう条件展開。
+      ...(input.fee ? { fee: input.fee } : {}),
     },
   };
 }

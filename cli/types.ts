@@ -49,6 +49,17 @@ export type Result<T> =
 
 export type Format = "json" | "table" | "csv";
 
+/** Trade dry-run の手数料見積り。create-order だけが埋める optional フィールド。
+ *  role/rate は常に出す（rate は /spot/pairs 由来のライブ値、campaign/maker リベート追従）。
+ *  estimated* は約定価格が既知（limit / stop_limit）のときだけ。費目は quote 建て。 */
+export type DryRunFee = {
+  role: "maker" | "taker";
+  rate: number;
+  estimatedFeeQuote?: number;
+  estimatedCostQuote?: number;
+  note?: string;
+};
+
 /** Trade dry-run のプレビュー構造化データ。--machine では envelope の data に載り、
  *  human 表示では output-dry-run.ts が整形ボックスへ描画する。 */
 export type DryRunData = {
@@ -57,4 +68,5 @@ export type DryRunData = {
   body: Record<string, unknown>;
   executeHint: string;
   confirmPhrase?: string;
+  fee?: DryRunFee;
 };
