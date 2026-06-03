@@ -36,12 +36,18 @@ describe("Chaos T-10: no fetch called without --execute", () => {
   });
 
   it("confirm-deposits does not fetch", async () => {
-    await confirmDeposits({ id: "12345" }, { fetch: fetchSpy, retries: 0 });
+    await confirmDeposits(
+      { deposits: "11111111-2222-3333-4444-555555555555:99999999-8888-7777-6666-555555555555" },
+      { fetch: fetchSpy, retries: 0 },
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("confirm-deposits-all does not fetch", async () => {
-    await confirmDepositsAll({}, { fetch: fetchSpy, retries: 0 });
+    await confirmDepositsAll(
+      { originatorUuid: "99999999-8888-7777-6666-555555555555" },
+      { fetch: fetchSpy, retries: 0 },
+    );
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 });

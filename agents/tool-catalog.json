@@ -1637,15 +1637,15 @@
       "command": "trade confirm-deposits",
       "category": "trade",
       "auth_required": true,
-      "description": "Confirm a deposit (dry-run default)",
+      "description": "Confirm deposits (dry-run default)",
       "dangerous": true,
       "confirm": "I-UNDERSTAND-CONFIRM-DEPOSITS",
       "params": {
         "type": "object",
         "properties": {
-          "id": {
+          "deposits": {
             "type": "string",
-            "description": "Deposit ID to confirm"
+            "description": "Deposits to confirm as <deposit-uuid>:<originator-uuid>,... (UUIDs from unconfirmed-deposits / deposit-originators)"
           },
           "execute": {
             "type": "boolean",
@@ -1660,14 +1660,7 @@
       },
       "output": {
         "type": "object",
-        "properties": {
-          "id": {
-            "type": "number"
-          },
-          "status": {
-            "type": "string"
-          }
-        }
+        "description": "Empty object on success"
       }
     },
     {
@@ -1680,6 +1673,10 @@
       "params": {
         "type": "object",
         "properties": {
+          "originator-uuid": {
+            "type": "string",
+            "description": "Originator UUID whose deposits to confirm (required)"
+          },
           "execute": {
             "type": "boolean",
             "description": "Execute for real (default: dry-run)"
@@ -1693,11 +1690,7 @@
       },
       "output": {
         "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          }
-        }
+        "description": "Empty object on success"
       }
     },
     {

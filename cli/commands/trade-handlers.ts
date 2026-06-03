@@ -49,18 +49,19 @@ export const tradeCommands: Record<string, CommandEntry> = {
     })),
   },
   "confirm-deposits": {
-    description: "Confirm a deposit (dry-run default)",
-    options: { id: str, execute: bool(), confirm: str },
+    description: "Confirm deposits (dry-run default)",
+    options: { deposits: str, execute: bool(), confirm: str },
     handler: tradeHandler("./trade/confirm-deposits.js", "confirmDeposits", (v) => ({
-      id: valStr(v, "id"),
+      deposits: valStr(v, "deposits"),
       execute: !!v.execute,
       confirm: valStr(v, "confirm"),
     })),
   },
   "confirm-deposits-all": {
     description: "Confirm all deposits (dry-run default)",
-    options: { execute: bool(), confirm: str },
+    options: { "originator-uuid": str, execute: bool(), confirm: str },
     handler: tradeHandler("./trade/confirm-deposits-all.js", "confirmDepositsAll", (v) => ({
+      originatorUuid: valStr(v, "originator-uuid"),
       execute: !!v.execute,
       confirm: valStr(v, "confirm"),
     })),
