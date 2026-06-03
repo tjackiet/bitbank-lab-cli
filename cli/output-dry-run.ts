@@ -1,4 +1,4 @@
-import type { DryRunData } from "./types.js";
+import type { DryRunData, DryRunFee } from "./types.js";
 
 /** result.data が trade dry-run のプレビューか判定する type guard。
  *  human 経路の分岐と監査ログのスキップ判定に使うため、dryRun フラグだけでなく
@@ -29,6 +29,7 @@ export function printDryRunBox(data: DryRunData): void {
   for (const [k, v] of Object.entries(data.body ?? {})) {
     lines.push(`    ${k}: ${JSON.stringify(v)}`);
   }
+  if (data.fee) appendFeeLines(lines, data.fee, data.body?.side);
   lines.push("");
   lines.push(
     data.confirmPhrase
@@ -37,4 +38,22 @@ export function printDryRunBox(data: DryRunData): void {
   );
   lines.push(`  ${data.executeHint}`);
   process.stdout.write(`${lines.join("\n")}\n`);
+}
+
+/** 手数料見積り行を box に足す。買いは推定コスト、売りは推定手取りとして表示する。 */
+function appendFeeLines(lines: string[], fee: DryRunFee, side: unknown): void {
+  lines.push("", "手数料見積り:");
+  lines.push(`  role: ${fee.role}`);
+  lines.push(
+    `  rate: ${fee.rate}（${(fee.rate * 100).toFixed(4)}%）${fee.rate < 0 ? " ← maker リベート" : ""}`,
+  );
+  if (fee.estimatedFeeQuote !== undefined) {
+    lines.push(`  推定手数料(quote): ${fee.estimatedFeeQuote}`);
+  }
+  if (fee.estimatedCostQuote !== undefined) {
+    lines.push(
+      `  ${side === "sell" ? "推定手取り(quote)" : "推定コスト(quote)"}: ${fee.estimatedCostQuote}`,
+    );
+  }
+  if (fee.note) lines.push(`  ※ ${fee.note}`);
 }

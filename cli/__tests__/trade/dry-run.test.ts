@@ -29,6 +29,33 @@ describe("dryRunResult", () => {
     expect(r.data.body.otp_token).toBe("***");
     expect(JSON.stringify(r.data)).not.toContain("secret-otp");
   });
+
+  it("passes the fee estimate through to the dry-run data when provided", () => {
+    const fee = {
+      role: "maker" as const,
+      rate: 0.0001,
+      estimatedFeeQuote: 10,
+      estimatedCostQuote: 100010,
+    };
+    const r = dryRunResult({
+      command: "create-order",
+      endpoint: "/v1/user/spot/order",
+      body: { pair: "btc_jpy" },
+      args: { pair: "btc_jpy" },
+      fee,
+    });
+    expect(r.data.fee).toEqual(fee);
+  });
+
+  it("omits the fee key entirely when no fee is provided (cancel-* unaffected)", () => {
+    const r = dryRunResult({
+      command: "cancel-order",
+      endpoint: "/v1/user/spot/cancel_order",
+      body: { pair: "btc_jpy", order_id: 1 },
+      args: { pair: "btc_jpy" },
+    });
+    expect("fee" in r.data).toBe(false);
+  });
 });
 
 describe("buildExecuteHint", () => {

@@ -1,5 +1,8 @@
+// 100行超: 入力検証 + body 組立に加え、dry-run の手数料見積り解決経路を含むため
+// （見積り計算自体は cli/fees.ts に委譲。ここはオーケストレーションのみ）。
 import { z } from "zod";
 import { EXIT } from "../../exit-codes.js";
+import { type GetPairs, resolveDryRunFee } from "../../fees.js";
 import { type PrivatePostOptions, privatePost } from "../../http-private-post.js";
 import { parseResponse } from "../../parse-response.js";
 import type { DryRunData, Result } from "../../types.js";
@@ -45,6 +48,8 @@ export type CreateOrderArgs = {
   postOnly?: boolean;
   execute?: boolean;
   confirm?: string;
+  // pairs 取得の注入 seam（テストで実 API を叩かないため）。
+  getPairs?: GetPairs;
 };
 
 export async function createOrder(
@@ -78,6 +83,8 @@ export async function createOrder(
   if (parsed.data.postOnly) body.post_only = true;
 
   if (!parsed.data.execute) {
+    // dry-run のみライブ手数料を引いて見積りを足す（public GET 1回・private/POST 不可）。
+    const fee = await resolveDryRunFee(parsed.data, args.getPairs);
     return dryRunResult({
       command: "create-order",
       endpoint: "/v1/user/spot/order",
@@ -91,6 +98,7 @@ export async function createOrder(
         triggerPrice: parsed.data.triggerPrice,
         postOnly: parsed.data.postOnly,
       },
+      fee,
     });
   }
 

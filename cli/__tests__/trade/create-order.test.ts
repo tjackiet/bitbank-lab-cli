@@ -2,7 +2,9 @@
 import { describe, expect, it, vi } from "vitest";
 import { createOrder } from "../../commands/trade/create-order.js";
 import { EXIT } from "../../exit-codes.js";
-import { TEST_CREDS, mockFetchRaw } from "../test-helpers.js";
+import { machineOutput } from "../../output.js";
+import type { DryRunData } from "../../types.js";
+import { TEST_CREDS, captureStdout, mockFetchRaw, mockGetPairsWith } from "../test-helpers.js";
 
 const VALID_RESPONSE = {
   success: 1,
@@ -284,5 +286,121 @@ describe("create-order", () => {
     );
     expect(result.success).toBe(true);
     if (result.success) expect((result.data as Record<string, unknown>).order_id).toBe(56675044283);
+  });
+});
+
+// dry-run の手数料見積り。getPairs を注入して実 API を避けつつ、notional=100000
+// （5000000*0.02）に対する maker/taker・リベート・campaign 0 を検証する。
+describe("create-order dry-run 手数料見積り", () => {
+  const makerPairs = (rate: number) =>
+    mockGetPairsWith([{ name: "btc_jpy", maker_fee_rate_quote: rate }]);
+  const limitBuy = (rate: number) =>
+    createOrder({
+      pair: "btc_jpy",
+      side: "buy",
+      type: "limit",
+      price: "5000000",
+      amount: "0.02",
+      getPairs: makerPairs(rate),
+    });
+
+  it("limit buy: ライブ maker 率で feeQuote / estimatedCost が出る", async () => {
+    const r = await limitBuy(0.0001);
+    expect(r).toMatchObject({
+      success: true,
+      data: {
+        dryRun: true,
+        fee: { role: "maker", rate: 0.0001, estimatedFeeQuote: 10, estimatedCostQuote: 100010 },
+      },
+    });
+  });
+
+  it("負 maker → リベート（買いコスト減・売り手取り増）", async () => {
+    const buy = await limitBuy(-0.0001);
+    expect(buy).toMatchObject({
+      success: true,
+      data: { fee: { estimatedFeeQuote: -10, estimatedCostQuote: 99990 } },
+    });
+    const sell = await createOrder({
+      pair: "btc_jpy",
+      side: "sell",
+      type: "limit",
+      price: "5000000",
+      amount: "0.02",
+      getPairs: makerPairs(-0.0001),
+    });
+    expect(sell).toMatchObject({ success: true, data: { fee: { estimatedCostQuote: 100010 } } });
+  });
+
+  it("campaign=0 maker rate を維持（default に落ちない）", async () => {
+    const r = await limitBuy(0);
+    expect(r).toMatchObject({
+      success: true,
+      data: { fee: { rate: 0, estimatedFeeQuote: 0, estimatedCostQuote: 100000 } },
+    });
+  });
+
+  it("market: taker 率＋約定価格依存 note、JPY 見積りは出さない", async () => {
+    const r = await createOrder({
+      pair: "btc_jpy",
+      side: "buy",
+      type: "market",
+      amount: "0.02",
+      getPairs: mockGetPairsWith([{ name: "btc_jpy", taker_fee_rate_quote: 0.0012 }]),
+    });
+    expect(r).toMatchObject({ success: true, data: { fee: { role: "taker", rate: 0.0012 } } });
+    if (r.success) {
+      const fee = (r.data as DryRunData).fee;
+      expect(fee?.estimatedFeeQuote).toBeUndefined();
+      expect(fee?.note).toContain("約定価格依存");
+    }
+  });
+
+  it("post_only=true の limit → maker 確定", async () => {
+    const r = await createOrder({
+      pair: "btc_jpy",
+      side: "buy",
+      type: "limit",
+      price: "5000000",
+      amount: "0.02",
+      postOnly: true,
+      getPairs: makerPairs(0.0001),
+    });
+    expect(r).toMatchObject({ success: true, data: { fee: { role: "maker" } } });
+    if (r.success) expect((r.data as DryRunData).fee?.note).toContain("post_only");
+  });
+
+  it("public pairs で率を解決するが private POST は叩かない", async () => {
+    const getPairsSpy = vi.fn(makerPairs(0.0001));
+    const fetchSpy = vi.fn(mockFetchRaw(VALID_RESPONSE));
+    const r = await createOrder(
+      {
+        pair: "btc_jpy",
+        side: "buy",
+        type: "limit",
+        price: "5000000",
+        amount: "0.02",
+        getPairs: getPairsSpy,
+      },
+      { fetch: fetchSpy, retries: 0, credentials: TEST_CREDS, nonce: "1" },
+    );
+    expect(r).toMatchObject({ success: true, data: { dryRun: true, fee: { role: "maker" } } });
+    expect(getPairsSpy).toHaveBeenCalledTimes(1);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("--machine envelope に fee が載る", async () => {
+    const r = await limitBuy(0.0001);
+    const cap = captureStdout();
+    machineOutput(r);
+    cap.restore();
+    const env = JSON.parse(cap.read().trim());
+    expect(env.success).toBe(true);
+    expect(env.data.fee).toMatchObject({
+      role: "maker",
+      rate: 0.0001,
+      estimatedFeeQuote: 10,
+      estimatedCostQuote: 100010,
+    });
   });
 });

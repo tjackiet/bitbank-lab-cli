@@ -1,7 +1,10 @@
+// 100行超: 手数料の解決(resolveFeeRate/feeRole/makerRateResolver)と
+// dry-run 見積り(estimateOrderFee/resolveDryRunFee)を1モジュールに集約するため。
 // CLI 共通の手数料リゾルバ。手数料データは public の /spot/pairs 由来
 // （CachedPair の maker/taker fee_rate_quote）。paper と実 trade dry-run の
 // 両方で同じ解決ロジックを共有するため、paper 専用ではなく CLI 共通モジュールに置く。
-import type { CachedPair } from "./pairs-cache.js";
+import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
+import type { DryRunFee, Result } from "./types.js";
 
 // bitbank 公称テイカー手数料 0.12%。API 不在 / ペア未発見時のフォールバック。
 // 出典: https://bitbank.cc/docs/fees/
@@ -49,4 +52,64 @@ export function makerRateResolver(
 ): (pair: string) => number {
   const byName = new Map((pairs ?? []).map((p) => [p.name, p] as const));
   return (pair) => resolveFeeRate(byName.get(pair), "maker", override);
+}
+
+/** dry-run 見積りに必要な注文情報（create-order の parsed.data 部分集合）。 */
+export type FeeOrder = {
+  pair: string;
+  side: "buy" | "sell";
+  type: string;
+  amount: string;
+  price?: string;
+  postOnly?: boolean;
+};
+
+/** pairs 取得の注入 seam（テストで実 API を叩かないため）。paper の GetPairs と同形。 */
+export type GetPairs = () => Promise<Result<CachedPair[]>>;
+
+/**
+ * 解決済みの pair（無ければ undefined）から手数料見積りを組む純関数。
+ * - role/rate は常に出す（rate は resolveFeeRate のフォールバック規約に従う）
+ * - estimated* は limit / stop_limit かつ price 既知のときだけ。market / stop は
+ *   約定価格依存なので率だけ返す（クランプ禁止。maker リベートの負値はそのまま）
+ * - quote が jpy なら四捨五入、それ以外は quote 建てのまま
+ */
+export function estimateOrderFee(pair: CachedPair | undefined, order: FeeOrder): DryRunFee {
+  const role = feeRole(order.type, order.postOnly);
+  const rate = resolveFeeRate(pair, role);
+  const priceKnown =
+    (order.type === "limit" || order.type === "stop_limit") && order.price !== undefined;
+  if (!priceKnown) {
+    return { role, rate, note: "成行/逆指値: 約定価格依存のため JPY 見積りは省略（手数料率のみ）" };
+  }
+  const isJpy = (pair?.quote_asset ?? order.pair.split("_")[1]) === "jpy";
+  const notional = Number(order.price) * Number(order.amount);
+  const rawFee = notional * rate;
+  const feeQuote = isJpy ? Math.round(rawFee) : rawFee;
+  const gross = order.side === "buy" ? notional + feeQuote : notional - feeQuote;
+  const note = order.postOnly
+    ? "post_only につき maker 確定"
+    : "maker は想定。指値が板を跨いで約定すると taker 手数料になる";
+  return {
+    role,
+    rate,
+    estimatedFeeQuote: feeQuote,
+    estimatedCostQuote: isJpy ? Math.round(gross) : gross,
+    note,
+  };
+}
+
+/**
+ * dry-run の手数料見積りを解決する。public の /spot/pairs を 1 回だけ引く
+ * （キャッシュ済み・private/POST は叩かない）。getPairs 注入時はそれを使う。
+ * pairs 取得失敗 / 対象ペア未発見でも見積りは止めず、公称 taker 率で概算した旨を
+ * note に足して返す（オフラインでも dry-run を壊さない）。
+ */
+export async function resolveDryRunFee(order: FeeOrder, getPairs?: GetPairs): Promise<DryRunFee> {
+  const r = getPairs ? await getPairs() : await getPairsWithCache();
+  const pair = r.success ? r.data.find((p) => p.name === order.pair) : undefined;
+  const fee = estimateOrderFee(pair, order);
+  if (pair) return fee;
+  const fallback = "ライブ手数料率を取得できず公称 taker 率(0.12%)で概算";
+  return { ...fee, note: fee.note ? `${fee.note}; ${fallback}` : fallback };
 }

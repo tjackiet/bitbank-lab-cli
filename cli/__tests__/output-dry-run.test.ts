@@ -54,3 +54,71 @@ describe("printDryRunBox", () => {
     writeSpy.mockRestore();
   });
 });
+
+describe("printDryRunBox 手数料見積り", () => {
+  function render(data: Parameters<typeof printDryRunBox>[0]): string {
+    const writeSpy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
+    printDryRunBox(data);
+    const out = writeSpy.mock.calls.map((c) => c[0]).join("");
+    writeSpy.mockRestore();
+    return out;
+  }
+
+  it("buy は role / rate / 推定コスト / note を表示する", () => {
+    const out = render({
+      dryRun: true,
+      endpoint: "/v1/user/spot/order",
+      body: { pair: "btc_jpy", side: "buy", price: "5000000", amount: "0.02" },
+      executeHint: "run --execute",
+      fee: {
+        role: "maker",
+        rate: 0.0001,
+        estimatedFeeQuote: 10,
+        estimatedCostQuote: 100010,
+        note: "想定 role",
+      },
+    });
+    expect(out).toContain("手数料見積り:");
+    expect(out).toContain("role: maker");
+    expect(out).toContain("推定手数料(quote): 10");
+    expect(out).toContain("推定コスト(quote): 100010");
+    expect(out).toContain("※ 想定 role");
+  });
+
+  it("sell は推定手取りとして表示し、負レートはリベート表記する", () => {
+    const out = render({
+      dryRun: true,
+      endpoint: "/x",
+      body: { side: "sell" },
+      executeHint: "run --execute",
+      fee: { role: "maker", rate: -0.0002, estimatedFeeQuote: -20, estimatedCostQuote: 100020 },
+    });
+    expect(out).toContain("推定手取り(quote): 100020");
+    expect(out).not.toContain("推定コスト");
+    expect(out).toContain("maker リベート");
+  });
+
+  it("market は率と note のみで推定コスト行を出さない", () => {
+    const out = render({
+      dryRun: true,
+      endpoint: "/x",
+      body: { side: "buy" },
+      executeHint: "run --execute",
+      fee: { role: "taker", rate: 0.0012, note: "成行/逆指値: 約定価格依存" },
+    });
+    expect(out).toContain("role: taker");
+    expect(out).not.toContain("推定コスト");
+    expect(out).not.toContain("推定手数料");
+    expect(out).toContain("約定価格依存");
+  });
+
+  it("fee が無ければ手数料セクションを出さない（cancel-* 等は無改修）", () => {
+    const out = render({
+      dryRun: true,
+      endpoint: "/x",
+      body: { pair: "btc_jpy" },
+      executeHint: "run --execute",
+    });
+    expect(out).not.toContain("手数料見積り");
+  });
+});
