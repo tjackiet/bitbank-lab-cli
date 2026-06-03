@@ -1,3 +1,7 @@
+// 100行超: private transfer 系（deposit / withdrawal）エンドポイントの
+// output スキーマ定義を 1 ファイルに集約しているため。withdrawal-history の
+// crypto/fiat 両対応フィールド拡張（ISSUE-E）で増加した。各 def は宣言的な
+// レジストリで分割は不自然なため、行数より凝集を優先する。
 import { type SchemaDef, p } from "./types.js";
 
 const asset = p("string", "Asset symbol (e.g. btc)");
@@ -93,7 +97,28 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
       type: "array",
       items: {
         type: "object",
-        properties: { asset: s, amount: n, fee: n, txid: sn, status: s, requested_at: n },
+        properties: {
+          // 常時（crypto / fiat 共通）
+          uuid: s,
+          asset: s,
+          account_uuid: s,
+          amount: n,
+          fee: n,
+          status: s,
+          requested_at: n,
+          // crypto 出金のみ（fiat では欠落 or null）
+          label: sn,
+          address: sn,
+          network: sn,
+          destination_tag: { type: ["number", "string", "null"] },
+          txid: sn,
+          // fiat（jpy）出金のみ（crypto では欠落 or null）
+          bank_name: sn,
+          branch_name: sn,
+          account_type: sn,
+          account_number: sn,
+          account_owner: sn,
+        },
       },
     },
   },

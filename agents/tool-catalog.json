@@ -1205,7 +1205,13 @@
         "items": {
           "type": "object",
           "properties": {
+            "uuid": {
+              "type": "string"
+            },
             "asset": {
+              "type": "string"
+            },
+            "account_uuid": {
               "type": "string"
             },
             "amount": {
@@ -1214,17 +1220,72 @@
             "fee": {
               "type": "number"
             },
+            "status": {
+              "type": "string"
+            },
+            "requested_at": {
+              "type": "number"
+            },
+            "label": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "address": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "network": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "destination_tag": {
+              "type": [
+                "number",
+                "string",
+                "null"
+              ]
+            },
             "txid": {
               "type": [
                 "string",
                 "null"
               ]
             },
-            "status": {
-              "type": "string"
+            "bank_name": {
+              "type": [
+                "string",
+                "null"
+              ]
             },
-            "requested_at": {
-              "type": "number"
+            "branch_name": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "account_type": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "account_number": {
+              "type": [
+                "string",
+                "null"
+              ]
+            },
+            "account_owner": {
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         }
