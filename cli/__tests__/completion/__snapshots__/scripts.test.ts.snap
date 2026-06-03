@@ -61,8 +61,8 @@ _bitbank() {
         create-order) opts="$opts --pair --side --type --price --amount --trigger-price --post-only --execute --confirm" ;;
         cancel-order) opts="$opts --pair --order-id --execute --confirm" ;;
         cancel-orders) opts="$opts --pair --order-ids --execute --confirm" ;;
-        confirm-deposits) opts="$opts --id --execute --confirm" ;;
-        confirm-deposits-all) opts="$opts --execute --confirm" ;;
+        confirm-deposits) opts="$opts --deposits --execute --confirm" ;;
+        confirm-deposits-all) opts="$opts --originator-uuid --execute --confirm" ;;
       esac
     elif [[ "$cmd" == "paper" ]]; then
       case "$sub" in
@@ -182,8 +182,8 @@ _bitbank() {
       create-order) opts="$opts --pair --side --type --price --amount --trigger-price --post-only --execute --confirm" ;;
       cancel-order) opts="$opts --pair --order-id --execute --confirm" ;;
       cancel-orders) opts="$opts --pair --order-ids --execute --confirm" ;;
-      confirm-deposits) opts="$opts --id --execute --confirm" ;;
-      confirm-deposits-all) opts="$opts --execute --confirm" ;;
+      confirm-deposits) opts="$opts --deposits --execute --confirm" ;;
+      confirm-deposits-all) opts="$opts --originator-uuid --execute --confirm" ;;
       esac
     elif [[ "$cmd" == "paper" ]]; then
       case "$sub" in

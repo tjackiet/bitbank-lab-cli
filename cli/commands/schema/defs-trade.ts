@@ -58,13 +58,26 @@ export const tradeSchemas: Record<string, SchemaDef> = {
   },
   "confirm-deposits": {
     category: "trade",
-    params: { id: p("string", "Deposit ID to confirm"), execute, confirm },
-    output: { type: "object", properties: { id: n, status: s } },
+    params: {
+      deposits: p(
+        "string",
+        "Deposits to confirm as <deposit-uuid>:<originator-uuid>,... (UUIDs from unconfirmed-deposits / deposit-originators)",
+      ),
+      execute,
+      confirm,
+    },
+    // 実 API は成功時 data を空 {} で返す（rest-api.md "Confirm deposits"）。
+    output: { type: "object", description: "Empty object on success" },
   },
   "confirm-deposits-all": {
     category: "trade",
-    params: { execute, confirm },
-    output: { type: "object", properties: { status: s } },
+    params: {
+      "originator-uuid": p("string", "Originator UUID whose deposits to confirm (required)"),
+      execute,
+      confirm,
+    },
+    // 実 API は成功時 data を空 {} で返す（rest-api.md "Confirm all deposits"）。
+    output: { type: "object", description: "Empty object on success" },
   },
 };
 

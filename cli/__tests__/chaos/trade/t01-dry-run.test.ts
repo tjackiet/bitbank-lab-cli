@@ -43,7 +43,9 @@ describe("Chaos T-01: all trade commands return dryRun (no execution) without --
 
   it("confirm-deposits dry-run", async () => {
     const spy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const r = await confirmDeposits({ id: "12345" });
+    const r = await confirmDeposits({
+      deposits: "11111111-2222-3333-4444-555555555555:99999999-8888-7777-6666-555555555555",
+    });
     expect(r).toMatchObject({ success: true, data: { dryRun: true } });
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
@@ -51,7 +53,7 @@ describe("Chaos T-01: all trade commands return dryRun (no execution) without --
 
   it("confirm-deposits-all dry-run", async () => {
     const spy = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
-    const r = await confirmDepositsAll({});
+    const r = await confirmDepositsAll({ originatorUuid: "99999999-8888-7777-6666-555555555555" });
     expect(r).toMatchObject({ success: true, data: { dryRun: true } });
     expect(spy).not.toHaveBeenCalled();
     spy.mockRestore();
