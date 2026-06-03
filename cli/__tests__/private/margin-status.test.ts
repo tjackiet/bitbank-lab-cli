@@ -1,28 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { marginStatus } from "../../commands/private/margin-status.js";
+import {
+  marginStatusFixture,
+  marginStatusNoPositionFixture,
+} from "../__fixtures__/private/margin-status.js";
 import { TEST_CREDS, mockFetchData, mockFetchRaw } from "../test-helpers.js";
 
-const MOCK = {
-  status: "NORMAL",
-  total_margin_balance: "1000000.0000",
-  total_margin_balance_percentage: "300.00",
-  margin_position_profit_loss: "500.0000",
-  margin_call_percentage: "100",
-  losscut_percentage: "50",
-  buy_credit: "900000",
-  sell_credit: "900000",
-  unrealized_cost: "12345.0000",
-  total_margin_position_product: "150000",
-  open_margin_position_product: "100000",
-  open_margin_order_product: "50000",
-  total_position_maintenance_margin: "15000",
-  total_long_position_maintenance_margin: "10000",
-  total_short_position_maintenance_margin: "5000",
-  total_open_order_maintenance_margin: "8000",
-  total_long_open_order_maintenance_margin: "6000",
-  total_short_open_order_maintenance_margin: "2000",
-  available_balances: [{ pair: "btc_jpy", long: "900000", short: "800000" }],
-};
+// モックは実 API 準拠: 形状は __fixtures__/private/margin-status.ts に集約する
+// （インライン即席モック禁止 / docs/dev/conventions.md「private モックの実 API 準拠」参照）。
+const MOCK = marginStatusFixture;
 
 describe("marginStatus", () => {
   it("returns margin status", async () => {
@@ -55,12 +41,7 @@ describe("marginStatus", () => {
 
   it("accepts null for nullable percentage fields (no positions)", async () => {
     const result = await marginStatus({
-      fetch: mockFetchData({
-        ...MOCK,
-        total_margin_balance_percentage: null,
-        margin_call_percentage: null,
-        losscut_percentage: null,
-      }),
+      fetch: mockFetchData(marginStatusNoPositionFixture),
       retries: 0,
       credentials: TEST_CREDS,
       nonce: "1",

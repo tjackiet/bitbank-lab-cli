@@ -1,28 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { marginPositions } from "../../commands/private/margin-positions.js";
+import { marginPositionsFixture } from "../__fixtures__/private/margin-positions.js";
 import { TEST_CREDS, mockFetchData, mockFetchRaw } from "../test-helpers.js";
 
-const MOCK = {
-  notice: {
-    what: "additional_margin",
-    occurred_at: 1700000000000,
-    amount: "5000",
-    due_date_at: 1700600000000,
-  },
-  payables: { amount: "0" },
-  positions: [
-    {
-      pair: "btc_jpy",
-      position_side: "long",
-      open_amount: "0.01",
-      product: "150000",
-      average_price: "15000000",
-      unrealized_fee_amount: "0.5",
-      unrealized_interest_amount: "1.2",
-    },
-  ],
-  losscut_threshold: { individual: "80", company: "60" },
-};
+// モックは実 API 準拠: 形状は __fixtures__/private/margin-positions.ts に集約する
+// （インライン即席モック禁止 / docs/dev/conventions.md「private モックの実 API 準拠」参照）。
+const MOCK = marginPositionsFixture;
 
 describe("marginPositions", () => {
   it("returns margin positions", async () => {
