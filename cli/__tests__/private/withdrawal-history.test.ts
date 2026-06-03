@@ -1,23 +1,14 @@
 import { describe, expect, it } from "vitest";
 import { withdrawalHistory } from "../../commands/private/withdrawal-history.js";
 import { EXIT } from "../../exit-codes.js";
+import { withdrawalHistoryFixture } from "../__fixtures__/private/withdrawal-history.js";
 import { TEST_CREDS, mockFetchData, mockFetchDataCapture, mockFetchRaw } from "../test-helpers.js";
 
-const MOCK = {
-  withdrawals: [
-    {
-      uuid: "abc",
-      asset: "btc",
-      amount: "0.1",
-      fee: "0.0005",
-      label: "main",
-      address: "1A1zP1...",
-      txid: "tx123",
-      status: "DONE",
-      requested_at: 1234567890123,
-    },
-  ],
-};
+// モックは実 API 準拠: 形状は __fixtures__/private/withdrawal-history.ts に集約する
+// （インライン即席モック禁止 / docs/dev/conventions.md「private モックの実 API 準拠」参照）。
+// フィクスチャは ①crypto 出金（address/network/txid/destination_tag あり）
+// ②fiat/jpy 出金（bank_* あり・crypto 専用フィールド欠落）の 2 ケースを持つ。
+const MOCK = withdrawalHistoryFixture;
 
 describe("withdrawalHistory", () => {
   it("returns error when asset is missing", async () => {
@@ -26,7 +17,7 @@ describe("withdrawalHistory", () => {
     if (!result.success) expect(result.exitCode).toBe(EXIT.PARAM);
   });
 
-  it("returns withdrawal history", async () => {
+  it("returns withdrawal history (crypto + fiat shapes all parse)", async () => {
     const result = await withdrawalHistory(
       { asset: "btc" },
       {
@@ -37,7 +28,45 @@ describe("withdrawalHistory", () => {
       },
     );
     expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toHaveLength(1);
+    if (result.success) expect(result.data).toHaveLength(2);
+  });
+
+  it("parses crypto withdrawal with address/network/txid/destination_tag", async () => {
+    const result = await withdrawalHistory(
+      { asset: "xrp" },
+      { fetch: mockFetchData(MOCK), retries: 0, credentials: TEST_CREDS, nonce: "1" },
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const crypto = result.data[0];
+      expect(crypto.account_uuid).toBe("aaaa1111-bbbb-2222-cccc-333333333333");
+      expect(crypto.address).toBe("rLW9gnQo7BQhU6igk5keqYnH3TVrCxGRzm");
+      expect(crypto.network).toBe("xrp");
+      expect(crypto.destination_tag).toBe(123456);
+      expect(crypto.txid).toBe("tx123abc");
+    }
+  });
+
+  it("parses fiat (jpy) withdrawal with address missing (no parse failure)", async () => {
+    const result = await withdrawalHistory(
+      { asset: "jpy" },
+      { fetch: mockFetchData(MOCK), retries: 0, credentials: TEST_CREDS, nonce: "1" },
+    );
+    expect(result.success).toBe(true);
+    if (result.success) {
+      const fiat = result.data[1];
+      expect(fiat.asset).toBe("jpy");
+      // 銀行振込のため暗号資産専用フィールドは欠落。optional によりパース成功
+      expect(fiat.address).toBeUndefined();
+      expect(fiat.network).toBeUndefined();
+      expect(fiat.txid).toBeUndefined();
+      // fiat 専用フィールドを露出している
+      expect(fiat.bank_name).toBe("bitbank bank");
+      expect(fiat.branch_name).toBe("head office");
+      expect(fiat.account_type).toBe("ordinary");
+      expect(fiat.account_number).toBe("1234567");
+      expect(fiat.account_owner).toBe("TARO YAMADA");
+    }
   });
 
   it("passes optional params (count, since, end)", async () => {
