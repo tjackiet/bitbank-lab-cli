@@ -1,17 +1,18 @@
 import { z } from "zod";
 import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
 import { parseResponse } from "../../parse-response.js";
-import { nullableNumStr } from "../../schema-helpers.js";
+import { nullableNumStr, numStr } from "../../schema-helpers.js";
 import type { Result } from "../../types.js";
 
 const MarginStatusSchema = z.object({
-  margin_rate: nullableNumStr,
-  todays_pnl: nullableNumStr,
-  open_pnl: nullableNumStr,
-  force_close_rate: nullableNumStr,
-  total_assets_jpy: nullableNumStr,
-  margin_used: nullableNumStr,
-  margin_available: nullableNumStr,
+  status: z.string(),
+  total_margin_balance: numStr,
+  total_margin_balance_percentage: nullableNumStr,
+  margin_position_profit_loss: numStr,
+  margin_call_percentage: nullableNumStr,
+  losscut_percentage: nullableNumStr,
+  buy_credit: numStr,
+  sell_credit: numStr,
 });
 
 export type MarginStatus = z.infer<typeof MarginStatusSchema>;

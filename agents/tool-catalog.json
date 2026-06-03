@@ -1079,35 +1079,38 @@
       "output": {
         "type": "object",
         "properties": {
-          "equity": {
+          "status": {
+            "type": "string"
+          },
+          "total_margin_balance": {
+            "type": "number"
+          },
+          "total_margin_balance_percentage": {
             "type": [
               "number",
               "null"
             ]
           },
-          "margin": {
+          "margin_position_profit_loss": {
+            "type": "number"
+          },
+          "margin_call_percentage": {
             "type": [
               "number",
               "null"
             ]
           },
-          "free_margin": {
+          "losscut_percentage": {
             "type": [
               "number",
               "null"
             ]
           },
-          "margin_level": {
-            "type": [
-              "number",
-              "null"
-            ]
+          "buy_credit": {
+            "type": "number"
           },
-          "pnl": {
-            "type": [
-              "number",
-              "null"
-            ]
+          "sell_credit": {
+            "type": "number"
           }
         }
       }
