@@ -1,12 +1,18 @@
 // 100行超: 全件ページング（後方 end 走査）と --all/--year ディスパッチャを同居させ、
-// deposit-history(leaf) → all の循環依存を断つため。--year は JST 年分（ADR-004 の税務例外）
+// withdrawal-history(leaf) → all の循環依存を断つため。--year は JST 年分（ADR-004 の税務例外）。
+// deposit-history-all.ts のミラー（差分: tsKey は requested_at、asset は必須）
 import { z } from "zod";
 import { jstYear, jstYearRangeMs } from "../../date-utils.js";
 import { EXIT } from "../../exit-codes.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
-import { type Deposit, type DepositHistoryArgs, depositHistory } from "./deposit-history.js";
+import { AssetSchema } from "../../validators.js";
 import { formatZodError } from "./input-schemas.js";
+import {
+  type Withdrawal,
+  type WithdrawalHistoryArgs,
+  withdrawalHistory,
+} from "./withdrawal-history.js";
 
 const PAGE_SIZE = 1000;
 export const MAX_PAGES_DEFAULT = 1000;
@@ -28,18 +34,22 @@ const MaxPagesSchema = z
 
 const YearSchema = z.string().regex(/^\d{4}$/, "year must be 4 digits (YYYY, JST)");
 
-type DepositHistoryAllArgs = {
-  asset?: string;
+type WithdrawalHistoryAllArgs = {
+  asset: string | undefined;
   since?: string;
   end?: string;
   year?: string;
   maxPages?: string;
 };
 
-export async function depositHistoryAll(
-  args: DepositHistoryAllArgs,
+export async function withdrawalHistoryAll(
+  args: WithdrawalHistoryAllArgs,
   opts?: PrivateHttpOptions,
-): Promise<Result<Deposit[]>> {
+): Promise<Result<Withdrawal[]>> {
+  // withdrawal_history は asset 必須（deposit との差分）。ページングに入る前に検証する
+  const av = AssetSchema.safeParse(args.asset);
+  if (!av.success) return { success: false, error: formatZodError(av.error), exitCode: EXIT.PARAM };
+
   let maxPages = MAX_PAGES_DEFAULT;
   if (args.maxPages !== undefined) {
     const parsed = MaxPagesSchema.safeParse(args.maxPages);
@@ -70,12 +80,12 @@ export async function depositHistoryAll(
     end = String(range.endMs);
   }
 
-  const all: Deposit[] = [];
+  const all: Withdrawal[] = [];
   const seen = new Set<string>();
   let truncated = true;
   for (let page = 0; page < maxPages; page++) {
-    const result = await depositHistory(
-      { asset: args.asset, count: String(PAGE_SIZE), since, end },
+    const result = await withdrawalHistory(
+      { asset: av.data, count: String(PAGE_SIZE), since, end },
       opts,
     );
     if (!result.success) return result;
@@ -91,13 +101,13 @@ export async function depositHistoryAll(
       truncated = false;
       break;
     }
-    // 後方 end 走査: このページ最古の found_at より前へ。dedup が境界重複を吸収する。
-    end = String(Math.min(...result.data.map((r) => r.found_at)));
+    // 後方 end 走査: このページ最古の requested_at より前へ。dedup が境界重複を吸収する。
+    end = String(Math.min(...result.data.map((r) => r.requested_at)));
   }
 
-  all.sort((a, b) => a.found_at - b.found_at); // 時系列（税務台帳向け）
+  all.sort((a, b) => a.requested_at - b.requested_at); // 時系列（税務台帳向け）
   const data =
-    filterYear === undefined ? all : all.filter((r) => jstYear(r.found_at) === filterYear);
+    filterYear === undefined ? all : all.filter((r) => jstYear(r.requested_at) === filterYear);
 
   if (truncated) {
     return {
@@ -111,12 +121,12 @@ export async function depositHistoryAll(
 }
 
 /** --all / --year を全件取得へ、それ以外を単一ページ取得へ振り分ける。 */
-export async function depositHistoryDispatch(
-  args: DepositHistoryArgs & { all?: boolean; year?: string; maxPages?: string },
+export async function withdrawalHistoryDispatch(
+  args: WithdrawalHistoryArgs & { all?: boolean; year?: string; maxPages?: string },
   opts?: PrivateHttpOptions,
-): Promise<Result<Deposit[]>> {
+): Promise<Result<Withdrawal[]>> {
   if (args.all || args.year !== undefined) {
-    return depositHistoryAll(
+    return withdrawalHistoryAll(
       {
         asset: args.asset,
         since: args.since,
@@ -127,5 +137,5 @@ export async function depositHistoryDispatch(
       opts,
     );
   }
-  return depositHistory(args, opts);
+  return withdrawalHistory(args, opts);
 }

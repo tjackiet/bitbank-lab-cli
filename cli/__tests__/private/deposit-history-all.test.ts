@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { depositHistoryAll, depositHistoryDispatch } from "../../commands/private/deposit-history-all.js";
+import {
+  depositHistoryAll,
+  depositHistoryDispatch,
+} from "../../commands/private/deposit-history-all.js";
 import { jstYearRangeMs } from "../../date-utils.js";
 import { depositHistoryFixture } from "../__fixtures__/private/deposit-history.js";
-import { mockFetchDataCapture, TEST_CREDS } from "../test-helpers.js";
+import { TEST_CREDS } from "../test-helpers.js";
 
 // モックは実 API 準拠: 1 入金の形状は __fixtures__/private/deposit-history.ts に集約し、
 // ページング検証用に uuid / found_at だけ差し替える。
@@ -63,7 +66,9 @@ describe("depositHistoryAll", () => {
     let call = 0;
     const fetch: typeof globalThis.fetch = async () => {
       const base = call * 1000;
-      const deposits = Array.from({ length: 1000 }, (_, i) => makeDeposit(`m-${base + i}`, base + i));
+      const deposits = Array.from({ length: 1000 }, (_, i) =>
+        makeDeposit(`m-${base + i}`, base + i),
+      );
       call++;
       return new Response(JSON.stringify({ success: 1, data: { deposits } }));
     };
