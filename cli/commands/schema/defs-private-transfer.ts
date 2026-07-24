@@ -118,7 +118,7 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
       ),
       year: p(
         "string",
-        "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; cannot be combined with --since/--end",
+        "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; requires --asset unless --all-assets; cannot be combined with --since/--end",
       ),
       "max-pages": p(
         "string",

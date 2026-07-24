@@ -82,9 +82,23 @@ describe("withdrawalHistoryDispatch", () => {
     expect(calls()).toBe(2);
   });
 
-  it("propagates errors from withdrawalHistoryAll", async () => {
-    const result = await withdrawalHistoryDispatch({ asset: undefined, all: true });
+  it("propagates a downstream API error from withdrawalHistoryAll", async () => {
+    // asset は有効値にして、パラメータ検証ではなく API エラーの伝播を検証する
+    const fetch: typeof globalThis.fetch = async () =>
+      new Response(JSON.stringify({ success: 0, data: { code: 20001 } }));
+    const result = await withdrawalHistoryDispatch({ asset: "xrp", all: true }, { fetch, ...OPTS });
     expect(result.success).toBe(false);
+    if (!result.success) expect(result.error).toContain("20001");
+  });
+
+  it("rejects a missing asset before any fetch", async () => {
+    const { fetch, urls } = pagedFetch([[]]);
+    const result = await withdrawalHistoryDispatch(
+      { asset: undefined, all: true },
+      { fetch, ...OPTS },
+    );
+    expect(result.success).toBe(false);
+    expect(urls).toHaveLength(0);
   });
 
   it("delegates to single-page withdrawalHistory (no pagination) when --all is not set", async () => {
@@ -128,12 +142,10 @@ describe("withdrawalHistoryDispatch", () => {
     expect(urls.some((u) => u.includes("asset=jpy"))).toBe(true);
   });
 
-  it("rejects --all-assets combined with --asset", async () => {
+  // "" は --asset= の明示指定。truthy 判定だと未指定扱いで全走査が始まるため回帰テスト
+  it.each(["xrp", ""])('rejects --all-assets combined with --asset="%s"', async (asset) => {
     const { fetch, urls } = pagedFetch([[]]);
-    const result = await withdrawalHistoryDispatch(
-      { asset: "xrp", allAssets: true },
-      { fetch, ...OPTS },
-    );
+    const result = await withdrawalHistoryDispatch({ asset, allAssets: true }, { fetch, ...OPTS });
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error).toContain("--all-assets");
@@ -169,7 +181,7 @@ describe("withdrawalHistoryDispatch", () => {
   });
 
   it("--all-assets with --year applies the year window across assets", async () => {
-    const { startMs } = jstYearRangeMs(2026);
+    const { startMs, endMs } = jstYearRangeMs(2026);
     const { fetch, urls } = routedFetch(["xrp"], {
       xrp: [[makeWithdrawal("in", startMs + 1000), makeWithdrawal("before", startMs - 1000)]],
       jpy: [[]],
@@ -181,5 +193,12 @@ describe("withdrawalHistoryDispatch", () => {
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.map((w) => w.uuid)).toEqual(["in"]);
     expect(urls[0]).toContain("/spot/pairs");
+    // 年範囲が全 asset のリクエストへ伝播すること（all-assets テストと同じ URL 検証）
+    const withdrawalUrls = urls.filter((u) => u.includes("withdrawal_history"));
+    expect(withdrawalUrls.length).toBeGreaterThanOrEqual(2); // xrp + jpy
+    for (const u of withdrawalUrls) {
+      expect(u).toContain(`since=${startMs}`);
+      expect(u).toContain(`end=${endMs}`);
+    }
   });
 });

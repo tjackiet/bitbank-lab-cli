@@ -29,8 +29,9 @@ export async function withdrawalHistoryDispatch(
   opts?: PrivateHttpOptions,
 ): Promise<Result<Withdrawal[]>> {
   if (args.allAssets) {
-    // truthy チェックで検出（AssetSchema が空文字を拒否するため undefined と等価）。
-    if (args.asset) {
+    // 空文字も「指定あり」として拒否する（truthy 判定だと --asset="" が未指定扱いに
+    // なり全走査が始まる。trade-history-dispatch の --pair 判定と同じ !== undefined）。
+    if (args.asset !== undefined) {
       return {
         success: false,
         error: "--all-assets cannot be combined with --asset (it spans every asset)",

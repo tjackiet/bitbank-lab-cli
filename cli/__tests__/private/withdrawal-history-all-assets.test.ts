@@ -113,9 +113,14 @@ describe("withdrawalHistoryAllAssets", () => {
     const result = await withdrawalHistoryAllAssets({ year: "2026" }, { fetch, ...OPTS });
     expect(result.success).toBe(true);
     if (result.success) expect(result.data.map((w) => w.uuid)).toEqual(["in"]);
-    const withdrawalUrl = urls.find((u) => u.includes("withdrawal_history"));
-    expect(withdrawalUrl).toContain(`since=${startMs}`);
-    expect(withdrawalUrl).toContain(`end=${endMs}`);
+    // 全 asset のリクエストに年範囲が伝播すること（後続 asset の since/end 欠落は
+    // 厳密フィルタで結果が同じになり検出できないため、URL 側で検証する）
+    const withdrawalUrls = urls.filter((u) => u.includes("withdrawal_history"));
+    expect(withdrawalUrls.length).toBeGreaterThanOrEqual(2); // btc + jpy
+    for (const u of withdrawalUrls) {
+      expect(u).toContain(`since=${startMs}`);
+      expect(u).toContain(`end=${endMs}`);
+    }
   });
 
   it("rejects --year combined with --since/--end before any fetch", async () => {
