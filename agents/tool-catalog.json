@@ -1188,7 +1188,7 @@
       "command": "withdrawal-history",
       "category": "private",
       "auth_required": true,
-      "description": "Get withdrawal history",
+      "description": "Get withdrawal history (--all auto-paginates; --year=<YYYY> for a JST tax year)",
       "dangerous": false,
       "params": {
         "type": "object",
@@ -1208,6 +1208,18 @@
           "end": {
             "type": "string",
             "description": "End timestamp (Unix ms)"
+          },
+          "all": {
+            "type": "boolean",
+            "description": "Fetch all pages (auto-paginate; default cap 1000 pages)"
+          },
+          "year": {
+            "type": "string",
+            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages to fetch with --all/--year (default: 1000; positive integer)"
           }
         },
         "required": []

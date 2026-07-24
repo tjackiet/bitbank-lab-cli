@@ -95,7 +95,7 @@ _bitbank() {
         deposit-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
         unconfirmed-deposits) opts="$opts --asset" ;;
         withdrawal-accounts) opts="$opts --asset" ;;
-        withdrawal-history) opts="$opts --asset --count --since --end" ;;
+        withdrawal-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
         stream) opts="$opts --private --channel --filter" ;;
         watch) opts="$opts --duration --count --idle-timeout --max-retries --backoff-cap" ;;
       esac
@@ -216,7 +216,7 @@ _bitbank() {
       deposit-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
       unconfirmed-deposits) opts="$opts --asset" ;;
       withdrawal-accounts) opts="$opts --asset" ;;
-      withdrawal-history) opts="$opts --asset --count --since --end" ;;
+      withdrawal-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
       stream) opts="$opts --private --channel --filter" ;;
       watch) opts="$opts --duration --count --idle-timeout --max-retries --backoff-cap" ;;
       esac
