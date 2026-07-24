@@ -1,11 +1,8 @@
 import { describe, expect, it } from "vitest";
-import {
-  withdrawalHistoryAll,
-  withdrawalHistoryDispatch,
-} from "../../commands/private/withdrawal-history-all.js";
+import { withdrawalHistoryAll } from "../../commands/private/withdrawal-history-all.js";
 import { jstYearRangeMs } from "../../date-utils.js";
 import { withdrawalHistoryFixture } from "../__fixtures__/private/withdrawal-history.js";
-import { mockFetchDataCapture, TEST_CREDS } from "../test-helpers.js";
+import { TEST_CREDS } from "../test-helpers.js";
 
 // モックは実 API 準拠: 1 出金の形状は __fixtures__/private/withdrawal-history.ts に集約し、
 // ページング検証用に uuid / requested_at だけ差し替える（deposit-history-all.test.ts のミラー）。
@@ -142,40 +139,5 @@ describe("withdrawalHistoryAll", () => {
     const result = await withdrawalHistoryAll({ asset: "xrp", year: "26" });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.exitCode).toBe(4);
-  });
-});
-
-describe("withdrawalHistoryDispatch", () => {
-  it("delegates to all-fetcher when --all is set", async () => {
-    const page1 = Array.from({ length: 1000 }, (_, i) => makeWithdrawal(`a-${i}`, 5000 + i));
-    const page2 = Array.from({ length: 10 }, (_, i) => makeWithdrawal(`b-${i}`, 100 + i));
-    const { fetch, calls } = pagedFetch([page1, page2]);
-    const result = await withdrawalHistoryDispatch({ asset: "xrp", all: true }, { fetch, ...OPTS });
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toHaveLength(1010);
-    expect(calls()).toBe(2);
-  });
-
-  it("delegates to all-fetcher when --year is set (even without --all)", async () => {
-    const { startMs } = jstYearRangeMs(2026);
-    const { fetch, urls } = pagedFetch([[makeWithdrawal("y", startMs + 5)]]);
-    const result = await withdrawalHistoryDispatch(
-      { asset: "xrp", year: "2026" },
-      { fetch, ...OPTS },
-    );
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toHaveLength(1);
-    expect(urls[0]).toContain(`since=${startMs}`);
-  });
-
-  it("delegates to single-page fetch when neither --all nor --year", async () => {
-    const cap = mockFetchDataCapture(withdrawalHistoryFixture);
-    const result = await withdrawalHistoryDispatch(
-      { asset: "xrp", all: false },
-      { fetch: cap.fetch, ...OPTS },
-    );
-    expect(result.success).toBe(true);
-    if (result.success) expect(result.data).toHaveLength(2);
-    expect(cap.urls).toHaveLength(1);
   });
 });

@@ -252,7 +252,7 @@
   CI はこれに加えて `npm audit --audit-level=critical` を実行するが、
   こちらは警告のみの非ブロッキング（merge gate は上記 3 つ）
 
-### 実装済み（Week 2 ①〜③）
+### 実装済み（Week 2 ①〜⑥）
 
 - **① JST 年境界ヘルパー**（`cli/date-utils.ts`）:
   `jstYear(ms)` / `jstYearRangeMs(year)→{startMs,endMs}`（半開区間）/ `jstIso(ms)`。
@@ -287,17 +287,33 @@
     見送り（CodeRabbit が learning として記録済み）
   - テスト `cli/__tests__/private/trade-history-all-pairs.test.ts` /
     `trade-history-dispatch.test.ts`
-- **⑤ error-catalog の 50009**（本 PR）: 「注文照会は pair × order_id の複合キーで、
+- **⑤ error-catalog の 50009**: 「注文照会は pair × order_id の複合キーで、
   不一致でも 50009（実機 #2）」を `scripts/gen-agents-catalog.ts` の GENERAL
   `agent_action` に反映して regenerate。コンパニオン文書
   `skills/_shared/references/error-catalog.md` §3b にも同旨を追記
+- **⑥ withdrawal-history に `--all-assets` / `--year`**（本 PR）: ③ の派生として残って
+  いた「asset 一覧の取得元」判断は、ユーザーに確認のうえ **pairs マスタの
+  `base_asset ∪ quote_asset`**（delist 込み）を採用（private `assets` は「口座が
+  過去に触れた asset 全量」を返すか未確認で、delist・リネーム前シンボルが
+  落ちるリスクがあったため見送り）。④ と同型の一方向依存
+  （`withdrawal-history-dispatch.ts` → `withdrawal-history-all-assets.ts` →
+  `withdrawal-history-all.ts` → leaf）。要点:
+  - dedup は `asset:uuid` 複合キー（④ の `pair:trade_id` と同じ安全側の判断。
+    uuid 自体は asset 内で一意なので実質的には安全弁）
+  - `--max-pages`（asset ごと上限）到達 asset は `meta.truncatedAssets` で報告
+    （`types.ts` の `ResultMeta` に追加）
+  - `--all-assets` は `--asset` と併用不可。`--year` は `--asset` 併用時は単一 asset の
+    年分、`--all-assets` 併用時は全 asset の年分（④ と同仕様）
+  - dispatch の引数型は leaf（`WithdrawalHistoryArgs`）の `asset` が必須型なのに対し
+    `--all-assets` 時は asset 省略が正規入力になるため、`asset?: string` に緩めた
+    別型を定義（trade 側は `pair` がそもそも leaf で `.optional()` なのでこの問題が
+    出ない。withdrawal 固有の型差分）
+  - テスト `withdrawal-history-all-assets.test.ts` / `withdrawal-history-dispatch.test.ts`
+    （trade-history-all-pairs.test.ts / trade-history-dispatch.test.ts のミラー）
 
-### 次タスク（Week 2 残り）
+### 次タスク（Week 3〜）
 
-- **要判断（③ の派生）**: withdrawal の全 asset 横断（asset ループ）を別フラグにするか。
-  ④ の `--all-pairs`（pairs マスタ起点）と同型にするなら、assets 一覧の取得元
-  （private `assets` か、pairs マスタの base/quote 集合か）の決定が先
-- Week 2 の生データ取得網羅（①〜⑤）はこれで完了。以降は Week 3（ヒアリング実施・
+- Week 2 の生データ取得網羅（①〜⑥）はこれで完了。以降は Week 3（ヒアリング実施・
   トラック 3 設計）と Week 4（正規化仕様）へ
 
 ### 実装 gotchas（chaos 規約）
