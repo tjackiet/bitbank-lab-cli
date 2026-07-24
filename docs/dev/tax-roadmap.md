@@ -238,11 +238,14 @@
 
 ### 前提（新セッション開始時に確認）
 
-- `git log --oneline origin/main` の先頭付近に
+- `git fetch origin main` で remote-tracking ref を更新してから
+  `git log --oneline origin/main` を確認し、先頭付近に
   「Merge pull request #1: feat: withdrawal-history に --all / --year を追加」が見えること
 - **旧セッション由来のコミット SHA（7697564 / 06130b7 / a313997 等）はフォーク移行時に
   作り直されており存在しない**。過去作業の照合はコミットメッセージで行う
-- git identity 未設定なら user.email=noreply@anthropic.com / user.name=Claude を設定
+- **AI エージェントセッションに限り**、git identity 未設定なら
+  user.email=noreply@anthropic.com / user.name=Claude を設定する
+  （人間のコントリビュータは自身の identity をそのまま使う）
 - `npm ci` 後、ローカル hook（lefthook pre-commit）が緑であること。CI（`ci.yml`）は
   hook 経由ではなく共通の 3 検証を直接実行する:
   `npx biome check cli/` / `npx tsc --noEmit` / `npx vitest run`。
