@@ -223,44 +223,70 @@
 - **B 層ヒアリング**: アカウントマネージャー経由の規模感データ
   （上位 botter の年間約定件数の桁・法人比率・税務処理の現状ワークフロー）
 
-## 実装状況・引き継ぎ（2026-07-24）
+## 実装状況・引き継ぎ（2026-07-24 更新）
 
-> 計画フェーズは会社リポへのパッチ受け渡しで進めた。以降は個人フォーク
-> `tjackiet/bitbank-lab-cli`（bitbankinc の true fork）に接続した**新セッションで
-> 直接 push + CodeRabbit** で進める。会社リポは着地先（fork → bitbankinc の PR）に徹する。
+> **運用フロー（確立済み）**: 個人フォーク `tjackiet/bitbank-lab-cli`（bitbankinc の
+> true fork）の **main に蓄積**する。作業は main から切ったブランチ →
+> **base=main の PR** → CodeRabbit レビュー → CI green → merge commit で main へ。
+> CodeRabbit は base が default branch（main）の PR しか自動レビューしない
+> （他ブランチ base では Review skipped）。**PR は必ず最初から base=main で作る**こと。
+> base の変更（`edited` イベント）自体は workflow を発火させないため、branch フィルタ
+> 付き workflow が走るのは次の push（`synchronize`）以降になり、CodeRabbit の自動
+> レビューも base 変更だけでは始まらない（`@coderabbitai review` コメントか push が
+> 必要）。会社リポは着地先（fork main → bitbankinc の PR）に徹する。
 > 新セッションはまず本節・[tax-research.md](tax-research.md)・[ADR-004](../adr/004-tax-logic-in-cli-exception.md) を読むこと。
 
 ### 前提（新セッション開始時に確認）
 
-- ブランチ `claude/crypto-tax-data-roadmap-svquwl` が **`06130b7` 以降**であること
-  （`git log --oneline` に `feat: deposit-history に --all` が見えるか）。無ければ
-  旧セッションの週次パッチが未適用 → 適用してから始める
-- `npm ci` 後、pre-commit（biome + tsc + 全テスト）が緑
+- `git fetch origin main` で remote-tracking ref を更新してから
+  `git log --oneline origin/main` を確認し、先頭付近に
+  「Merge pull request #1: feat: withdrawal-history に --all / --year を追加」が見えること
+- **旧セッション由来のコミット SHA（7697564 / 06130b7 / a313997 等）はフォーク移行時に
+  作り直されており存在しない**。過去作業の照合はコミットメッセージで行う
+- **AI エージェントセッションに限り**、git identity 未設定なら
+  user.email=noreply@anthropic.com / user.name=Claude を設定する
+  （人間のコントリビュータは自身の identity をそのまま使う）
+- `npm ci` 後、ローカル hook（lefthook pre-commit）が緑であること。CI（`ci.yml`）は
+  hook 経由ではなく共通の 3 検証を直接実行する:
+  `npx biome check cli/` / `npx tsc --noEmit` / `npx vitest run`。
+  CI はこれに加えて `npm audit --audit-level=critical` を実行するが、
+  こちらは警告のみの非ブロッキング（merge gate は上記 3 つ）
 
-### 実装済み
+### 実装済み（Week 2 ①〜③）
 
-- **① JST 年境界ヘルパー**（`cli/date-utils.ts`, `a313997`）:
+- **① JST 年境界ヘルパー**（`cli/date-utils.ts`）:
   `jstYear(ms)` / `jstYearRangeMs(year)→{startMs,endMs}`（半開区間）/ `jstIso(ms)`。
   epoch を +9h ずらして getUTC* で読み TZ 非依存（x13 と同じ安定性をテスト）。
   税務の年分は JST（ADR-004 の例外）。テスト `cli/__tests__/date-utils-jst.test.ts`
-- **② deposit-history に `--all` / `--year`**（`cli/commands/private/deposit-history-all.ts`,
-  `06130b7`）: 後方 end 走査で全件ページング・uuid dedup・max-pages 安全弁。
+- **② deposit-history に `--all` / `--year`**（`cli/commands/private/deposit-history-all.ts`）:
+  後方 end 走査で全件ページング・uuid dedup・max-pages 安全弁。
   `--year=<YYYY>` は jstYearRangeMs で範囲を絞り jstYear で厳密フィルタ（end 境界の
   含む/排他に依存しない）。--year は --all を含意し --since/--end と併用不可。出力は
   found_at 昇順。schema def / agents カタログ / completion 更新済み。
   テスト `cli/__tests__/private/deposit-history-all.test.ts`
+- **③ withdrawal-history に `--all` / `--year`**（`cli/commands/private/withdrawal-history-all.ts`,
+  fork PR #1 merged）: ② のミラー。差分は 2 点 — tsKey は `requested_at`、
+  **asset 必須**（ページング前に `AssetSchema` で fail-fast。`trade-history-all` の
+  pair 検証と同型）。CodeRabbit（ASSERTIVE）指摘ゼロで通過。
+  テスト `cli/__tests__/private/withdrawal-history-all.test.ts`
 
-### 次タスク（Week 2 残り。②のパターンを踏襲）
+### 次タスク（Week 2 残り）
 
-- **③ withdrawal-history に `--all` / `--year`**: `deposit-history-all.ts` のミラー。
-  差分に注意: tsKey は `requested_at`、**withdrawal は asset 必須**。まず単一 asset の
-  --all/--year を実装し、全 asset 横断（asset ループ）を別フラグにするかは要判断
 - **④ trade-history 全ペア横断**: `trade-history-all` は単一 pair 必須。全ペアを取るには
-  `bitbank pairs`（**delist 込みマスタ**・実機 #4）をループして各 pair で全件取得しマージ。
-  円換算・按分はしない（生データ取得のみ）
+  `bitbank pairs`（`cli/commands/public/pairs.ts`、**delist 込みマスタ**・実機 #4）の
+  全 `name` をループし、各 pair で `tradeHistoryAll` を呼んでマージ。
+  円換算・按分はしない（生データ取得のみ）。実装メモ:
+  - 対象は `is_enabled` に関わらず**全ペア**（過去履歴の網羅が目的。delist 済みペアにも
+    履歴があり得る。実機 #4: matic_jpy / rndr_jpy）。履歴ゼロのペアは空配列が返るだけ
+  - dedup は trade_id（pair 横断で一意か要確認）、出力は executed_at 昇順を推奨
+  - `trade-history-all.ts` は既に 100 行超 → 新ファイルに分ける
+    （例: `trade-history-all-pairs.ts`）
+  - 税務用途を考えると `--year`（JST）も ②③ と同仕様で載せるのが自然
+  - 全ペア分の private GET を連打する → レート制限・throttle の既存挙動を確認
 - **⑤ error-catalog の 50009**: 実機 #2 で「pair × order_id の複合キー不一致でも 50009」
   が判明。`agents/error-catalog.json` は生成物（x17）→ `scripts/gen-agents-catalog.ts`
   の単一ソース側を直して regenerate
+- **要判断（③ の派生）**: withdrawal の全 asset 横断（asset ループ）を別フラグにするか
 
 ### 実装 gotchas（chaos 規約）
 
@@ -271,6 +297,19 @@
   **`npx vitest run cli/__tests__/completion/scripts.test.ts -u`**
 - private テストは実 API を叩かずモック（`mockFetchData` / `mockFetchDataCapture` /
   `__fixtures__/private/`）
+
+### CI / レビュー基盤（2026-07-24 時点）
+
+- fork の GitHub Actions は有効化済み。`ci.yml`（biome + tsc + vitest +
+  npm audit critical）は PR / main push で走る
+- **`security.yml`（Security Audit）は fork では `disabled_fork` になり得る**: schedule
+  トリガーを含む workflow は fork では per-workflow で無効化され、push / pull_request
+  トリガーまで全て止まる仕様。Actions タブ → Security Audit → 「Enable workflow」
+  （オーナー操作）で解除する。本 fork は有効化済みで、base=main の PR では
+  `audit`（npm audit high・ブロッキング）+ `gitleaks` が走る。
+  走っていなければユーザーに有効化を依頼する
+- CodeRabbit は base=main の PR 作成で自動レビュー。手動トリガーは
+  `@coderabbitai review` コメント
 
 ### 段階3（Week 6）着手前に決める設計
 
