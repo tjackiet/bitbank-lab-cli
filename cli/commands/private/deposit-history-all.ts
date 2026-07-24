@@ -17,7 +17,10 @@ const MaxPagesSchema = z
   .transform((s, ctx) => {
     const n = Number(s);
     if (!Number.isSafeInteger(n)) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, message: "max-pages must be a safe integer (≤ 2^53 - 1)" });
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "max-pages must be a safe integer (≤ 2^53 - 1)",
+      });
       return z.NEVER;
     }
     return n;
@@ -40,7 +43,8 @@ export async function depositHistoryAll(
   let maxPages = MAX_PAGES_DEFAULT;
   if (args.maxPages !== undefined) {
     const parsed = MaxPagesSchema.safeParse(args.maxPages);
-    if (!parsed.success) return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
+    if (!parsed.success)
+      return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
     maxPages = parsed.data;
   }
 
@@ -51,10 +55,15 @@ export async function depositHistoryAll(
   let filterYear: number | undefined;
   if (args.year !== undefined) {
     if (args.since !== undefined || args.end !== undefined) {
-      return { success: false, error: "--year cannot be combined with --since/--end", exitCode: EXIT.PARAM };
+      return {
+        success: false,
+        error: "--year cannot be combined with --since/--end",
+        exitCode: EXIT.PARAM,
+      };
     }
     const parsed = YearSchema.safeParse(args.year);
-    if (!parsed.success) return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
+    if (!parsed.success)
+      return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
     filterYear = Number(parsed.data);
     const range = jstYearRangeMs(filterYear);
     since = String(range.startMs);
@@ -65,7 +74,10 @@ export async function depositHistoryAll(
   const seen = new Set<string>();
   let truncated = true;
   for (let page = 0; page < maxPages; page++) {
-    const result = await depositHistory({ asset: args.asset, count: String(PAGE_SIZE), since, end }, opts);
+    const result = await depositHistory(
+      { asset: args.asset, count: String(PAGE_SIZE), since, end },
+      opts,
+    );
     if (!result.success) return result;
     let added = 0;
     for (const r of result.data) {
@@ -84,7 +96,8 @@ export async function depositHistoryAll(
   }
 
   all.sort((a, b) => a.found_at - b.found_at); // 時系列（税務台帳向け）
-  const data = filterYear === undefined ? all : all.filter((r) => jstYear(r.found_at) === filterYear);
+  const data =
+    filterYear === undefined ? all : all.filter((r) => jstYear(r.found_at) === filterYear);
 
   if (truncated) {
     return {
@@ -104,7 +117,13 @@ export async function depositHistoryDispatch(
 ): Promise<Result<Deposit[]>> {
   if (args.all || args.year !== undefined) {
     return depositHistoryAll(
-      { asset: args.asset, since: args.since, end: args.end, year: args.year, maxPages: args.maxPages },
+      {
+        asset: args.asset,
+        since: args.since,
+        end: args.end,
+        year: args.year,
+        maxPages: args.maxPages,
+      },
       opts,
     );
   }
