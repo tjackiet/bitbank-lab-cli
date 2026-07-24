@@ -1,32 +1,13 @@
-// 100行超: 全件ページング（後方 end 走査）と --all/--year ディスパッチャを同居させ、
-// deposit-history(leaf) → all の循環依存を断つため。--year は JST 年分（ADR-004 の税務例外）
-import { z } from "zod";
-import { jstYear, jstYearRangeMs } from "../../date-utils.js";
-import { EXIT } from "../../exit-codes.js";
+// 全件ページング（後方 end 走査）と --all/--year ディスパッチャを同居させ、
+// deposit-history(leaf) → all の循環依存を断つ。--year は JST 年分（ADR-004 の税務例外）
+import { jstYear } from "../../date-utils.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
 import { type Deposit, type DepositHistoryArgs, depositHistory } from "./deposit-history.js";
-import { formatZodError } from "./input-schemas.js";
+import { parseMaxPages, resolveYearWindow } from "./input-schemas.js";
 
 const PAGE_SIZE = 1000;
 export const MAX_PAGES_DEFAULT = 1000;
-
-const MaxPagesSchema = z
-  .string()
-  .regex(/^[1-9]\d*$/, "max-pages must be a positive integer")
-  .transform((s, ctx) => {
-    const n = Number(s);
-    if (!Number.isSafeInteger(n)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "max-pages must be a safe integer (≤ 2^53 - 1)",
-      });
-      return z.NEVER;
-    }
-    return n;
-  });
-
-const YearSchema = z.string().regex(/^\d{4}$/, "year must be 4 digits (YYYY, JST)");
 
 type DepositHistoryAllArgs = {
   asset?: string;
@@ -40,35 +21,16 @@ export async function depositHistoryAll(
   args: DepositHistoryAllArgs,
   opts?: PrivateHttpOptions,
 ): Promise<Result<Deposit[]>> {
-  let maxPages = MAX_PAGES_DEFAULT;
-  if (args.maxPages !== undefined) {
-    const parsed = MaxPagesSchema.safeParse(args.maxPages);
-    if (!parsed.success)
-      return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
-    maxPages = parsed.data;
-  }
+  const mp = parseMaxPages(args.maxPages, MAX_PAGES_DEFAULT);
+  if (!mp.success) return mp;
+  const maxPages = mp.data;
 
   // --year（JST 年分）: 範囲クエリ + 取得後の厳密フィルタ。bitbank の end 境界の
-  // 含む/排他が未確定なため、jstYear で年分を確定させる（ADR-004 の税務例外）。
-  let since = args.since;
-  let end = args.end;
-  let filterYear: number | undefined;
-  if (args.year !== undefined) {
-    if (args.since !== undefined || args.end !== undefined) {
-      return {
-        success: false,
-        error: "--year cannot be combined with --since/--end",
-        exitCode: EXIT.PARAM,
-      };
-    }
-    const parsed = YearSchema.safeParse(args.year);
-    if (!parsed.success)
-      return { success: false, error: formatZodError(parsed.error), exitCode: EXIT.PARAM };
-    filterYear = Number(parsed.data);
-    const range = jstYearRangeMs(filterYear);
-    since = String(range.startMs);
-    end = String(range.endMs);
-  }
+  // 含む/排他に依存せず、jstYear で年分を確定させる（ADR-004 の税務例外）。
+  const win = resolveYearWindow(args);
+  if (!win.success) return win;
+  const { since, filterYear } = win.data;
+  let end = win.data.end;
 
   const all: Deposit[] = [];
   const seen = new Set<string>();
