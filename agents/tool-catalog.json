@@ -761,7 +761,7 @@
       "command": "trade-history",
       "category": "private",
       "auth_required": true,
-      "description": "Get trade execution history",
+      "description": "Get trade execution history (--all / --all-pairs auto-paginate; --year=<YYYY> for a JST tax year)",
       "dangerous": false,
       "params": {
         "type": "object",
@@ -782,9 +782,29 @@
             "type": "string",
             "description": "End timestamp (Unix ms)"
           },
+          "order-id": {
+            "type": "string",
+            "description": "Filter by order ID"
+          },
           "order": {
             "type": "string",
             "description": "Sort order (asc/desc)"
+          },
+          "all": {
+            "type": "boolean",
+            "description": "Fetch all pages for one pair (auto-paginate; default cap 1000 pages)"
+          },
+          "all-pairs": {
+            "type": "boolean",
+            "description": "Fetch every pair in the pairs master (incl. delisted) and merge, sorted by executed_at"
+          },
+          "year": {
+            "type": "string",
+            "description": "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages per pair with --all/--all-pairs/--year (default: 1000; positive integer)"
           }
         },
         "required": []
