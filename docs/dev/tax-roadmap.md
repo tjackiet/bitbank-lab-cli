@@ -229,10 +229,11 @@
 > true fork）の **main に蓄積**する。作業は main から切ったブランチ →
 > **base=main の PR** → CodeRabbit レビュー → CI green → merge commit で main へ。
 > CodeRabbit は base が default branch（main）の PR しか自動レビューしない
-> （他ブランチ base では Review skipped）。**PR は必ず最初から base=main で作る**こと
-> （後から retarget しても `edited` イベントは workflow を発火させず、branch フィルタ
-> 付き workflow が PR に関連付かない）。会社リポは着地先（fork main → bitbankinc の PR）
-> に徹する。
+> （他ブランチ base では Review skipped）。**PR は必ず最初から base=main で作る**こと。
+> base の変更（`edited` イベント）自体は workflow を発火させないため、branch フィルタ
+> 付き workflow が走るのは次の push（`synchronize`）以降になり、CodeRabbit の自動
+> レビューも base 変更だけでは始まらない（`@coderabbitai review` コメントか push が
+> 必要）。会社リポは着地先（fork main → bitbankinc の PR）に徹する。
 > 新セッションはまず本節・[tax-research.md](tax-research.md)・[ADR-004](../adr/004-tax-logic-in-cli-exception.md) を読むこと。
 
 ### 前提（新セッション開始時に確認）
@@ -242,7 +243,9 @@
 - **旧セッション由来のコミット SHA（7697564 / 06130b7 / a313997 等）はフォーク移行時に
   作り直されており存在しない**。過去作業の照合はコミットメッセージで行う
 - git identity 未設定なら user.email=noreply@anthropic.com / user.name=Claude を設定
-- `npm ci` 後、pre-commit（lefthook: biome + tsc + 全テスト）が緑
+- `npm ci` 後、ローカル hook（lefthook pre-commit）が緑であること。CI（`ci.yml`）は
+  hook 経由ではなく同じ検証を直接実行する:
+  `npx biome check cli/` / `npx tsc --noEmit` / `npx vitest run`
 
 ### 実装済み（Week 2 ①〜③）
 
