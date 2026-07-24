@@ -244,8 +244,10 @@
   作り直されており存在しない**。過去作業の照合はコミットメッセージで行う
 - git identity 未設定なら user.email=noreply@anthropic.com / user.name=Claude を設定
 - `npm ci` 後、ローカル hook（lefthook pre-commit）が緑であること。CI（`ci.yml`）は
-  hook 経由ではなく同じ検証を直接実行する:
-  `npx biome check cli/` / `npx tsc --noEmit` / `npx vitest run`
+  hook 経由ではなく共通の 3 検証を直接実行する:
+  `npx biome check cli/` / `npx tsc --noEmit` / `npx vitest run`。
+  CI はこれに加えて `npm audit --audit-level=critical` を実行するが、
+  こちらは警告のみの非ブロッキング（merge gate は上記 3 つ）
 
 ### 実装済み（Week 2 ①〜③）
 
@@ -297,10 +299,12 @@
 
 - fork の GitHub Actions は有効化済み。`ci.yml`（biome + tsc + vitest +
   npm audit critical）は PR / main push で走る
-- **`security.yml`（Security Audit）は `disabled_fork` 状態になり得る**: schedule
+- **`security.yml`（Security Audit）は fork では `disabled_fork` になり得る**: schedule
   トリガーを含む workflow は fork では per-workflow で無効化され、push / pull_request
   トリガーまで全て止まる仕様。Actions タブ → Security Audit → 「Enable workflow」
-  （オーナー操作）が必要。走っていなければユーザーに有効化を依頼する
+  （オーナー操作）で解除する。本 fork は有効化済みで、base=main の PR では
+  `audit`（npm audit high・ブロッキング）+ `gitleaks` が走る。
+  走っていなければユーザーに有効化を依頼する
 - CodeRabbit は base=main の PR 作成で自動レビュー。手動トリガーは
   `@coderabbitai review` コメント
 
