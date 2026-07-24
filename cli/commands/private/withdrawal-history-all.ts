@@ -1,17 +1,15 @@
-// 100行超: 全件ページング（後方 end 走査）と --all/--year ディスパッチャを同居させ、
-// withdrawal-history(leaf) → all の循環依存を断つため。--year は JST 年分（ADR-004 の税務例外）。
-// deposit-history-all.ts のミラー（差分: tsKey は requested_at、asset は必須）
+// withdrawal-history.ts を自動ページングで全件取得するラッパー（単一 asset、後方
+// end 走査）。CLI の --all/--all-assets/--year 振り分けは withdrawal-history-dispatch.ts、
+// 全 asset 横断は withdrawal-history-all-assets.ts が担う。--year は JST 年分
+//（ADR-004 の税務例外）。deposit-history-all.ts のミラー（差分: tsKey は requested_at、
+// asset は必須）
 import { jstYear } from "../../date-utils.js";
 import { EXIT } from "../../exit-codes.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
 import { AssetSchema } from "../../validators.js";
 import { formatZodError, parseMaxPages, resolveYearWindow } from "./input-schemas.js";
-import {
-  type Withdrawal,
-  type WithdrawalHistoryArgs,
-  withdrawalHistory,
-} from "./withdrawal-history.js";
+import { type Withdrawal, withdrawalHistory } from "./withdrawal-history.js";
 
 const PAGE_SIZE = 1000;
 export const MAX_PAGES_DEFAULT = 1000;
@@ -81,24 +79,4 @@ export async function withdrawalHistoryAll(
     };
   }
   return { success: true, data };
-}
-
-/** --all / --year を全件取得へ、それ以外を単一ページ取得へ振り分ける。 */
-export async function withdrawalHistoryDispatch(
-  args: WithdrawalHistoryArgs & { all?: boolean; year?: string; maxPages?: string },
-  opts?: PrivateHttpOptions,
-): Promise<Result<Withdrawal[]>> {
-  if (args.all || args.year !== undefined) {
-    return withdrawalHistoryAll(
-      {
-        asset: args.asset,
-        since: args.since,
-        end: args.end,
-        year: args.year,
-        maxPages: args.maxPages,
-      },
-      opts,
-    );
-  }
-  return withdrawalHistory(args, opts);
 }

@@ -111,14 +111,18 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
       count,
       since,
       end,
-      all: p("boolean", "Fetch all pages (auto-paginate; default cap 1000 pages)"),
+      all: p("boolean", "Fetch all pages for one asset (auto-paginate; default cap 1000 pages)"),
+      "all-assets": p(
+        "boolean",
+        "Fetch every asset in the pairs master base/quote set (incl. delisted) and merge, sorted by requested_at; cannot be combined with --asset",
+      ),
       year: p(
         "string",
-        "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end",
+        "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; cannot be combined with --since/--end",
       ),
       "max-pages": p(
         "string",
-        "Max pages to fetch with --all/--year (default: 1000; positive integer)",
+        "Max pages per asset with --all/--all-assets/--year (default: 1000; positive integer)",
       ),
     },
     output: {

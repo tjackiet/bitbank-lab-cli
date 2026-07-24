@@ -45,18 +45,20 @@ export const privateTransferCommands: Record<string, CommandEntry> = {
     })),
   },
   "withdrawal-history": {
-    description: "Get withdrawal history (--all auto-paginates; --year=<YYYY> for a JST tax year)",
+    description:
+      "Get withdrawal history (--all / --all-assets auto-paginate; --year=<YYYY> for a JST tax year)",
     options: {
       asset: str,
       count: str,
       since: str,
       end: str,
       all: bool(),
+      "all-assets": bool(),
       year: str,
       "max-pages": str,
     },
     handler: handler(
-      "./private/withdrawal-history-all.js",
+      "./private/withdrawal-history-dispatch.js",
       "withdrawalHistoryDispatch",
       (_a, v) => ({
         asset: valStr(v, "asset"),
@@ -64,6 +66,7 @@ export const privateTransferCommands: Record<string, CommandEntry> = {
         since: valStr(v, "since"),
         end: valStr(v, "end"),
         all: !!v.all,
+        allAssets: !!v["all-assets"],
         year: valStr(v, "year"),
         maxPages: valStr(v, "max-pages"),
       }),

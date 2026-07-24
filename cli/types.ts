@@ -35,6 +35,7 @@ export type ResultMeta = {
   returnedRows?: number;
   reason?: TruncationReason;
   truncatedPairs?: string[]; // 全ペア横断取得で max-pages 上限に当たった pair 一覧
+  truncatedAssets?: string[]; // 全 asset 横断取得で max-pages 上限に当たった asset 一覧
   dedupedCount?: number;
   gaps?: Gap[];
   lastIsIncomplete?: boolean;

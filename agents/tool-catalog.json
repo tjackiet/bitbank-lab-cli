@@ -1208,7 +1208,7 @@
       "command": "withdrawal-history",
       "category": "private",
       "auth_required": true,
-      "description": "Get withdrawal history (--all auto-paginates; --year=<YYYY> for a JST tax year)",
+      "description": "Get withdrawal history (--all / --all-assets auto-paginate; --year=<YYYY> for a JST tax year)",
       "dangerous": false,
       "params": {
         "type": "object",
@@ -1231,15 +1231,19 @@
           },
           "all": {
             "type": "boolean",
-            "description": "Fetch all pages (auto-paginate; default cap 1000 pages)"
+            "description": "Fetch all pages for one asset (auto-paginate; default cap 1000 pages)"
+          },
+          "all-assets": {
+            "type": "boolean",
+            "description": "Fetch every asset in the pairs master base/quote set (incl. delisted) and merge, sorted by requested_at; cannot be combined with --asset"
           },
           "year": {
             "type": "string",
-            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end"
+            "description": "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; cannot be combined with --since/--end"
           },
           "max-pages": {
             "type": "string",
-            "description": "Max pages to fetch with --all/--year (default: 1000; positive integer)"
+            "description": "Max pages per asset with --all/--all-assets/--year (default: 1000; positive integer)"
           }
         },
         "required": []
