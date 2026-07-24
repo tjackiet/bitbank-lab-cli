@@ -107,7 +107,7 @@
   - 2025-06-30 まで建玉金利 0 円キャンペーンがあったため、**2025 年分データの
     `interest: 0` は正常**（検証で異常と誤判定しない）
   - 補足: 注文照会は pair × order_id の複合キー（不一致は 50009）。
-    `agents/error-catalog.json` の 50009 の記述に反映を検討
+    `agents/error-catalog.json` の 50009 の記述に反映済み（Week 2 ⑤）
 - **#3 手数料（2026-07-23 確認・クリア）**: maker リベート（マイナス手数料）が実在
   （btc_jpy 全 389 件中 maker 16 件、うち 15 件が負の `fee_amount_quote`）。
   **段階 3 は負の手数料を扱える設計が必須**（所得区分・計上方法は税制調査項目 2）。
@@ -240,7 +240,7 @@
 
 - `git fetch origin main` で remote-tracking ref を更新してから
   `git log --oneline origin/main` を確認し、先頭付近に
-  「Merge pull request #1: feat: withdrawal-history に --all / --year を追加」が見えること
+  「Merge pull request #3: feat: trade-history に --all-pairs / --year を追加」が見えること
 - **旧セッション由来のコミット SHA（7697564 / 06130b7 / a313997 等）はフォーク移行時に
   作り直されており存在しない**。過去作業の照合はコミットメッセージで行う
 - **AI エージェントセッションに限り**、git identity 未設定なら
@@ -269,24 +269,36 @@
   **asset 必須**（ページング前に `AssetSchema` で fail-fast。`trade-history-all` の
   pair 検証と同型）。CodeRabbit（ASSERTIVE）指摘ゼロで通過。
   テスト `cli/__tests__/private/withdrawal-history-all.test.ts`
+- **④ trade-history に `--all-pairs` / `--year`**（fork PR #3 merged）: pairs マスタ
+  （delist 込み・実機 #4）の全 `name` を逐次ループし各 pair の `tradeHistoryAll` を
+  マージ。構成は `trade-history-dispatch.ts`（振り分け）→ `trade-history-all-pairs.ts`
+  （横断取得）→ `trade-history-all.ts` → leaf の一方向依存（ディスパッチャは
+  dispatch ファイルへ移動し、`trade-history-all.ts` は 100 行以内に復帰）。要点:
+  - dedup は `pair:trade_id` 複合キー（trade_id の pair 横断一意性が未確認のため
+    安全側）。出力は `executed_at` 昇順。`--year` は ②③ と同仕様で、
+    `--pair` 併用時は単一ペアの年分、`--all-pairs` 併用時は全ペアの年分
+  - `--max-pages`（pair ごと上限）到達ペアは `meta.truncatedPairs` で報告
+  - `--max-pages` / `--year` の検証は `input-schemas.ts` の `parseMaxPages` /
+    `resolveYearWindow` に共通化（②③ も同ヘルパーへ移行済み）。YearSchema は
+    `^[1-9]\d{3}$`（0 始まり 4 桁年は Date.UTC の 1900 年代補正で範囲と
+    フィルタが食い違うため拒否。CodeRabbit 指摘）
+  - レート制限は逐次実行 + `http-core` の `waitForSlot` / 429 リトライで対応
+    （追加実装なしを確認）。進捗の stderr 出力は既存 `--all` 系との一貫性を理由に
+    見送り（CodeRabbit が learning として記録済み）
+  - テスト `cli/__tests__/private/trade-history-all-pairs.test.ts` /
+    `trade-history-dispatch.test.ts`
+- **⑤ error-catalog の 50009**（本 PR）: 「注文照会は pair × order_id の複合キーで、
+  不一致でも 50009（実機 #2）」を `scripts/gen-agents-catalog.ts` の GENERAL
+  `agent_action` に反映して regenerate。コンパニオン文書
+  `skills/_shared/references/error-catalog.md` §3b にも同旨を追記
 
 ### 次タスク（Week 2 残り）
 
-- **④ trade-history 全ペア横断**: `trade-history-all` は単一 pair 必須。全ペアを取るには
-  `bitbank pairs`（`cli/commands/public/pairs.ts`、**delist 込みマスタ**・実機 #4）の
-  全 `name` をループし、各 pair で `tradeHistoryAll` を呼んでマージ。
-  円換算・按分はしない（生データ取得のみ）。実装メモ:
-  - 対象は `is_enabled` に関わらず**全ペア**（過去履歴の網羅が目的。delist 済みペアにも
-    履歴があり得る。実機 #4: matic_jpy / rndr_jpy）。履歴ゼロのペアは空配列が返るだけ
-  - dedup は trade_id（pair 横断で一意か要確認）、出力は executed_at 昇順を推奨
-  - `trade-history-all.ts` は既に 100 行超 → 新ファイルに分ける
-    （例: `trade-history-all-pairs.ts`）
-  - 税務用途を考えると `--year`（JST）も ②③ と同仕様で載せるのが自然
-  - 全ペア分の private GET を連打する → レート制限・throttle の既存挙動を確認
-- **⑤ error-catalog の 50009**: 実機 #2 で「pair × order_id の複合キー不一致でも 50009」
-  が判明。`agents/error-catalog.json` は生成物（x17）→ `scripts/gen-agents-catalog.ts`
-  の単一ソース側を直して regenerate
-- **要判断（③ の派生）**: withdrawal の全 asset 横断（asset ループ）を別フラグにするか
+- **要判断（③ の派生）**: withdrawal の全 asset 横断（asset ループ）を別フラグにするか。
+  ④ の `--all-pairs`（pairs マスタ起点）と同型にするなら、assets 一覧の取得元
+  （private `assets` か、pairs マスタの base/quote 集合か）の決定が先
+- Week 2 の生データ取得網羅（①〜⑤）はこれで完了。以降は Week 3（ヒアリング実施・
+  トラック 3 設計）と Week 4（正規化仕様）へ
 
 ### 実装 gotchas（chaos 規約）
 

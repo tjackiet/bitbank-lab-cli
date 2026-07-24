@@ -127,7 +127,7 @@ function buildCategories(apiCodes: ReturnType<typeof buildApiCodes>) {
       get: "retry_after_short",
       post: "abort_and_verify",
       agent_action:
-        "Catch-all: balance 60001, trading halted 50003/50004, order-not-found 50009, system 70001, HTTP 5xx. apiErrorExitCode does not sub-classify these — branch on the leading code in the error string (see skills/_shared/references/error-catalog.md). 5xx GET auto-retries up to 2x in http-core; POST never does.",
+        "Catch-all: balance 60001, trading halted 50003/50004, order-not-found 50009 (order lookup is a pair × order_id composite key — 50009 also fires when the order exists but the pair is wrong, and for executed/cancelled orders older than 3 months per official docs; verify both the pair and the order's age against that retention period before concluding the order is gone), system 70001, HTTP 5xx. apiErrorExitCode does not sub-classify these — branch on the leading code in the error string (see skills/_shared/references/error-catalog.md). 5xx GET auto-retries up to 2x in http-core; POST never does.",
     },
     {
       category: "NETWORK",
