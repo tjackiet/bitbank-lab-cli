@@ -22,7 +22,10 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
       since,
       end,
       all: p("boolean", "Fetch all pages (auto-paginate; default cap 1000 pages)"),
-      year: p("string", "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31"),
+      year: p(
+        "string",
+        "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end",
+      ),
       "max-pages": p(
         "string",
         "Max pages to fetch with --all/--year (default: 1000; positive integer)",
@@ -109,7 +112,10 @@ export const privateTransferSchemas: Record<string, SchemaDef> = {
       since,
       end,
       all: p("boolean", "Fetch all pages (auto-paginate; default cap 1000 pages)"),
-      year: p("string", "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31"),
+      year: p(
+        "string",
+        "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end",
+      ),
       "max-pages": p(
         "string",
         "Max pages to fetch with --all/--year (default: 1000; positive integer)",

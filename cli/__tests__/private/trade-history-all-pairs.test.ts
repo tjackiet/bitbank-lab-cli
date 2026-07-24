@@ -136,9 +136,10 @@ describe("tradeHistoryAllPairs", () => {
     expect(urls).toHaveLength(0);
   });
 
-  it("rejects a malformed --year", async () => {
+  // "0099" は Date.UTC の 0〜99 年→1900 年代補正で範囲とフィルタが食い違うため形式で拒否
+  it.each(["26", "0099", "abcd"])("rejects a malformed --year=%s", async (year) => {
     const { fetch, urls } = routedFetch([makePair("btc_jpy")], {});
-    const result = await tradeHistoryAllPairs({ year: "26" }, { fetch, ...OPTS });
+    const result = await tradeHistoryAllPairs({ year }, { fetch, ...OPTS });
     expect(result.success).toBe(false);
     if (!result.success) expect(result.exitCode).toBe(4);
     expect(urls).toHaveLength(0);

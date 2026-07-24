@@ -796,11 +796,11 @@
           },
           "all-pairs": {
             "type": "boolean",
-            "description": "Fetch every pair in the pairs master (incl. delisted) and merge, sorted by executed_at"
+            "description": "Fetch every pair in the pairs master (incl. delisted) and merge, sorted by executed_at; cannot be combined with --pair"
           },
           "year": {
             "type": "string",
-            "description": "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31"
+            "description": "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; cannot be combined with --since/--end"
           },
           "max-pages": {
             "type": "string",
@@ -949,7 +949,7 @@
           },
           "year": {
             "type": "string",
-            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31"
+            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end"
           },
           "max-pages": {
             "type": "string",
@@ -1235,7 +1235,7 @@
           },
           "year": {
             "type": "string",
-            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31"
+            "description": "JST tax year (YYYY); implies --all, filters to JST 1/1–12/31; cannot be combined with --since/--end"
           },
           "max-pages": {
             "type": "string",

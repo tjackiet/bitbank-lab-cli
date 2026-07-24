@@ -76,9 +76,12 @@ export const privateAccountSchemas: Record<string, SchemaDef> = {
       all: p("boolean", "Fetch all pages for one pair (auto-paginate; default cap 1000 pages)"),
       "all-pairs": p(
         "boolean",
-        "Fetch every pair in the pairs master (incl. delisted) and merge, sorted by executed_at",
+        "Fetch every pair in the pairs master (incl. delisted) and merge, sorted by executed_at; cannot be combined with --pair",
       ),
-      year: p("string", "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31"),
+      year: p(
+        "string",
+        "JST tax year (YYYY); implies full fetch, filters to JST 1/1–12/31; cannot be combined with --since/--end",
+      ),
       "max-pages": p(
         "string",
         "Max pages per pair with --all/--all-pairs/--year (default: 1000; positive integer)",

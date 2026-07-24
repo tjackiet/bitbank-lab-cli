@@ -61,7 +61,9 @@ export function parseMaxPages(v: string | undefined, dflt: number): Result<numbe
   return { success: true, data: parsed.data };
 }
 
-const YearSchema = z.string().regex(/^\d{4}$/, "year must be 4 digits (YYYY, JST)");
+// 先頭 0 の年（0000〜0999）は拒否する。特に 0〜99 年は Date.UTC が 1900 年代へ
+// 補正するため、jstYearRangeMs の範囲と filterYear が食い違い全件落ちする
+const YearSchema = z.string().regex(/^[1-9]\d{3}$/, "year must be a 4-digit year (1000-9999, JST)");
 
 export type YearWindow = { since?: string; end?: string; filterYear?: number };
 
