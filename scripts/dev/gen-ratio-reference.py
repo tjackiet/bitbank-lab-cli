@@ -64,28 +64,66 @@ def render(x: Fraction, scale: int, mode: str) -> str:
     return f"{sign}{body[:len(body)-scale]}.{body[len(body)-scale:]}"
 
 
+# 四則は BigInt の整数演算で、値に依存する分岐は「符号」と「ゼロ」だけ。
+# 乱択の件数を増やしても新しい経路は踏まないので、経路を突くエッジを決定論的に列挙し、
+# 組み合わせ漏れの網として乱択を少量だけ足す。形式: [op, a, b, expectedN, expectedD]
+EDGE_PAIRS = [
+    ("0", "7"), ("7", "0"), ("0", "0"),                      # ゼロの正規化
+    ("-3", "7"), ("3", "-7"), ("-3", "-7"),                  # 符号の全組合せ
+    ("0.5", "0.5"), ("100", "6"), ("1", "3"),                # 約分・循環小数
+    ("50", "100"), ("300", "6"),                             # gcd が大きく効く
+    ("999999999.99999999", "0.00000001"),                    # 桁差が極端
+    ("0.1", "0.3"), ("2", "0.5"), ("-0.1", "0.3"),
+]
 arith = []
-for _ in range(240):
+for a, b in EDGE_PAIRS:
+    for op in ("add", "sub", "mul", "div"):
+        fa, fb = Fraction(a), Fraction(b)
+        if op == "div" and fb == 0:
+            continue
+        r = {"add": fa + fb, "sub": fa - fb, "mul": fa * fb, "div": fa / fb if fb else None}[op]
+        arith.append([op, a, b, str(r.numerator), str(r.denominator)])
+for _ in range(60):
     a, b = RNG.choice(UGLY), RNG.choice(UGLY)
     op = RNG.choice(["add", "sub", "mul", "div"])
     fa, fb = Fraction(a), Fraction(b)
     if op == "div" and fb == 0:
         continue
     r = {"add": fa + fb, "sub": fa - fb, "mul": fa * fb, "div": fa / fb if fb else None}[op]
-    arith.append({"a": a, "b": b, "op": op, "n": str(r.numerator), "d": str(r.denominator)})
+    arith.append([op, a, b, str(r.numerator), str(r.denominator)])
 
-# 丸め: 分数を直接与えて循環小数を作る（十進文字列では表現できない値を試す）
+# 丸めの分岐は有限（rem==0 / 符号 / タイちょうど / スケール）なので、乱択で当てるのではなく
+# 全組合せを決定論的に列挙する。x*10^scale の小数部を f に固定して各経路を必ず踏ませる。
+# 形式: [n, d, scale, mode, expectedScaled, expectedRendered]
+POSITIONS = [
+    Fraction(0),          # rem == 0（丸めが起きない経路）
+    Fraction(1, 3),       # 0 < f < 1/2
+    Fraction(1, 2),       # ちょうど半分（HALF_UP のタイ）
+    Fraction(2, 3),       # 1/2 < f < 1
+    Fraction(999, 1000),  # 1 に極めて近い
+]
 rounds = []
-for _ in range(240):
+
+
+def emit_round(x, scale, mode):
+    rounds.append([str(x.numerator), str(x.denominator), scale, mode,
+                   str(ROUNDERS[mode](x * 10**scale)), render(x, scale, mode)])
+
+
+for sign in (1, -1):
+    for scale in (0, 2, 8):
+        for f in POSITIONS:
+            x = sign * (Fraction(7) + f) / 10**scale
+            for mode in ROUNDERS:
+                emit_round(x, scale, mode)
+# 整数部ゼロ（レンダリングのゼロ詰め経路）
+for f in POSITIONS:
+    emit_round(f / 10**8, 8, "ROUNDDOWN")
+# 組合せ漏れの網として乱択を少量
+for _ in range(30):
     num = RNG.randint(-10**9, 10**9)
     den = RNG.choice([3, 6, 7, 9, 11, 13, 21, 33, 60, 97, 1000003])
-    scale = RNG.choice([0, 0, 0, 2, 4, 8])
-    mode = RNG.choice(list(ROUNDERS))
-    x = Fraction(num, den)
-    rounds.append({
-        "n": str(x.numerator), "d": str(x.denominator), "scale": scale, "mode": mode,
-        "scaled": str(ROUNDERS[mode](x * 10**scale)), "rendered": render(x, scale, mode),
-    })
+    emit_round(Fraction(num, den), RNG.choice([0, 0, 2, 4, 8]), RNG.choice(list(ROUNDERS)))
 
 # 丸め境界: 単価が循環小数 かつ 単価×数量 がちょうど整数（ADR-005 の核心ケース）
 boundary = []
@@ -146,7 +184,20 @@ header = (
     "// fractions.Fraction を独立リファレンスとして期待値を出力する（ADR-005）。\n"
     "// 再生成: python3 scripts/dev/gen-ratio-reference.py\n"
 )
-OUT.write_text(header + "export const ratioReference = " + json.dumps(payload, indent=2) + " as const;\n")
+def rows(items):
+    """1 ケース 1 行で出力する（3,823 行 → 数百行に圧縮）。"""
+    return "[\n" + "".join(f"    {json.dumps(i, ensure_ascii=False)},\n" for i in items) + "  ]"
+
+
+body = (
+    "export const ratioReference = {\n"
+    f"  // [op, a, b, expectedN, expectedD]\n  arith: {rows(arith)},\n"
+    f"  // [n, d, scale, mode, expectedScaled, expectedRendered]\n  rounds: {rows(rounds)},\n"
+    f"  boundary: {json.dumps(boundary, indent=2, ensure_ascii=False)},\n"
+    f"  movavg: {json.dumps(payload['movavg'], indent=2, ensure_ascii=False)},\n"
+    "} as const;\n"
+)
+OUT.write_text(header + body)
 
 # biome の整形規約（引用符なしキー・末尾カンマ）に合わせる。
 # これを通さないと再生成のたびに lint が落ち、生成物の差分ゼロも保てない。

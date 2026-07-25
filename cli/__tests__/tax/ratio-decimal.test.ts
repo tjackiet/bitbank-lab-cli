@@ -39,11 +39,12 @@ describe("fromDecimalString: float を経由しないパース", () => {
 });
 
 describe("roundAtScale: リファレンス突合", () => {
-  it.for(ratioReference.rounds.map((c, i) => [i, c] as const))("case %i: %o", ([, c]) => {
-    const r = ratio(BigInt(c.n), BigInt(c.d));
-    const mode = c.mode as RoundMode;
-    expect(roundAtScale(r, c.scale, mode).toString()).toBe(c.scaled);
-    expect(toDecimalString(r, c.scale, mode)).toBe(c.rendered);
+  // フィクスチャは [n, d, scale, mode, expectedScaled, expectedRendered]。
+  // 分岐（rem==0 / 符号 / タイちょうど / スケール）を決定論的に網羅している
+  it.for(ratioReference.rounds)("%s/%s scale=%s %s", ([n, d, scale, mode, scaled, rendered]) => {
+    const r = ratio(BigInt(n), BigInt(d));
+    expect(roundAtScale(r, scale as number, mode as RoundMode).toString()).toBe(scaled);
+    expect(toDecimalString(r, scale as number, mode as RoundMode)).toBe(rendered);
   });
 });
 

@@ -50,10 +50,11 @@ describe("Ratio: 正規化", () => {
 });
 
 describe("Ratio: リファレンス突合（四則）", () => {
-  it.for(ratioReference.arith.map((c, i) => [i, c] as const))("case %i: %o", ([, c]) => {
-    const got = OPS[c.op as keyof typeof OPS](parse(c.a), parse(c.b));
-    expect(got.n.toString()).toBe(c.n);
-    expect(got.d.toString()).toBe(c.d);
+  // フィクスチャは [op, a, b, expectedN, expectedD]
+  it.for(ratioReference.arith)("%s(%s, %s)", ([op, a, b, expN, expD]) => {
+    const got = OPS[op as keyof typeof OPS](parse(a), parse(b));
+    expect(got.n.toString()).toBe(expN);
+    expect(got.d.toString()).toBe(expD);
   });
 });
 
