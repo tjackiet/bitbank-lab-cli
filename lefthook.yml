@@ -17,5 +17,9 @@ pre-commit:
       glob: "cli/**/*.{ts,json}"
       run: |
         ! grep -rn 'BITBANK_API_KEY\|BITBANK_API_SECRET\|API_KEY=' --include='*.ts' --include='*.json' --exclude-dir=__tests__ cli/ | grep -v -e 'process\.env\.' -e '"BITBANK_API' || (echo '❌ シークレットがコードに含まれています' && exit 1)
+    no-real-account-data:
+      run: |
+        BAD=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '(^|/)fixtures/([^/]+/)*raw/|user_spot_trades_archived-.*\.csv$|\.private\.json$' || true)
+        [ -z "$BAD" ] || (echo '❌ 実口座データはコミットしない（docs/dev/tax-fixtures-plan.md）:' && echo "$BAD" && exit 1)
     test:
       run: npx vitest run

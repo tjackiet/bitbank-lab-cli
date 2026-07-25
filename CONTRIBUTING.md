@@ -31,6 +31,27 @@ npm ci   # 依存インストール（初回のみ）
 - 表記規約: [docs/dev/conventions.md](docs/dev/conventions.md)
 - 依存クールダウン（`.npmrc` / Dependabot）: [docs/dev/dependency-cooldown.md](docs/dev/dependency-cooldown.md)
 
+## 実口座データの取り扱い
+
+実口座のデータ（API の生レスポンス・UI CSV エクスポート・残高スナップショット等）を
+**本リポジトリにコミットしないでください**。本リポジトリは公開されており、金額・日時・銘柄の
+系列は匿名化が困難です。
+
+- 検証は別環境で行い、リポジトリには**観測事実のみ**を記載する
+- 生データを扱うコード（収集・マスク・突合ツール等）は追跡してよい。データ本体だけを除外する
+  （`.gitignore` は `fixtures/raw/` 等のデータパスのみを対象にしています）
+- `pre-commit` の `no-real-account-data` がデータらしいパスのコミットを拒否します
+  （`.gitignore` は `git add -f` や追跡済みファイルを防げないため、フックが最終防波堤です）
+
+ドキュメントに実データ由来の観測を書くときの規律:
+
+1. **値は丸める**（例: `+0.00041693` → `+約0.0004`）
+2. **丸めた旨を注記する**（読み手が正確な再現を試みないように）
+3. **恒等式の検算は値を丸めず関係式で表す**（`a + b = c` を丸めると足が合わなくなり、
+   かえって証拠価値が失われる。例: `profit_loss = 値幅損益 − Σfee − interest`）
+
+詳細は [docs/dev/tax-fixtures-plan.md](docs/dev/tax-fixtures-plan.md) を参照してください。
+
 ## PR 前の品質ゲート
 
 以下を全て green にしてから PR を出してください（順に `npm run typecheck` /
