@@ -83,6 +83,23 @@
 3. **移行の受入条件**: 実データで通っていた回帰テスト（付録E の各主張）が、合成データでも
    同じ結論になることを 1 度確認する。確認後は実データをテスト経路から外す
 
+## 2.5 適用済みの切り分け（2026-07-25）
+
+`fixtures/` の中身は性質が違うので分けて扱う。**コードは repo に入れ、データは入れない**。
+
+| 対象 | 配置 | 状態 |
+|---|---|---|
+| `tools/`（collect / collect2 / mask / raw-get / reconcile） | `scripts/dev/tax/` | **取り込み済み**。ローカル絶対パス（実名を含んでいた）は `BITBANK_TAX_FIXTURES` へ置換 |
+| `tests/`（lib / fixtures.test / gen-schema-snapshot） | `scripts/dev/tax/tests/`（原型・`node --test`） | **取り込み済み**。`present` を always/partial 区分へ、`counts` ブロックを削除 |
+| 回帰テスト（repo 標準） | `cli/__tests__/tax/fixtures-regression/` | **skip ゲート実装済み**。本体は P0-2 で原型から移植 |
+| `raw/` | 置かない | SHA-256 のみ `cli/__tests__/tax/fixtures-regression/manifest.json` に記録 |
+| MD レポート類 | `docs/dev/tax-evidence/` | 未取り込み（値を丸めてから入れる） |
+| `PAIRS_MASTER.json` | `cli/__tests__/__fixtures__/tax/pairs-master.json` | 未取り込み（公開 API 出力なので加工不要） |
+
+**件数の扱い**: `SCHEMA_SNAPSHOT.json` の `counts` と `present` の絶対値は口座規模の情報に
+なるため出さない。件数の固定は **fixture の SHA-256**（manifest）が担い、テストは件数に依存しない
+構造的不変条件（ページ内重複なし・重複は隣接ページのみ・dedup の冪等性）だけを検査する。
+
 ## 3. 移行後の実 fixture の扱い
 
 - **リポジトリには入れない**（本リポジトリは最初から入っていないので、そのまま維持する）

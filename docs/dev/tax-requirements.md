@@ -3,7 +3,15 @@
 - 版: 1.0（2026-07-25）
 - 対象: 2026年分（2026-01-01〜12-31）の個人の確定申告向け参考データ生成
 - **前提ドキュメント**: `crypto_tax_spec_2026_v2.md`（税務仕様。付録A〜Eを含む）。本書は税務ルールを再定義せず、**必ずv2を正とする**。矛盾を見つけたら実装せず報告すること
-- **エビデンス**: `fixtures/`（実口座のAPI生レスポンス・FIELDS.md・ANSWERS.md・BALANCE_RECONCILIATION.md・ENDPOINTS.md・SYMBOL_ALIASES.md・PAIRS_MASTER.json）
+- **エビデンス**: 実口座の API 生レスポンスは**本リポジトリ外で別途共有**する（公開リポジトリに実データを
+  置かない。[tax-fixtures-plan.md](tax-fixtures-plan.md)）。リポジトリに置くのは次の 3 種のみ:
+  - **同一性の記録**: `cli/__tests__/tax/fixtures-regression/manifest.json`（相対パスと SHA-256 のみ。
+    件数・日時・金額は記録しない）
+  - **ツールとテスト**: `scripts/dev/tax/`（収集・マスク・突合の原型）と
+    `cli/__tests__/tax/fixtures-regression/`（回帰テスト）
+  - **観測事実の文書**: FIELDS / ANSWERS / BALANCE_RECONCILIATION / ENDPOINTS / SYMBOL_ALIASES 等を
+    `docs/dev/tax-evidence/` に置く（**値は丸め、丸めた旨を注記**する）。`PAIRS_MASTER.json` は
+    公開 API 出力なので加工不要で `cli/__tests__/__fixtures__/tax/pairs-master.json` に置く
 
 ---
 
@@ -169,7 +177,12 @@ v2 §3を正とする。要点:
 1. **税務ゴールデンケース**（v2 §11.5）: 国税庁FAQ 2-4／2-8 の公式設例
    - 総平均法: 単価621,200／譲渡原価3,106,000／年末残高931,800／所得2,189,000
    - 移動平均法: 譲渡原価3,080,200／年末単価638,400
-2. **fixtures回帰テスト**（`fixtures/tests/` に既存）:
+2. **fixtures回帰テスト**（`cli/__tests__/tax/fixtures-regression/`。原型は `scripts/dev/tax/tests/`）:
+   - **実行条件**: 環境変数 `BITBANK_TAX_FIXTURES` が指す場所に実データがあればフル実行。
+     **無ければ skip**（fail にしない。CI は常に skip 経路で、skip 理由を 1 行出す）
+   - **期待値は fixture の SHA-256 で固定**: manifest と照合し、**欠落・内容相違は skip ではなく fail**。
+     不一致時はどのファイルが一致しなかったかを列挙し、`gen-fixtures-manifest.ts` での再生成手順を示す
+   - 検査項目:
    - `trade_id`/`uuid` 重複排除後の件数一致
    - 現物全行で `fee_amount_quote == fee_occurred_amount_quote`
    - 信用 `profit_loss` の検算（**完全精度の手数料を使えば誤差ゼロ**で再現。丸め値使用時のみ ±0.001円許容）
@@ -198,7 +211,16 @@ v2 §3を正とする。要点:
 ## 10. 実装順序（推奨）
 
 1. **P0**: 正規化スキーマ＋APIインポータ（3エンドポイント＋2系統取得＋重複排除）＋fixtures回帰テスト
-2. **P0**: 残高再構築＆突合（ガード(d)）— 既存の `reconcile.ts` を製品コードへ昇格
+2. **P0**: 残高再構築＆突合（ガード(d)）— `reconcile.ts` を製品コードへ昇格。原型は
+   **独立実装との突合で全資産の残差一致を確認済みの検証済みオラクル**なので、次の手順で移す:
+   1. `scripts/dev/tax/reconcile.ts` として取り込む（済。ローカル絶対パスは
+      `BITBANK_TAX_FIXTURES` へ置換。**原型は削除せず恒久的に保全する**）
+   2. `cli/tax/reconcile/rebuild.ts`（イベント列 → 資産別理論残高。出庫は `amount + fee` で減算）と
+      `compare.ts`（`/user/assets` と突合・ダスト閾値・残差の符号診断）に分割
+   3. Result パターン化（`throw` を除去）し、数値は `cli/tax/ratio.ts`（ADR-005）へ統一
+   4. **原型と製品コードの結果一致を skip ゲート付きの恒久テストにする**（一度きりの確認にしない。
+      fixture がある環境では常に差分検証が走る）
+   5. `guard/reference-pnl.ts` からガード(d) として呼ぶ
 3. **P0**: 平均法エンジン（総平均法／移動平均法・非丸めDecimal・不変条件テスト）＋税務ゴールデンケース
 4. **P0**: 参考損益ガード(a)〜(d)＋レポート出力（免責文言はv2 §1.3／§9／§10／§12から転記）
 5. **P1**: 国税庁計算書互換出力（`NTA_SHEET_2025_12`）
