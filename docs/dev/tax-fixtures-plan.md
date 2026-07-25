@@ -93,8 +93,9 @@
 | `tests/`（lib / fixtures.test / gen-schema-snapshot） | `scripts/dev/tax/tests/`（原型・`node --test`） | **取り込み済み**。`present` を always/partial 区分へ、`counts` ブロックを削除 |
 | 回帰テスト（repo 標準） | `cli/__tests__/tax/fixtures-regression/` | **skip ゲート実装済み**。本体は P0-2 で原型から移植 |
 | `raw/` | 置かない | SHA-256 のみ `cli/__tests__/tax/fixtures-regression/manifest.json` に記録 |
-| MD レポート類 | `docs/dev/tax-evidence/` | 未取り込み（値を丸めてから入れる） |
-| `PAIRS_MASTER.json` | `cli/__tests__/__fixtures__/tax/pairs-master.json` | 未取り込み（公開 API 出力なので加工不要） |
+| MD レポート類（FIELDS / ANSWERS / BALANCE_RECONCILIATION / ENDPOINTS / SYMBOL_ALIASES） | `docs/dev/tax-evidence/` | **取り込み済み**。実測値・絶対件数・実日時を丸め／関係式へ置換。BALANCE_RECONCILIATION の資産別結果表は口座の資産構成そのものなので、**表を載せず「表が示した性質」を記述**する形に置換 |
+| `PAIRS_MASTER.json` | `cli/__tests__/__fixtures__/tax/pairs-master.json` | **取り込み済み**（公開 API 出力なので値は無加工。`raw/` への参照のみ一般化） |
+| `SCHEMA_SNAPSHOT.json` | `cli/__tests__/tax/fixtures-regression/` | 未取り込み。旧フォーマット（counts 入り）のため、修正版 `gen-schema-snapshot.mjs` を実データ環境で実行して生成する |
 
 **件数の扱い**: `SCHEMA_SNAPSHOT.json` の `counts` と `present` の絶対値は口座規模の情報に
 なるため出さない。件数の固定は **fixture の SHA-256**（manifest）が担い、テストは件数に依存しない
