@@ -25,7 +25,7 @@ export const CostbasisProvenance = z.enum([
 export const EventFlag = z.enum([
   "UNRESOLVED_TRANSFER",  // v2 §13.3: 解決まで当該銘柄の参考損益をブロック
   "NO_RATE", "USER_CONFIRMED", "POSSIBLE_ICHIJI_SHOTOKU", // §7 P-08
-  "GRANT_SUSPECT",        // 付録E.3: txid=null / 円未満端数かつ found_at==confirmed_at
+  "GRANT_SUSPECT",        // 付録E.3: txid=null、または 円未満端数 & found_at==confirmed_at & 秒以下 00.000
   "FEE_API_ROUNDED",      // 付録E.1: API 手数料は 4 桁丸め値（P-16）
   "NON_JPY_QUOTE",        // 付録E.5: BTC 建てペア検出（TRADE_EXCHANGE 経路 or 明示エラー）
   "UNOBSERVED_SHAPE",     // §9-8: 未観測形状 → 保留リスト
@@ -125,7 +125,7 @@ cli/tax/
     fetch-withdrawals.ts # 全 asset 巡回 + uuid dedup + CANCELED 除外
     margin-tracker.ts # position_side + 数量積み上げで OPEN/CLOSE 判定（付録E.2。profit_loss では判定しない）
     to-events.ts      # 生レコード → TaxEvent（現物/信用の振り分け・非JPY quote 検出）
-    grant-suspect.ts  # 付録E.3 の付与痕跡判定（txid=null / 円未満端数 & found_at==confirmed_at）
+    grant-suspect.ts  # 付録E.3 の付与痕跡判定（txid=null ／ 円未満端数 & found_at==confirmed_at & 秒以下 00.000）
     symbol-alias.ts   # {matic→pol, rndr→render} のみ。mkr→sky は名寄せ禁止（手動マスタ）
   ledger/
     from-events.ts    # 付録A の対応表に従い LedgerEntry へ
@@ -181,7 +181,7 @@ cli/commands/tax/     # CLI 表層（Result パターン・--format=json|table|c
 
 - P0-1〜4 の**実装自体は可能**（仕様が v2 付録D/E に十分に落ちている）。テストは合成フィクスチャ
   + 既存 `cli/__tests__/__fixtures__/private/` で書ける
-- **できないのは**「実データ 1,215 行での回帰（4 桁丸めの全行検証・`profit_loss` の誤差ゼロ再現・
+- **できないのは**「実データでの回帰（手数料 4 桁丸めの全行検証・`profit_loss` の誤差ゼロ再現・
   重複排除後の件数一致）」と「`reconcile.ts` の"昇格"」（昇格元が無いので E.3/E.4 から新規実装になる）
 
 判断が必要な点: 実口座データを**この公開フォークに置くか**（機密性の判断はユーザー側）。
