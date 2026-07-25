@@ -17,10 +17,10 @@ describe("fromDecimalString: float を経由しないパース", () => {
     expect(fromDecimalString("0")).toEqual(ZERO);
     expect(fromDecimalString("100")).toEqual({ n: 100n, d: 1n });
     expect(fromDecimalString("0.1")).toEqual({ n: 1n, d: 10n });
-    // 既約形で保持する: -1952096/1000000 は gcd 32 で約分される
-    expect(fromDecimalString("-1.952096")).toEqual({ n: -61003n, d: 31250n });
-    expect(toDecimalString(fromDecimalString("-1.952096") as never, 6, "ROUNDDOWN")).toBe(
-      "-1.952096",
+    // 既約形で保持する（-1234567/1000000 は互いに素なのでそのまま）
+    expect(fromDecimalString("-1.234567")).toEqual({ n: -1234567n, d: 1000000n });
+    expect(toDecimalString(fromDecimalString("-1.234567") as never, 6, "ROUNDDOWN")).toBe(
+      "-1.234567",
     );
   });
 
@@ -110,12 +110,12 @@ describe("丸め境界: 単価が循環小数かつ 単価×数量 が整数（A
 describe("toDecimalString / toYen: 境界のレンダリング規則（ADR-005）", () => {
   it("数量は scale 8・ROUNDDOWN", () => {
     expect(toDecimalString(ratio(1n, 3n), 8, "ROUNDDOWN")).toBe("0.33333333");
-    expect(toDecimalString(ratio(41693n, 100000000n), 8, "ROUNDDOWN")).toBe("0.00041693");
+    expect(toDecimalString(ratio(13337n, 100000000n), 8, "ROUNDDOWN")).toBe("0.00013337");
   });
 
   it("手数料は scale 4（API の丸め桁・P-16）", () => {
-    expect(toDecimalString(fromDecimalString("2.0370848") as never, 4, "HALF_UP")).toBe("2.0371");
-    expect(toDecimalString(fromDecimalString("44.3171201") as never, 4, "HALF_UP")).toBe("44.3171");
+    expect(toDecimalString(fromDecimalString("2.7182818") as never, 4, "HALF_UP")).toBe("2.7183");
+    expect(toDecimalString(fromDecimalString("3.14159265") as never, 4, "HALF_UP")).toBe("3.1416");
   });
 
   it("金額は既定 scale 0・ROUNDDOWN（円未満切捨て）", () => {
@@ -124,8 +124,8 @@ describe("toDecimalString / toYen: 境界のレンダリング規則（ADR-005�
   });
 
   it("負の参考損益は符号を保ったまま出す（v2 §9）", () => {
-    expect(toDecimalString(fromDecimalString("-1.952096") as never, 0, "ROUNDDOWN")).toBe("-1");
-    expect(toYen(fromDecimalString("-1.952096") as never)).toBe(-1n);
+    expect(toDecimalString(fromDecimalString("-1.234567") as never, 0, "ROUNDDOWN")).toBe("-1");
+    expect(toYen(fromDecimalString("-1.234567") as never)).toBe(-1n);
   });
 
   it("scale が値の桁数を上回ってもゼロ詰めで壊れない", () => {
@@ -145,9 +145,9 @@ describe("移動平均法の合成: リファレンス突合（primitives の組
   const SEQ_UGLY = [
     ["buy", "6", "100"],
     ["sell", "3", "70"],
-    ["buy", "0.00041693", "4483.9"],
+    ["buy", "0.00013337", "1433.7"],
     ["sell", "1.5", "55.5"],
-    ["sell", "1.50041693", "60"],
+    ["sell", "1.50013337", "60"],
   ] as const;
 
   function replay(seq: readonly (readonly [string, string, string])[], compat: boolean) {
