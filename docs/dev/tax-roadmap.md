@@ -118,9 +118,11 @@
   → **リネーム資産（MATIC→POL、RNDR→RENDER 等）の取得原価引継ぎマッピング**が
   新規論点（仕様検討事項）。**追確認（2026-07-24）**: `/spot/pairs` は BTC 建て 15 ペア
   （xrp/eth/ltc/bcc/mona/xlm/qtum/bat/omg/xym/link/mkr/boba/enj/matic の各 `_btc`）を
-  返すが、**BTC 建てペアは全て delist 済み（bitbank 社内確認）**。pairs はペア定義
-  マスタとして delist 済みエントリを保持し、取引可否は `is_enabled` / `stop_order` 系
-  フラグで表現される設計とみられる（フラグ実値の確認 1 コマンドが残）。含意:
+  返すが、**BTC 建てペアは新規注文停止（bitbank 社内確認では「delist 済み」）**。
+  pairs はペア定義マスタとして停止済みエントリを保持し、取引可否は `is_enabled` /
+  `stop_order` 系フラグで表現される。**フラグ実値は確定**（[tax-research.md](tax-research.md)
+  付録E.5）: BTC 建て 15 組は `is_enabled=true` かつ `stop_order=true`（定義は有効なまま
+  新規注文のみ停止）。したがって現行取引可否の判定に `is_enabled` 単独は使えない。含意:
   - 現行取引に BTC 建ては発生しない → 円換算（税制調査 §6・P-07）と暗号資産建て手数料
     （P-11）は「当年データ」の要件ではなく、**過去年からの簿価再構築**（前年末残高を
     持たない初回利用ユーザーが過去履歴を遡って取得価額を計算するケース）の要件として残る
@@ -234,7 +236,10 @@
 > 付き workflow が走るのは次の push（`synchronize`）以降になり、CodeRabbit の自動
 > レビューも base 変更だけでは始まらない（`@coderabbitai review` コメントか push が
 > 必要）。会社リポは着地先（fork main → bitbankinc の PR）に徹する。
-> 新セッションはまず本節・[tax-research.md](tax-research.md)・[ADR-004](../adr/004-tax-logic-in-cli-exception.md) を読むこと。
+> 新セッションはまず本節・[tax-requirements.md](tax-requirements.md)（要求仕様）・
+> [tax-research.md](tax-research.md)（税務仕様 v2.1。**矛盾時はこちらが正**）・
+> [tax-p0-design.md](tax-p0-design.md)（P0 設計メモ・要判断リスト）・
+> [ADR-004](../adr/004-tax-logic-in-cli-exception.md) を読むこと。
 
 ### 前提（新セッション開始時に確認）
 
