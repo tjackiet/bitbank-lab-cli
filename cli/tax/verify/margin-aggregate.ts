@@ -15,8 +15,13 @@ import { splitPair } from "../import/symbol-alias.js";
 import { add, type Ratio, ZERO } from "../ratio.js";
 import { fromDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
+import type { VerifyField } from "../schema/verify.js";
 
-export const MARGIN_FIELDS = ["margin_pnl", "margin_fee", "margin_fee_occurred"] as const;
+export const MARGIN_FIELDS = [
+  "margin_pnl",
+  "margin_fee",
+  "margin_fee_occurred",
+] as const satisfies readonly VerifyField[];
 export type MarginField = (typeof MARGIN_FIELDS)[number];
 
 export type MarginFigures = Record<MarginField, Ratio> & { closes: number };
@@ -56,7 +61,8 @@ export function aggregateMarginForReport(events: readonly TaxEvent[]): MarginAgg
     }
     // 報告書の通貨名は base_asset（ペアではない）
     const f = slot(splitPair(e.pair_raw ?? "")?.base ?? e.currency);
-    const charged = num(e.margin?.fee_charged, "margin.fee_charged", e.event_id);
+    const chargedStr = e.margin?.fee_charged;
+    const charged = num(chargedStr, "margin.fee_charged", e.event_id);
     f.margin_fee = add(f.margin_fee, charged);
     f.margin_fee_occurred = add(
       f.margin_fee_occurred,
@@ -64,7 +70,9 @@ export function aggregateMarginForReport(events: readonly TaxEvent[]): MarginAgg
     );
     if (e.kind !== "MARGIN_CLOSE") continue;
     f.closes++;
-    if (e.margin?.realized_net === undefined) {
+    // 手数料が不明なら「手数料を足し戻した損益」は**算出できない**。0 として足すと
+    // 手数料ぶん少ない損益になり、しかも差の原因が分からなくなる（仕訳側も保留に回す）
+    if (e.margin?.realized_net === undefined || chargedStr === undefined) {
       missingNet++;
       continue;
     }
@@ -76,7 +84,9 @@ export function aggregateMarginForReport(events: readonly TaxEvent[]): MarginAgg
     warnings.push(`非 JPY クォートの信用約定 ${nonJpyQuote} 件を集計から除外しました`);
   }
   if (missingNet > 0) {
-    warnings.push(`realized_net を持たない決済 ${missingNet} 件がありました（損益は不足します）`);
+    warnings.push(
+      `realized_net または fee_charged を欠く決済 ${missingNet} 件を損益集計から除外しました（差はこの分を含みます）`,
+    );
   }
   return { byCurrency, warnings };
 }

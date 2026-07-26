@@ -64,6 +64,13 @@ describe("parseAnnualReport", () => {
     if (!r.success) expect(r.error).toContain("line 3");
   });
 
+  it("同じ既知列が 2 本あればエラー（後勝ちで誤った値を採用しない）", () => {
+    const header = [...HEADER, "支払手数料"];
+    const r = parseAnnualReport(table(buildCsv([{ 通貨名: "btc" }], header)));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("duplicate columns: 支払手数料");
+  });
+
   it("ヘッダが無ければエラー（別の CSV を渡された場合）", () => {
     expect(parseAnnualReport(table("date,amount\n2026-01-01,1")).success).toBe(false);
   });

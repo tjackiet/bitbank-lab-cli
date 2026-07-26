@@ -7,13 +7,13 @@ import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
 import type { AnnualReportRow } from "../import-csv/annual-report-columns.js";
 import { UNSUPPORTED_FIELDS } from "../import-csv/annual-report-columns.js";
 import { isZero, ZERO } from "../ratio.js";
-import type { ReportCheck, VerifyRow } from "../schema/verify.js";
+import type { ReportCheck, UnsupportedField, VerifyRow } from "../schema/verify.js";
 import { type Aggregated, COMPARED_FIELDS, zeroFigures } from "./aggregate.js";
 import { reportChecks } from "./checks.js";
 import { indexByCurrency, readField } from "./index-rows.js";
 import { buildRow, spotHint, toleranceFor } from "./rows.js";
 
-export type Unsupported = { currency: string; field: string; value: string };
+export type Unsupported = { currency: string; field: UnsupportedField; value: string };
 
 export type VerifyOutcome = {
   rows: VerifyRow[];

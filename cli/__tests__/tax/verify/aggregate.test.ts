@@ -86,6 +86,14 @@ describe("aggregateForReport", () => {
     expect(a.warnings.join()).toContain("非 JPY クォート");
   });
 
+  it("報告書の軸に載らない種別は種類を控えて警告に出す（黙って消さない）", () => {
+    const a = aggregateForReport([
+      base({ kind: "AIRDROP", currency: "xrp", qty: "100", costbasis_provenance: "REWARD_FMV" }),
+    ]);
+    expect(a.byCurrency.size).toBe(0);
+    expect(a.warnings.join()).toContain("AIRDROP");
+  });
+
   it("読めない金額は 0 に潰さず警告へ回す（差が取込漏れに見えるのを防ぐ）", () => {
     const a = aggregateForReport([
       base({ kind: "DEPOSIT", currency: "btc", qty: "0x10", transfer: { reason: "UNKNOWN" } }),

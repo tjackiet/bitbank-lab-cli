@@ -27,17 +27,21 @@ const err = (error: string): Result<never> => ({ success: false, error, exitCode
 function locateColumns(
   header: readonly string[],
   columns: Record<string, string>,
-): { at: Map<string, number>; unknown: string[] } {
+): { at: Map<string, number>; unknown: string[]; duplicated: string[] } {
   const at = new Map<string, number>();
   const unknown: string[] = [];
+  const duplicated: string[] = [];
   header.forEach((cell, i) => {
     const name = cell.trim();
     if (name === "") return;
     const field = columns[name];
     if (field === undefined) unknown.push(name);
+    // 同じ既知列が 2 本あると後勝ちで上書きされ、**編集済み CSV から誤った値を
+    // 黙って採用する**。どちらが正しいかは人にしか決められないので拒否する
+    else if (at.has(field)) duplicated.push(name);
     else at.set(field, i);
   });
-  return { at, unknown };
+  return { at, unknown, duplicated };
 }
 
 export function parseReportTable<T>(
@@ -47,7 +51,10 @@ export function parseReportTable<T>(
   const h = table.findIndex((row) => row.some((cell) => cell.trim() === spec.marker));
   if (h === -1) return err(`${spec.label} header not found (no "${spec.marker}" column)`);
 
-  const { at, unknown } = locateColumns(table[h], spec.columns);
+  const { at, unknown, duplicated } = locateColumns(table[h], spec.columns);
+  if (duplicated.length > 0) {
+    return err(`${spec.label} has duplicate columns: ${duplicated.join(", ")}`);
+  }
   const missing = Object.values(spec.columns).filter((f) => !at.has(f));
   if (missing.length > 0) return err(`${spec.label} is missing columns: ${missing.join(", ")}`);
 

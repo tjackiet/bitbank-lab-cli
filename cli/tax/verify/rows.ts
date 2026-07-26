@@ -2,7 +2,7 @@
 import { cmp, fromBigint, isZero, mul, type Ratio, ratio, sub, ZERO } from "../ratio.js";
 import { fromDecimalString, toDecimalString, toExactDecimalString } from "../ratio-decimal.js";
 import { abs, DUST_THRESHOLD } from "../reconcile/compare-parts.js";
-import type { VerifyDiagnosis, VerifyRow } from "../schema/verify.js";
+import type { VerifyDiagnosis, VerifyField, VerifyRow } from "../schema/verify.js";
 import type { ComparedField } from "./aggregate.js";
 
 const DUST = fromDecimalString(DUST_THRESHOLD) ?? ZERO;
@@ -35,7 +35,7 @@ function dec(r: Ratio): string {
 export type RowArgs = {
   reportKind: "spot" | "margin";
   currency: string;
-  field: string;
+  field: VerifyField;
   report: Ratio;
   api: Ratio;
   tolerance: Ratio;

@@ -5,7 +5,10 @@
 // 購入時（取得価額算入）・売却時（必要経費）・負値（リベート収入 P-04）を固定する。
 import { describe, expect, it } from "vitest";
 import { ledgerFromEvents } from "../../../tax/ledger/from-events.js";
+import { add, sub, ZERO } from "../../../tax/ratio.js";
+import { fromDecimalString, toExactDecimalString } from "../../../tax/ratio-decimal.js";
 import type { TaxEvent } from "../../../tax/schema/event.js";
+import type { LedgerEntry } from "../../../tax/schema/ledger.js";
 import type { EventFlag } from "../../../tax/schema/primitives.js";
 
 const common = {
@@ -103,16 +106,26 @@ describe("信用の仕訳化", () => {
     expect(entries[1].amount_jpy).toBe("100");
   });
 
+  /** 収入 − 経費（全仕訳）。Number を経由しない（安全整数を超える金額でも崩れないため）。 */
+  const netOf = (entries: readonly LedgerEntry[]) =>
+    entries.reduce((acc, e) => {
+      const amount = fromDecimalString(e.amount_jpy ?? "0") ?? ZERO;
+      return e.kind === "INCOME" ? add(acc, amount) : sub(acc, amount);
+    }, ZERO);
+
   it("分け方を変えても所得の合計は変わらない（収入 − 経費が realized_net に戻る）", () => {
-    const { entries } = ledgerFromEvents([marginClose("1000")]);
-    const signed = entries.map((e) => (e.kind === "INCOME" ? 1 : -1) * Number(e.amount_jpy));
-    expect(signed.reduce((a, b) => a + b, 0)).toBe(1000);
+    for (const net of ["1000", "-2500", "123456789012345678901234567890"]) {
+      const { entries } = ledgerFromEvents([marginClose(net)]);
+      expect(toExactDecimalString(netOf(entries))).toBe(net);
+    }
   });
 
-  it("決済損は EXPENSE（絶対値で計上）", () => {
+  it("決済損でも手数料は別仕訳（EXPENSE は絶対値で計上）", () => {
     const { entries } = ledgerFromEvents([marginClose("-2500")]);
-    expect(entries[0].kind).toBe("EXPENSE");
-    expect(entries[0].amount_jpy).toBe("2400"); // -2500 + 手数料 100 = -2400
+    expect(entries.map((e) => [e.kind, e.category, e.amount_jpy])).toEqual([
+      ["EXPENSE", "margin_loss", "2400"], // -2500 + 手数料 100 = -2400
+      ["EXPENSE", "margin_fee", "100"],
+    ]);
   });
 
   it("負の手数料（メイカーリベート）は収入計上する（P-04・現物と同じ扱い）", () => {

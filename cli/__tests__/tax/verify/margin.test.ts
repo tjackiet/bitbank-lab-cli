@@ -1,3 +1,5 @@
+// 100行超: 信用イベントの組み立てヘルパー（margin()）を全ケースが共有する。
+// 責務は「信用の突合」1 つで、分割しても helper を複製するだけになる。
 // 年間取引報告書（信用）との突合。現物と決定的に違うのは
 // **報告書の損益が手数料を控除していない**点（利息だけ控除）。API の profit_loss は
 // 手数料も控除済みなので、足し戻さずに比べると差がまるごと手数料ぶん出る。
@@ -98,6 +100,19 @@ describe("信用の報告書突合", () => {
       { currency: "eth", field: "end_long_position", value: "2.5" },
     ]);
     expect(data.warnings.join()).toContain("年末建玉");
+  });
+
+  it("fee_charged を欠く決済は損益集計から外して警告する（0 として足さない）", () => {
+    // 手数料が不明なら「手数料を足し戻した損益」は算出できない。0 扱いで足すと
+    // 手数料ぶん少ない損益が出て、しかも差の原因が分からなくなる
+    const e = margin("CLOSE", { net: "1000" });
+    const broken = {
+      ...e,
+      margin: { position_side: "long", role: "CLOSE", realized_net: "1000" },
+    } as TaxEvent;
+    const a = aggregateMarginForReport([broken]);
+    expect(a.byCurrency.get("btc")?.margin_pnl).toEqual({ n: 0n, d: 1n });
+    expect(a.warnings.join()).toContain("損益集計から除外");
   });
 
   it("現物イベントは信用の集計に混ぜない", () => {

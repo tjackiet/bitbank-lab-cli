@@ -6,6 +6,7 @@
 // （付録E.1 / P-16）、number 化すると比較そのものが無意味になる。
 import { z } from "zod";
 import { decStr } from "../../schema-helpers.js";
+import type { UnsupportedField } from "../schema/verify.js";
 
 export const AnnualReportRow = z.object({
   currency: z.string(),
@@ -61,4 +62,4 @@ export const UNSUPPORTED_FIELDS = [
   "lend_qty",
   "return_qty",
   "lend_pnl",
-] as const satisfies readonly (keyof AnnualReportRow)[];
+] as const satisfies readonly (keyof AnnualReportRow & UnsupportedField)[];

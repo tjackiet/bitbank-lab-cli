@@ -10,12 +10,12 @@ import { collectEvents } from "../import/collect.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
 import type { ParsedMarginReport } from "../import-csv/margin-report.js";
 import type { Market } from "../reconcile/run.js";
-import { verifyDisclaimers } from "../report/disclaimers.js";
 import type { VerifyReport } from "../schema/verify.js";
 import { aggregateForReport } from "./aggregate.js";
 import { compareAnnualReport } from "./annual-report.js";
 import { aggregateMarginForReport } from "./margin-aggregate.js";
 import { compareMarginReport } from "./margin-report.js";
+import { shapeVerifyReport } from "./shape.js";
 
 export type VerifyArgs = {
   year: number;
@@ -66,30 +66,28 @@ export async function runVerifyReport(
     ...(marginData?.warnings ?? []),
     ...collected.data.warnings,
   ];
+  // 報告書 CSV は年度をどこにも持たない（メタ行は氏名と発行者だけ）。別年度の CSV を
+  // 渡されても検出できないので、差を論じる前に取り違えを疑えるよう明示する
+  warnings.push(
+    `CSV には年度情報が無いため --year=${args.year} との一致は検証できません。対象年の報告書か確認してください`,
+  );
   if (collected.data.truncated) {
     // 打ち切られていれば API 側が一様に少なくなる。その差を販売所ぶんと読んではいけない
     warnings.push("履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）");
   }
 
-  const data: VerifyReport = {
-    year_jst: args.year,
-    source: {
-      csv_rows: args.report?.rows.length ?? 0,
-      margin_csv_rows: args.marginReport?.rows.length ?? 0,
+  const data = shapeVerifyReport(
+    {
+      year: args.year,
+      report: args.report,
+      marginReport: args.marginReport,
       events: events.length,
-      pending: collected.data.pending.length,
-      truncated: collected.data.truncated,
+      collected: collected.data,
+      spot: spotData,
+      margin: marginData,
     },
-    rows: [...(spotData?.rows ?? []), ...(marginData?.rows ?? [])],
-    report_checks: spotData?.checks ?? [],
-    unsupported: [...(spotData?.unsupported ?? []), ...(marginData?.unsupported ?? [])],
-    unknown_columns: [
-      ...(args.report?.unknownColumns ?? []),
-      ...(args.marginReport?.unknownColumns ?? []),
-    ],
     warnings,
-    disclaimers: verifyDisclaimers(),
-  };
+  );
   return collected.partial
     ? { success: true, data, partial: true, meta: collected.meta }
     : { success: true, data };

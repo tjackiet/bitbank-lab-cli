@@ -206,6 +206,7 @@ cli/tax/
 cli/commands/tax/     # CLI 表層（Result パターン・--format=json|table|csv）
   events.ts           # bitbank tax events --year=2026
   reconcile.ts        # bitbank tax reconcile --year=2026
+  verify-report.ts    # bitbank tax verify-report --year=2026 --csv=... [--margin-csv=...]
   pnl.ts              # bitbank tax pnl --year=2026 --method=total-average
 ```
 

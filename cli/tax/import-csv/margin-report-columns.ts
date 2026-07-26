@@ -9,6 +9,7 @@
 // - 年末建玉は法人向け（みなし決済損益額）。個人の申告には不要
 import { z } from "zod";
 import { decStr } from "../../schema-helpers.js";
+import type { UnsupportedField } from "../schema/verify.js";
 
 export const MarginReportRow = z.object({
   currency: z.string(),
@@ -33,4 +34,4 @@ export const MARGIN_HEADER_MARKER = "年中信用取引損益";
 export const POSITION_FIELDS = [
   "end_short_position",
   "end_long_position",
-] as const satisfies readonly (keyof MarginReportRow)[];
+] as const satisfies readonly (keyof MarginReportRow & UnsupportedField)[];

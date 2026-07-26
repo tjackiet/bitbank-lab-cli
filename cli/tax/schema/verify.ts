@@ -15,11 +15,44 @@ export const VerifyDiagnosis = z.enum([
 ]);
 export type VerifyDiagnosis = z.infer<typeof VerifyDiagnosis>;
 
+/**
+ * 突合できる項目。**Zod を単一ソースにして、集計側の配列を `satisfies` で縛る**
+ * （`aggregate.ts` の `COMPARED_FIELDS` / `margin-aggregate.ts` の `MARGIN_FIELDS`）。
+ * どちらかにタイプミスが入れば型検査で落ちる。
+ */
+export const VerifyField = z.enum([
+  "buy_qty",
+  "buy_jpy",
+  "sell_qty",
+  "sell_jpy",
+  "deposit_qty",
+  "withdrawal_qty",
+  "fee",
+  "margin_pnl",
+  "margin_fee",
+  "margin_fee_occurred",
+]);
+export type VerifyField = z.infer<typeof VerifyField>;
+
+/** 突合せずに参考表示だけする列（当 CLI が API から再現できない / 全履歴が要る）。 */
+export const UnsupportedField = z.enum([
+  "buy_qty_btc",
+  "buy_btc",
+  "sell_qty_btc",
+  "sell_btc",
+  "lend_qty",
+  "return_qty",
+  "lend_pnl",
+  "end_short_position",
+  "end_long_position",
+]);
+export type UnsupportedField = z.infer<typeof UnsupportedField>;
+
 export const VerifyRow = z.object({
   /** どちらの報告書との比較か。現物と信用は別様式・別ファイル */
   report_kind: z.enum(["spot", "margin"]),
   currency: z.string(),
-  field: z.string(),
+  field: VerifyField,
   report: decStr,
   api: decStr,
   /** 報告書 − API */
@@ -53,7 +86,7 @@ export const VerifyReport = z.object({
   rows: z.array(VerifyRow),
   report_checks: z.array(ReportCheck),
   /** 当 CLI が API から再現できない列に値がある行（BTC 建て・貸出） */
-  unsupported: z.array(z.object({ currency: z.string(), field: z.string(), value: decStr })),
+  unsupported: z.array(z.object({ currency: z.string(), field: UnsupportedField, value: decStr })),
   unknown_columns: z.array(z.string()),
   warnings: z.array(z.string()),
   disclaimers: z.array(z.string()),

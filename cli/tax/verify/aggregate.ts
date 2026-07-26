@@ -11,31 +11,9 @@ import { splitPair } from "../import/symbol-alias.js";
 import { add, type Ratio, ZERO } from "../ratio.js";
 import { fromDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
+import { type Aggregated, type ComparedField, type Figures, zeroFigures } from "./figures.js";
 
-export const COMPARED_FIELDS = [
-  "buy_qty",
-  "buy_jpy",
-  "sell_qty",
-  "sell_jpy",
-  "deposit_qty",
-  "withdrawal_qty",
-  "fee",
-] as const;
-export type ComparedField = (typeof COMPARED_FIELDS)[number];
-
-export type Figures = Record<ComparedField, Ratio> & {
-  /** API 4 桁丸め（付録E.1 / P-16）の手数料が何件寄与したか。許容幅の算出に使う */
-  fee_rounded_count: number;
-};
-
-export type Aggregated = { byCurrency: Map<string, Figures>; warnings: string[] };
-
-/** 報告書にしか現れない銘柄の API 側（= 全項目ゼロ）としても使う。 */
-export function zeroFigures(): Figures {
-  const f = { fee_rounded_count: 0 } as Figures;
-  for (const k of COMPARED_FIELDS) f[k] = ZERO;
-  return f;
-}
+export { type Aggregated, COMPARED_FIELDS, type ComparedField, zeroFigures } from "./figures.js";
 
 export function aggregateForReport(events: readonly TaxEvent[]): Aggregated {
   const byCurrency = new Map<string, Figures>();
@@ -61,6 +39,8 @@ export function aggregateForReport(events: readonly TaxEvent[]): Aggregated {
 
   let margin = 0;
   let nonJpyQuote = 0;
+  // 報告書の軸に載らない kind（付与・手動調整など）。**握り潰さず種類を控えて警告に出す**
+  const unhandled = new Set<string>();
   for (const e of events) {
     if (e.kind === "MARGIN_OPEN" || e.kind === "MARGIN_CLOSE") {
       margin++;
@@ -87,6 +67,8 @@ export function aggregateForReport(events: readonly TaxEvent[]): Aggregated {
       bump(f, "withdrawal_qty", num(e.qty, "qty", e.event_id));
       // 付録E.3: 出金は amount と fee が別建て。報告書も ⑦移出数量 と ⑩支払手数料 に分かれる
       bump(f, "fee", num(e.transfer?.fee_qty, "transfer.fee_qty", e.event_id));
+    } else {
+      unhandled.add(e.kind);
     }
   }
   if (margin > 0) {
@@ -94,6 +76,11 @@ export function aggregateForReport(events: readonly TaxEvent[]): Aggregated {
   }
   if (nonJpyQuote > 0) {
     warnings.push(`非 JPY クォートの約定 ${nonJpyQuote} 件を集計から除外しました（BTC 建て列）`);
+  }
+  if (unhandled.size > 0) {
+    warnings.push(
+      `報告書の軸に対応しない種別を集計に含めていません: ${[...unhandled].sort().join(", ")}`,
+    );
   }
   return { byCurrency, warnings };
 }
