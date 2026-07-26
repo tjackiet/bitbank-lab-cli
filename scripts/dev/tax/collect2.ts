@@ -1,18 +1,20 @@
+// 100行超: collect.ts と同じ理由（同一バッチのスナップショット性を保つため分割しない）。
+// 残高突合は履歴と /user/assets が同時点であることを前提にする。
+//
 // 第2バッチ採取: 残高再構築実験用。参照系 GET のみ・逐次 400ms・指数バックオフ。
 // 追加: /user/assets, /v1/spot/pairs(公開), deposit_history?asset=jpy 明示クエリ。
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { rawGet, stamp } from "./raw-get.js";
 import { rawRoot } from "./fixtures-root.js";
+import { openRawDir, saveJson } from "./save-raw.js";
 
 const batchStamp = stamp();
-const OUT = join(rawRoot(), `batch2-${batchStamp}`);
-mkdirSync(OUT, { recursive: true });
+const OUT = openRawDir(join(rawRoot(), `batch2-${batchStamp}`));
 
 type Envelope = { success: number; data?: Record<string, unknown> & { code?: number } };
 
 function save(name: string, body: unknown): void {
-  writeFileSync(join(OUT, `${name}_${stamp()}.json`), `${JSON.stringify(body, null, 2)}\n`);
+  saveJson(OUT, `${name}_${stamp()}`, body);
 }
 
 // ---- assets（残高突合の基準。個人識別子は含まれない） ----
@@ -45,6 +47,8 @@ console.log(`assets: ${assetCodes.length} codes`);
     }
     console.log(`trade_history page${page}: rows=${trades.length} added=${added}`);
     if (trades.length < 1000 || added === 0) break;
+    // 黙って打ち切ると「全件採取した」と誤認する。税務用途では取りこぼしが致命的
+    if (page === 50) console.log("trade_history: page cap reached（fixture が不完全な可能性）");
     since = String(trades[trades.length - 1].executed_at);
   }
   console.log(`trade_history unique=${seen.size}`);
@@ -66,6 +70,7 @@ console.log(`assets: ${assetCodes.length} codes`);
     for (const d of rows) if (!seen.has(String(d.uuid))) { seen.add(String(d.uuid)); added++; }
     console.log(`deposit_history page${page}: rows=${rows.length} added=${added}`);
     if (rows.length < 1000 || added === 0) break;
+    if (page === 50) console.log("deposit_history: page cap reached（fixture が不完全な可能性）");
     end = String(Math.min(...rows.map((d) => d.found_at as number)));
   }
   const jpy = await rawGet("/user/deposit_history", { asset: "jpy", count: "1000" });

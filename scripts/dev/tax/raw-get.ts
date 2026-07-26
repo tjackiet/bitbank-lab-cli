@@ -8,6 +8,7 @@ import { resolveCredentials } from "../../../cli/profiles-resolver.js";
 
 const BASE = "https://api.bitbank.cc/v1";
 const MIN_INTERVAL_MS = 400; // 逐次スロットル
+const TIMEOUT_MS = 30_000; // 1 リクエストの上限。無応答で採取が止まるのを防ぐ
 
 let lastCallAt = 0;
 
@@ -28,7 +29,15 @@ export async function rawGet(
     lastCallAt = Date.now();
 
     const headers = authHeadersGet(r.data, path, qs);
-    const res = await fetch(url, { headers });
+    // タイムアウトが無いと応答が返らないときに無限待機し、採取が黙って止まる
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    let res: Response;
+    try {
+      res = await fetch(url, { headers, signal: ctrl.signal });
+    } finally {
+      clearTimeout(timer);
+    }
     if (res.status === 429 || res.status >= 500) {
       if (attempt >= 5) throw new Error(`HTTP ${res.status} after ${attempt + 1} attempts: ${path}`);
       const backoff = 2 ** attempt * 1000;

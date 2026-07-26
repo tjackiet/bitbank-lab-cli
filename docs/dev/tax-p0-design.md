@@ -4,9 +4,11 @@
 > 税務ルールの正は [tax-research.md](tax-research.md)（v2.1）。矛盾時は v2 を採る。
 > 実装着手前のレビュー用。**要判断**（§4）が解けるまでコードは書かない。
 >
-> **状況（2026-07-25 更新）**: §4-1（fixtures）・§4-3（数値表現）・§4-5（ロードマップ）は解決済み。
-> **未解決は §4-2（decStr と chaos x14）と §4-4（TRADE_EXCHANGE の優先度）の 2 件**で、
-> どちらも P0-1 の着手判断に効く。既定の進め方は各節の末尾に記載。
+> **状況（2026-07-26 更新）**: §4-1（fixtures）・§4-2（decStr と chaos x14）・§4-3（数値表現）・
+> §4-5（ロードマップ）は解決済み。**未解決は §4-4（TRADE_EXCHANGE の優先度）の 1 件のみ**で、
+> 既定案（P0 = 非JPYクォートを無条件検出してブロック／完全計算は P2）で進行中。
+> §4-2 は「`decStr` を `cli/schema-helpers.ts` に追加し、chaos x14 のスコープを `cli/tax/` へ
+> 広げる」で決着（規約から外れるのではなく規約側を拡張した）。
 >
 > **【2026-07-26 仕様訂正の反映】販売所（即時売買）は API に一切現れない**（付録E.3 訂正）。
 > UI CSV 取込が P1 → **P0 に昇格**したため、本メモに `MarketType` / `SourceSystem` と
@@ -40,7 +42,10 @@ export const CostbasisProvenance = z.enum([
 export const EventFlag = z.enum([
   "UNRESOLVED_TRANSFER",  // v2 §13.3: 解決まで当該銘柄の参考損益をブロック
   "NO_RATE", "USER_CONFIRMED", "POSSIBLE_ICHIJI_SHOTOKU", // §7 P-08
-  "GRANT_SUSPECT",        // 付録E.3: txid=null、または 円未満端数 & found_at==confirmed_at & 秒以下 00.000
+  // 付録E.3: crypto は txid=null（プレースホルダ address を伴う形が実観測された強いシグナル
+  // だが、address 一致まで必須にすると取りこぼす。過検出は手動確認で済むが過少検出は
+  // 取得原価の誤りになるため緩い側）。jpy は 円未満端数 & found_at==confirmed_at & 秒以下 00.000
+  "GRANT_SUSPECT",
   "FEE_API_ROUNDED",      // 付録E.1: API 手数料は 4 桁丸め値（P-16）
   "NON_JPY_QUOTE",        // 付録E.5: BTC 建てペア検出（TRADE_EXCHANGE 経路 or 明示エラー）
   "UNOBSERVED_SHAPE",     // §9-8: 未観測形状 → 保留リスト

@@ -59,7 +59,11 @@ export const EventFlag = z.enum([
   "NO_RATE",
   "USER_CONFIRMED",
   "POSSIBLE_ICHIJI_SHOTOKU", // §7 P-08
-  "GRANT_SUSPECT", // 付録E.3: txid=null かつプレースホルダ address ／ jpy は 3 条件
+  // 付録E.3。crypto は txid=null で立てる（プレースホルダ address を伴う形が実観測された
+  // 強いシグナルだが、address 一致まで必須にすると付与の取りこぼしが起きる。過検出は
+  // 手動確認に回るだけなのに対し、過少検出は取得原価の誤りに直結するので緩い側に倒す）。
+  // jpy は「円未満端数 & found_at==confirmed_at & 秒以下 00.000」の 3 条件すべて
+  "GRANT_SUSPECT",
   "FEE_API_ROUNDED", // 付録E.1: API 手数料は 4 桁丸め値（P-16）
   "NON_JPY_QUOTE", // 付録E.5: 非 JPY クォート検出 → TRADE_EXCHANGE か明示エラー
   "UNOBSERVED_SHAPE", // §9-8: 未観測形状 → 保留リスト

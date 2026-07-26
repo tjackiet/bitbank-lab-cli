@@ -1,19 +1,20 @@
+// 100行超: 1 回の実行で採取した 4 ブロック（trade / deposit / withdrawal / margin）を
+// **同一バッチとして 1 ファイルに保つ**ため。残高突合は「同時点のスナップショット」で
+// あることが前提なので、ブロックを別ファイルに分けると別々に実行できてしまい、
+// as-of 時刻のずれた組み合わせが生まれる。原型として保全する（BALANCE_RECONCILIATION 参照）。
+//
 // 生レスポンス採取: 参照系 GET のみ。envelope ごと fixtures/raw/ に保存する。
 // レスポンスのキー・構造・値は一切変更しない（pretty-print のみ）。
-import { mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { rawGet, stamp } from "./raw-get.js";
 import { rawRoot } from "./fixtures-root.js";
+import { openRawDir, saveJson } from "./save-raw.js";
 
-const OUT = rawRoot();
-mkdirSync(OUT, { recursive: true });
+const OUT = openRawDir(rawRoot());
 
 type Envelope = { success: number; data?: Record<string, unknown> & { code?: number } };
 
 function save(name: string, body: unknown): string {
-  const file = join(OUT, `${name}_${stamp()}.json`);
-  writeFileSync(file, `${JSON.stringify(body, null, 2)}\n`);
-  return file;
+  return saveJson(OUT, `${name}_${stamp()}`, body);
 }
 
 // ---- 1. trade_history: 全ペア横断・全期間（asc 前方走査） ----
@@ -119,7 +120,9 @@ function save(name: string, body: unknown): string {
   if (assetsEnv.success !== 1) {
     throw new Error(`/user/assets failed: code=${assetsEnv.data?.code}`);
   }
-  const assetCodes = (assetsEnv.data?.assets as Array<{ asset: string }>).map((a) => a.asset);
+  const assetCodes = ((assetsEnv.data?.assets ?? []) as Array<{ asset: string }>).map(
+    (a) => a.asset,
+  );
 
   let emptySaved = false;
   const summary: string[] = [];

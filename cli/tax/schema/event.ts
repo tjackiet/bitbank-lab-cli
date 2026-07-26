@@ -59,11 +59,14 @@ export const TaxEvent = TaxEventBase.superRefine((e, ctx) => {
     "market_type",
     `${e.kind} は約定なので market_type（ORDERBOOK / BROKERAGE）が必須`,
   );
-  // 販売所は API に現れない（付録E.3 訂正）。API 由来を名乗る BROKERAGE は取込経路の誤り
+  // 販売所は API にも「約定履歴 CSV」にも現れない（付録E.3 訂正）。取込元が
+  // 「売買履歴 CSV」か手入力でなければ、取込経路を取り違えている
   need(
-    e.market_type !== "BROKERAGE" || e.source_system !== "API",
+    e.market_type !== "BROKERAGE" ||
+      e.source_system === "UI_CSV_BROKERAGE" ||
+      e.source_system === "MANUAL",
     "source_system",
-    "BROKERAGE は API から取得できない（UI CSV 経路のみ）",
+    "BROKERAGE の取込元は UI_CSV_BROKERAGE か MANUAL のみ（API / 約定履歴CSV には現れない）",
   );
   // 販売所は手数料列を持たない（スプレッド内包）。fee=0 との混同を型で防ぐ
   need(

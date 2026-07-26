@@ -16,7 +16,7 @@
 
 | フィールド名（生） | 型 | 実例値 | 単位/建て通貨 | 符号の意味 | UI CSVの対応カラム（分かる範囲） | 備考 |
 |---|---|---|---|---|---|---|
-| trade_id | number | 1000000001 | - | - | 取引ID | 全行で一意。ページング重複排除キー |
+| trade_id | number | 1000000001 | - | - | 取引ID | 一意性が保証されるのは**ペア内**。全ペア横断の重複排除キーは **`pair:trade_id`**（実装もこの複合キー） |
 | order_id | number | 2000000001 | - | - | 注文ID | |
 | pair | string | "btc_jpy" | - | - | 通貨ペア | 観測は全て `*_jpy`（§ANSWERS Q6） |
 | side | string | "buy" / "sell" | - | - | 売/買 | 2 値のみ観測 |
@@ -63,7 +63,7 @@
 | uuid | string | "MASKED_UUID_123" | - | - | 不明 | |
 | asset | string | "eth" / "jpy" | - | - | 不明 | |
 | account_uuid | string | "MASKED_ACCOUNT_UUID_1" | - | - | 不明 | 出金先アカウント（登録済み宛先）の ID |
-| amount | string | "0.1000000" / "10000" | 当該資産 | 常に正 | 数量 | fee を含むか別かは不明（ANSWERS Q2） |
+| amount | string | "0.1000000" / "10000" | 当該資産 | 常に正 | 数量 | **fee を含まない**（残高突合で確定。資産の減少 = `amount` + `fee`。BALANCE_RECONCILIATION 結論1） |
 | fee | string | "0.00042" / "550" | **当該資産と同一建て** | 常に正（ゼロ含む可能性は未観測） | 手数料 | 資産・ネットワークごとの固定額（同一資産でもネットワークで変わる。値は `/user/assets` の `withdrawal_fee` マスタ参照） |
 | status | string | "DONE" / "CANCELED" | - | - | ステータス | 2 値を観測。税務では CANCELED 除外が必要 |
 | requested_at | number | 1700000000000 | Unix epoch ミリ秒 | - | 日時 | 申請時刻。完了時刻のフィールドは**存在しない** |

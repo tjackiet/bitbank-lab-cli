@@ -122,8 +122,8 @@ CSVで取得できるもの: 注文履歴（税務では不要）／約定履歴
 | API | 正規化 | 規則 |
 |---|---|---|
 | `deposit_history[].amount` | `DEPOSIT` | 数量 +amount（手数料フィールドなし） |
-| `deposit_history[].txid == null` | `DEPOSIT` + `GRANT_SUSPECT` フラグ | チェーン外の付与の可能性。取得原価の扱いが異なる |
-| fiat入金で**円未満端数かつ `found_at == confirmed_at`** | `DEPOSIT(jpy)` + `GRANT_SUSPECT` | 付与の痕跡（実例3行） |
+| `deposit_history[].txid == null` | `DEPOSIT` + `GRANT_SUSPECT` フラグ | チェーン外の付与の可能性。取得原価の扱いが異なる。実観測された形は「txid=null **かつ** address がプレースホルダー」だが、**判定は txid=null 単独で立てる**（過検出は手動確認で済むが、過少検出は取得原価の誤りに直結するため緩い側に倒す） |
+| fiat入金で**円未満端数・`found_at == confirmed_at`・秒以下 `00.000`** の3条件すべて | `DEPOSIT(jpy)` + `GRANT_SUSPECT` | 付与の痕跡（複数行で確認） |
 | `withdrawal_history[].amount` / `.fee` | `WITHDRAWAL` | **資産減少 = amount + fee**（実証済み）。`status == CANCELED` は除外 |
 
 ---

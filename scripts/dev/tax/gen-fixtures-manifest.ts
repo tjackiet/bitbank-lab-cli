@@ -2,8 +2,10 @@
 //   BITBANK_TAX_FIXTURES=/path/to/fixtures npx tsx scripts/dev/tax/gen-fixtures-manifest.ts
 //
 // 出力先は「読む側と同居」させる: cli/__tests__/tax/fixtures-regression/manifest.json
-// 記録するのは **相対パスと SHA-256 のみ**。件数・日時・金額は書かない
+// 記録するのは **相対パスと SHA-256 のみ**。集計値（件数・金額）は書かない
 // （絶対件数は口座規模の情報になるため。同一性の担保は SHA-256 だけで足りる）。
+// 走査規則（raw/ 配下を再帰・`.json` のみ）は guard.ts と一致させること。
+// ずれると manifest に無いファイルを「余剰」と誤検出する。
 import { createHash } from "node:crypto";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";

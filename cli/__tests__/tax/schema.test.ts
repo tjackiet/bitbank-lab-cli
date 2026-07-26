@@ -48,10 +48,21 @@ describe("TaxEvent: 条件付き必須の強制", () => {
   });
 
   // 販売所は API に一切現れない（v2 付録E.3 訂正）。取込経路の取り違えを型で落とす
-  it("BROKERAGE を source_system=API で作れない", () => {
-    const r = TaxEvent.safeParse({ ...baseEvent, market_type: "BROKERAGE" });
-    expect(r.success).toBe(false);
-    expect(r.error?.issues[0].path).toEqual(["source_system"]);
+  it("BROKERAGE を API / 約定履歴CSV 由来で作れない", () => {
+    for (const source_system of ["API", "UI_CSV_TRADES"] as const) {
+      const r = TaxEvent.safeParse({ ...baseEvent, market_type: "BROKERAGE", source_system });
+      expect(r.success).toBe(false);
+      expect(r.error?.issues[0].path).toEqual(["source_system"]);
+    }
+  });
+
+  it("BROKERAGE は手入力（MANUAL）なら通る（CSV 未取得ユーザーの手動登録）", () => {
+    const r = TaxEvent.safeParse({
+      ...baseEvent,
+      market_type: "BROKERAGE",
+      source_system: "MANUAL",
+    });
+    expect(r.success).toBe(true);
   });
 
   it("BROKERAGE は UI CSV 経路なら通る", () => {

@@ -6,15 +6,16 @@
 //     「想定と違うデータで通ったつもり」を防ぐため
 //   - 一致 → フル実行
 import { createHash } from "node:crypto";
-import { existsSync, readFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export const ENV_VAR = "BITBANK_TAX_FIXTURES";
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MANIFEST = join(HERE, "manifest.json");
 
-type Manifest = { files: { path: string; sha256: string }[] };
+export type ManifestFile = { path: string; sha256: string };
+type Manifest = { files: ManifestFile[] };
 
 export type GuardState =
   | { kind: "skip"; reason: string }
@@ -23,6 +24,16 @@ export type GuardState =
 
 function sha256(file: string): string {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
+}
+
+/** gen-fixtures-manifest.ts の walk() と同じ規則（raw/ 再帰・`.json` のみ）。 */
+function walkRaw(dir: string): string[] {
+  if (!existsSync(dir)) return [];
+  return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const full = join(dir, e.name);
+    if (e.isDirectory()) return walkRaw(full);
+    return e.isFile() && e.name.endsWith(".json") ? [full] : [];
+  });
 }
 
 function readManifest(): Manifest {
@@ -40,9 +51,14 @@ export function checkFixtures(): GuardState {
   if (manifest.files.length === 0) {
     return { kind: "skip", reason: "manifest.json が空（gen-fixtures-manifest.ts で生成する）" };
   }
+  return compare(root, manifest.files);
+}
+
+/** manifest と実ファイルの突合本体。manifest を差し替えてテストできるよう分離する。 */
+export function compare(root: string, files: ManifestFile[]): GuardState {
   const missing: string[] = [];
   const differing: string[] = [];
-  for (const f of manifest.files) {
+  for (const f of files) {
     const full = join(root, f.path);
     if (!existsSync(full)) {
       missing.push(f.path);
@@ -50,10 +66,17 @@ export function checkFixtures(): GuardState {
       differing.push(f.path);
     }
   }
-  if (missing.length > 0 || differing.length > 0) {
-    return { kind: "mismatch", root, missing, differing, extra: [] };
+  // manifest に無いファイルも不一致に数える。再採取したのに manifest を更新していない場合、
+  // 「古い部分集合だけで通ったつもり」になるのを防ぐ（本ガードの目的そのもの）
+  const known = new Set(files.map((f) => f.path));
+  const extra = walkRaw(join(root, "raw"))
+    .map((f) => relative(root, f).split(sep).join("/"))
+    .filter((p) => !known.has(p))
+    .sort();
+  if (missing.length > 0 || differing.length > 0 || extra.length > 0) {
+    return { kind: "mismatch", root, missing, differing, extra };
   }
-  return { kind: "ready", root, files: manifest.files.length };
+  return { kind: "ready", root, files: files.length };
 }
 
 /** 不一致の内訳を人が読める形にする（どのファイルが一致しなかったかを必ず列挙する）。 */
@@ -64,7 +87,7 @@ export function formatMismatch(s: Extract<GuardState, { kind: "mismatch" }>): st
       : `\n  ${label} (${xs.length}):\n${xs.map((x) => `    - ${x}`).join("\n")}`;
   return (
     `fixtures が manifest と一致しません（**データ相違**。データ無しの skip とは別状態）。` +
-    `${list("欠落", s.missing)}${list("内容相違", s.differing)}\n` +
+    `${list("欠落", s.missing)}${list("内容相違", s.differing)}${list("manifest に無い", s.extra)}\n` +
     `  再採取した場合は次で manifest を更新してください:\n` +
     `    ${ENV_VAR}=${s.root} npx tsx scripts/dev/tax/gen-fixtures-manifest.ts`
   );
