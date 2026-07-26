@@ -8,7 +8,7 @@ const ParamPropSchema = z.object({
 });
 
 export const SchemaDefSchema = z.object({
-  category: z.enum(["public", "private", "trade", "stream"]),
+  category: z.enum(["public", "private", "trade", "stream", "tax"]),
   params: z.record(ParamPropSchema),
   output: z.record(z.unknown()),
 });

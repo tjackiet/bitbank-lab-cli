@@ -3,7 +3,7 @@
   "cli_version": "0.2.0",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 28,
+  "command_count": 31,
   "dangerous_count": 5,
   "commands": [
     {
@@ -1848,6 +1848,366 @@
       "output": {
         "type": "object",
         "description": "Real-time event data (varies by channel)"
+      }
+    },
+    {
+      "command": "tax events",
+      "category": "tax",
+      "auth_required": true,
+      "description": "Normalize trade/deposit/withdrawal history into tax events (read-only)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "string",
+            "description": "Tax year in JST (e.g. 2026)"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages per pair/asset (safety valve)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "pending": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_ref": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "trades": {
+                "type": "number"
+              },
+              "deposits": {
+                "type": "number"
+              },
+              "withdrawals": {
+                "type": "number"
+              },
+              "deduped": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "tax reconcile",
+      "category": "tax",
+      "auth_required": true,
+      "description": "Compare rebuilt theoretical balances against /user/assets (detect, not judge)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages per pair/asset (safety valve)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "dust_threshold": {
+            "type": "string"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "currency": {
+                  "type": "string"
+                },
+                "theoretical": {
+                  "type": "string"
+                },
+                "actual": {
+                  "type": "string"
+                },
+                "residual": {
+                  "type": "string"
+                },
+                "within_dust": {
+                  "type": "boolean"
+                },
+                "diagnosis": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "unreconcilable": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "problems": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "counts": {
+            "type": "object",
+            "properties": {
+              "events": {
+                "type": "number"
+              },
+              "pending": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "tax pnl",
+      "category": "tax",
+      "auth_required": true,
+      "description": "Transaction summary + reference P&L when the display guards all pass",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "string",
+            "description": "Tax year in JST (e.g. 2026)"
+          },
+          "method": {
+            "type": "string",
+            "description": "Valuation method",
+            "enum": [
+              "total-average",
+              "moving-average"
+            ],
+            "default": "total-average"
+          },
+          "carryover": {
+            "type": "string",
+            "description": "Path to carryover JSON, or \"zero\" for a first year"
+          },
+          "attest": {
+            "type": "boolean",
+            "description": "Attest that no holdings/trades of the same asset exist outside this bitbank account"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages per pair/asset (safety valve)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "year_jst": {
+            "type": "number"
+          },
+          "method": {
+            "type": "string"
+          },
+          "attested": {
+            "type": "boolean"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "events": {
+                "type": "number"
+              },
+              "pending": {
+                "type": "number"
+              },
+              "deferred": {
+                "type": "number"
+              },
+              "deduped": {
+                "type": "number"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            }
+          },
+          "currencies": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "currency": {
+                  "type": "string"
+                },
+                "method": {
+                  "type": "string"
+                },
+                "summary": {
+                  "type": "object",
+                  "properties": {
+                    "acquired_qty": {
+                      "type": "string"
+                    },
+                    "acquired_cost_jpy": {
+                      "type": "string"
+                    },
+                    "disposed_qty": {
+                      "type": "string"
+                    },
+                    "proceeds_jpy": {
+                      "type": "string"
+                    },
+                    "income_jpy": {
+                      "type": "string"
+                    },
+                    "expense_jpy": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "reference": {
+                  "type": "object",
+                  "properties": {
+                    "unit_price_jpy": {
+                      "type": "string"
+                    },
+                    "cogs_jpy": {
+                      "type": "string"
+                    },
+                    "closing_qty": {
+                      "type": "string"
+                    },
+                    "closing_cost_jpy": {
+                      "type": "string"
+                    },
+                    "revenue_total_jpy": {
+                      "type": "string"
+                    },
+                    "expense_total_jpy": {
+                      "type": "string"
+                    },
+                    "reference_pnl_jpy": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "blocked_by": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "warnings": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "policy_ids": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          },
+          "reconciliation": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "currency": {
+                  "type": "string"
+                },
+                "theoretical": {
+                  "type": "string"
+                },
+                "actual": {
+                  "type": "string"
+                },
+                "residual": {
+                  "type": "string"
+                },
+                "within_dust": {
+                  "type": "boolean"
+                },
+                "diagnosis": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "pending": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "source_ref": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disclaimers": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
       }
     }
   ]

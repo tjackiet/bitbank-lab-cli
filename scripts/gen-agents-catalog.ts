@@ -44,7 +44,8 @@ export function buildToolCatalog() {
       return {
         command: d.command,
         category: d.category,
-        auth_required: d.category === "private" || d.category === "trade",
+        auth_required:
+          d.category === "private" || d.category === "trade" || d.category === "tax",
         description: d.description,
         dangerous,
         ...(dangerous ? { confirm: phrases[name] } : {}),

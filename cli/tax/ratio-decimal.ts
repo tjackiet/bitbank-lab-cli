@@ -64,3 +64,26 @@ export function toDecimalString(r: Ratio, scale: number, mode: RoundMode): strin
 export function toYen(r: Ratio, mode: RoundMode = "ROUNDDOWN"): bigint {
   return roundAtScale(r, 0, mode);
 }
+
+/**
+ * 厳密に十進表現できるときだけ、**丸めずに**十進文字列へ。できなければ null。
+ * 有限小数になるのは分母が 2^a·5^b のときに限る。約定代金（数量×価格）のように
+ * 有限小数同士の積は必ずここを通るので、正規化イベントの金額欄は無損失で書ける。
+ * 割り切れない値（平均単価など）は null が返るので、呼び出し側で丸め位置を明示する。
+ */
+export function toExactDecimalString(r: Ratio): string | null {
+  let d = r.d;
+  let twos = 0;
+  let fives = 0;
+  while (d % 2n === 0n) {
+    d /= 2n;
+    twos++;
+  }
+  while (d % 5n === 0n) {
+    d /= 5n;
+    fives++;
+  }
+  if (d !== 1n) return null;
+  // この scale なら r × 10^scale が整数になるため roundAtScale は丸めを行わない
+  return toDecimalString(r, Math.max(twos, fives), "ROUNDDOWN");
+}

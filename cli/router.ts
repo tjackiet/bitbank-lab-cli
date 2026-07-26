@@ -4,30 +4,38 @@ import {
   commandDescriptions,
   PAPER_COMMANDS,
   PROFILE_COMMANDS,
+  TAX_COMMANDS,
   TRADE_COMMANDS,
 } from "./commands/registry.js";
 import type { Format } from "./types.js";
 
+/** サブコマンド形式で呼ぶグループ（`bitbank <group> <name>`）。
+ *  フラット一覧での誤爆を減らすためのもので、実行ガードではない（commands.md）。 */
+const GROUP_REGISTRY = {
+  trade: TRADE_COMMANDS,
+  paper: PAPER_COMMANDS,
+  profile: PROFILE_COMMANDS,
+  tax: TAX_COMMANDS,
+} as const;
+
+export type SubcommandGroup = keyof typeof GROUP_REGISTRY;
+
+const GROUPS = Object.keys(GROUP_REGISTRY) as SubcommandGroup[];
+
 export type ResolvedCommand = {
-  isTrade: boolean;
-  isPaper: boolean;
-  isProfile: boolean;
+  /** サブコマンドグループ名。フラットなコマンドでは undefined */
+  group: SubcommandGroup | undefined;
   command: string | undefined;
   entry: CommandEntry | undefined;
 };
 
 export function resolveCommand(positionals: string[]): ResolvedCommand {
-  const isTrade = positionals[0] === "trade";
-  const isPaper = positionals[0] === "paper";
-  const isProfile = positionals[0] === "profile";
-  const isSub = isTrade || isPaper || isProfile;
-  const command = isSub ? positionals[1] : positionals[0];
+  const group = GROUPS.find((g) => g === positionals[0]);
+  const command = group ? positionals[1] : positionals[0];
   let entry: CommandEntry | undefined;
-  if (isTrade) entry = command ? TRADE_COMMANDS[command] : undefined;
-  else if (isPaper) entry = command ? PAPER_COMMANDS[command] : undefined;
-  else if (isProfile) entry = command ? PROFILE_COMMANDS[command] : undefined;
+  if (group) entry = command ? GROUP_REGISTRY[group][command] : undefined;
   else entry = COMMANDS[command ?? ""];
-  return { isTrade, isPaper, isProfile, command, entry };
+  return { group, command, entry };
 }
 
 export async function handleSpecialCommand(

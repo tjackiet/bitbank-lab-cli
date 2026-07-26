@@ -1,0 +1,130 @@
+// 100行超: tax コマンドの output（agents カタログの単一ソース）を宣言的に集約。
+// レポートのフィールドを 1 つずつ列挙するため、出力項目数に比例して伸びる。
+import { p, type SchemaDef } from "./types.js";
+
+const s = { type: "string" };
+const n = { type: "number" };
+const b = { type: "boolean" };
+const strings = { type: "array", items: s };
+
+const maxPages = p("string", "Max pages per pair/asset (safety valve)");
+const year = p("string", "Tax year in JST (e.g. 2026)");
+
+const summaryProps = {
+  acquired_qty: s,
+  acquired_cost_jpy: s,
+  disposed_qty: s,
+  proceeds_jpy: s,
+  income_jpy: s,
+  expense_jpy: s,
+};
+
+const referenceProps = {
+  unit_price_jpy: s,
+  cogs_jpy: s,
+  closing_qty: s,
+  closing_cost_jpy: s,
+  revenue_total_jpy: s,
+  expense_total_jpy: s,
+  reference_pnl_jpy: s,
+};
+
+const reconciliationRow = {
+  type: "object",
+  properties: {
+    currency: s,
+    theoretical: s,
+    actual: s,
+    residual: s,
+    within_dust: b,
+    diagnosis: s,
+    hint: s,
+  },
+};
+
+export const taxSchemas: Record<string, SchemaDef> = {
+  events: {
+    category: "tax",
+    params: { year, "max-pages": maxPages },
+    output: {
+      type: "object",
+      properties: {
+        events: { type: "array", items: { type: "object" } },
+        pending: {
+          type: "array",
+          items: { type: "object", properties: { source_ref: s, reason: s } },
+        },
+        warnings: strings,
+        counts: {
+          type: "object",
+          properties: { trades: n, deposits: n, withdrawals: n, deduped: n },
+        },
+      },
+    },
+  },
+  reconcile: {
+    category: "tax",
+    params: { "max-pages": maxPages },
+    output: {
+      type: "object",
+      properties: {
+        dust_threshold: s,
+        rows: { type: "array", items: reconciliationRow },
+        unreconcilable: strings,
+        problems: strings,
+        warnings: strings,
+        counts: { type: "object", properties: { events: n, pending: n } },
+      },
+    },
+  },
+  pnl: {
+    category: "tax",
+    params: {
+      year,
+      method: p("string", "Valuation method", {
+        enum: ["total-average", "moving-average"],
+        default: "total-average",
+      }),
+      carryover: p("string", 'Path to carryover JSON, or "zero" for a first year'),
+      attest: p(
+        "boolean",
+        "Attest that no holdings/trades of the same asset exist outside this bitbank account",
+      ),
+      "max-pages": maxPages,
+    },
+    output: {
+      type: "object",
+      properties: {
+        year_jst: n,
+        method: s,
+        attested: b,
+        source: {
+          type: "object",
+          properties: { events: n, pending: n, deferred: n, deduped: n, truncated: b },
+        },
+        currencies: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              currency: s,
+              method: s,
+              summary: { type: "object", properties: summaryProps },
+              reference: { type: "object", properties: referenceProps },
+              blocked_by: strings,
+              warnings: strings,
+              policy_ids: strings,
+            },
+          },
+        },
+        reconciliation: { type: "array", items: reconciliationRow },
+        pending: {
+          type: "array",
+          items: { type: "object", properties: { source_ref: s, reason: s } },
+        },
+        warnings: strings,
+        disclaimers: strings,
+      },
+    },
+  },
+};

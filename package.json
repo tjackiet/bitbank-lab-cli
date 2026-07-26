@@ -12,6 +12,7 @@
     "cli/*.ts",
     "cli/commands/",
     "cli/completion/",
+    "cli/tax/",
     "cli/watch/",
     "skills/",
     "AGENTS.md",
