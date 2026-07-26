@@ -3,7 +3,7 @@
   "cli_version": "0.2.0",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 31,
+  "command_count": 32,
   "dangerous_count": 5,
   "commands": [
     {
@@ -1997,6 +1997,146 @@
               "pending": {
                 "type": "number"
               }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "tax verify-report",
+      "category": "tax",
+      "auth_required": true,
+      "description": "Reconcile the official annual trade report CSV against API-derived totals",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "year": {
+            "type": "string",
+            "description": "Tax year in JST (e.g. 2026)"
+          },
+          "csv": {
+            "type": "string",
+            "description": "Path to the bitbank annual trade report CSV (spot)"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max pages per pair/asset (safety valve)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "year_jst": {
+            "type": "number"
+          },
+          "source": {
+            "type": "object",
+            "properties": {
+              "csv_rows": {
+                "type": "number"
+              },
+              "events": {
+                "type": "number"
+              },
+              "pending": {
+                "type": "number"
+              },
+              "truncated": {
+                "type": "boolean"
+              }
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "currency": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "report": {
+                  "type": "string"
+                },
+                "api": {
+                  "type": "string"
+                },
+                "diff": {
+                  "type": "string"
+                },
+                "tolerance": {
+                  "type": "string"
+                },
+                "within_tolerance": {
+                  "type": "boolean"
+                },
+                "diagnosis": {
+                  "type": "string"
+                },
+                "hint": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "report_checks": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "target": {
+                  "type": "string"
+                },
+                "ok": {
+                  "type": "boolean"
+                },
+                "detail": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "unsupported": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "currency": {
+                  "type": "string"
+                },
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "unknown_columns": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "disclaimers": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

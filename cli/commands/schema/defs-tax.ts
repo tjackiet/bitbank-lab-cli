@@ -77,6 +77,52 @@ export const taxSchemas: Record<string, SchemaDef> = {
       },
     },
   },
+  "verify-report": {
+    category: "tax",
+    params: {
+      year,
+      csv: p("string", "Path to the bitbank annual trade report CSV (spot)"),
+      "max-pages": maxPages,
+    },
+    output: {
+      type: "object",
+      properties: {
+        year_jst: n,
+        source: {
+          type: "object",
+          properties: { csv_rows: n, events: n, pending: n, truncated: b },
+        },
+        rows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              currency: s,
+              field: s,
+              report: s,
+              api: s,
+              diff: s,
+              tolerance: s,
+              within_tolerance: b,
+              diagnosis: s,
+              hint: s,
+            },
+          },
+        },
+        report_checks: {
+          type: "array",
+          items: { type: "object", properties: { id: s, target: s, ok: b, detail: s } },
+        },
+        unsupported: {
+          type: "array",
+          items: { type: "object", properties: { currency: s, field: s, value: s } },
+        },
+        unknown_columns: strings,
+        warnings: strings,
+        disclaimers: strings,
+      },
+    },
+  },
   pnl: {
     category: "tax",
     params: {

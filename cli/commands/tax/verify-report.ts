@@ -1,0 +1,51 @@
+// `bitbank tax verify-report` — bitbank 公式の年間取引報告書（現物）CSV と
+// API 由来の集計を突き合わせる。検証アンカー #1（ロードマップ）の自動化。
+//
+// **検出であって判定ではない**。差があってもコマンドは成功で返す。販売所（即時売買）は
+// API に一切現れない（付録E.3）ため、CSV 未投入の口座では購入・売却に差が残るのが正常で、
+// その差の量こそが「あと何を取り込めばよいか」を示す。
+import { EXIT } from "../../exit-codes.js";
+import type { PrivateHttpOptions } from "../../http-private.js";
+import { readAnnualReport } from "../../tax/import-csv/annual-report.js";
+import type { VerifyReport } from "../../tax/schema/verify.js";
+import { runVerifyReport } from "../../tax/verify/run.js";
+import type { Result } from "../../types.js";
+import { parseMaxPages, resolveYearWindow } from "../private/input-schemas.js";
+import { resolveMarket } from "./market.js";
+
+const MAX_PAGES_DEFAULT = 1000;
+
+export type TaxVerifyReportArgs = { year?: string; csv?: string; maxPages?: string };
+
+export async function taxVerifyReport(
+  args: TaxVerifyReportArgs,
+  opts?: PrivateHttpOptions,
+): Promise<Result<VerifyReport>> {
+  if (args.csv === undefined) {
+    return {
+      success: false,
+      error: "--csv is required (path to the bitbank annual trade report CSV)",
+      exitCode: EXIT.PARAM,
+    };
+  }
+  const mp = parseMaxPages(args.maxPages, MAX_PAGES_DEFAULT);
+  if (!mp.success) return mp;
+  const win = resolveYearWindow({ year: args.year });
+  if (!win.success) return win;
+  const year = win.data.filterYear;
+  if (year === undefined) {
+    return { success: false, error: "--year is required (JST tax year)", exitCode: EXIT.PARAM };
+  }
+  // CSV は API を叩く前に読む（壊れていれば認証・レート制限を消費せずに落ちる）
+  const report = readAnnualReport(args.csv);
+  if (!report.success) return report;
+
+  const market = await resolveMarket(opts);
+  if (!market.success) return market;
+
+  return runVerifyReport(
+    { year, report: report.data, since: win.data.since, end: win.data.end, maxPages: mp.data },
+    market.data,
+    opts,
+  );
+}
