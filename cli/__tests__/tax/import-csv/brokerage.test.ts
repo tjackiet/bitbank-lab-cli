@@ -37,6 +37,15 @@ describe("販売所 CSV のパース", () => {
     expect(rowsOf([{}])[0]).toMatchObject({ order_id: "10000000001", currency: "btc", side: "買" });
   });
 
+  it("定期購入タブの CSV は「タブが違う」と分かるエラーになる", () => {
+    // 注文ID を持つのでヘッダ検出は通る。「列が足りない」だと原因が伝わらない
+    const recurring =
+      "定期購入結果,注文ID,コイン,数量,価格,注文日時\n成功,1,btc,0.001,10000000,2026/07/13 16:43:12";
+    const r = parseBrokerage(parseCsv(recurring));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("recurring-purchase");
+  });
+
   it("数量は十進文字列のまま保持する（number 化しない）", () => {
     expect(rowsOf([{ qty: "0.00009542" }])[0].qty).toBe("0.00009542");
   });
