@@ -3,6 +3,10 @@
 > 作成: 2026-07-25。対象は [tax-requirements.md](tax-requirements.md) §10 の **P0 1〜4**。
 > 税務ルールの正は [tax-research.md](tax-research.md)（v2.1）。矛盾時は v2 を採る。
 > 実装着手前のレビュー用。**要判断**（§4）が解けるまでコードは書かない。
+>
+> **状況（2026-07-25 更新）**: §4-1（fixtures）・§4-3（数値表現）・§4-5（ロードマップ）は解決済み。
+> **未解決は §4-2（decStr と chaos x14）と §4-4（TRADE_EXCHANGE の優先度）の 2 件**で、
+> どちらも P0-1 の着手判断に効く。既定の進め方は各節の末尾に記載。
 
 ## 1. 正規化スキーマ型定義案（v2 §13 準拠）
 
@@ -110,8 +114,8 @@ export const LedgerEntry = z.object({
 
 ```
 cli/tax/
-  ratio.ts            # 厳密有理数（BigInt 分子/分母）: 四則・比較・floor/ceil/roundHalfUp・十進化
-  ratio-parse.ts      # 十進文字列 ⇄ 有理数（float を一切経由しない）
+  ratio.ts            # 【実装済】厳密有理数（BigInt 分子/分母）: 四則・gcd 約分・比較・述語
+  ratio-decimal.ts    # 【実装済】十進文字列 ⇄ 有理数 + **丸めが起きる唯一の場所**（ADR-005）
   schema/
     primitives.ts     # decStr / enum 群（§1）
     event.ts          # TaxEvent
@@ -129,9 +133,10 @@ cli/tax/
     symbol-alias.ts   # {matic→pol, rndr→render} のみ。mkr→sky は名寄せ禁止（手動マスタ）
   ledger/
     from-events.ts    # 付録A の対応表に従い LedgerEntry へ
-  reconcile/
+  reconcile/          # 原型は scripts/dev/tax/reconcile.ts（検証済みオラクル。恒久保全）
     rebuild.ts        # Event 列 → 資産別理論残高（出庫は amount+fee で減算）
     compare.ts        # /user/assets と突合・ダスト閾値・残差の符号診断（ガード(d) / P-17）
+                      # **判定ではなく検出**: 閾値外は fail ではなく残差の量と符号を報告
   engine/
     total-average.ts  # 総平均法（v2 §3）
     moving-average.ts # 移動平均法（v2 §3・時系列安定ソート）
@@ -171,7 +176,15 @@ cli/commands/tax/     # CLI 表層（Result パターン・--format=json|table|c
 
 ## 4. 要判断（コード着手前に決めたい）
 
-### 4-1. `fixtures/` がこのリポジトリに存在しない ★ブロッカーではないが回帰資産が欠ける
+### 4-1. `fixtures/` の扱い → **解決済み（2026-07-25）**
+
+コードとデータを切り分けて決着した（[tax-fixtures-plan.md](tax-fixtures-plan.md) §2.5）:
+`tools/` は `scripts/dev/tax/` へ（原型を恒久保全）、回帰テストは
+`cli/__tests__/tax/fixtures-regression/` に **skip ゲート付き**で実装済み、`raw/` は repo に置かず
+SHA-256 のみ manifest に記録、MD レポートは値を丸めて `docs/dev/tax-evidence/` へ。
+**P0 の実装は合成データで進められる**（実データ回帰は fixtures がある環境でのみ走る）。
+
+#### （以下、判断前の記述）`fixtures/` がこのリポジトリに存在しない
 
 `tax-requirements.md` は `fixtures/`（実口座の API 生レスポンス・`FIELDS.md`・`ENDPOINTS.md`・
 `BALANCE_RECONCILIATION.md`・`SYMBOL_ALIASES.md`・`PAIRS_MASTER.json`・`tests/`・`tools/reconcile.ts`）を
@@ -202,6 +215,10 @@ cli/commands/tax/     # CLI 表層（Result パターン・--format=json|table|c
    「税務経路（`cli/tax/`）は精度保持のため `decStr` を使う」を規約として明記
 3. 税務インポータは既存 private コマンドの戻り値を使わず、**生レスポンスを `decStr` スキーマで
    別途 parse する**（`import/raw-*.ts`）。既存コマンドの出力互換は壊さない
+
+**未解決。既定の進め方**: 反対がなければ上記 1〜3 で進める（float 禁止は P-02 の【方針】であり、
+x14 の `numStr`（= JS number）と両立しないため、規約側の明示的拡張が唯一の整合解）。
+x14 のテスト本体も同時に更新し、「税務経路は `decStr`」を機械検証に含める。
 
 ### 4-3. 数値表現 → **決定済み。[ADR-005](../adr/005-tax-exact-rational-arithmetic.md) を参照**
 
@@ -249,9 +266,12 @@ v2 を正とすると、**当年（2026 年分）は BTC 建ての新規約定�
 `stop_order=true` で新規注文停止）ため、当年計算に交換ロジックは不要。必要になるのは
 **過年度から簿価を再構築するケース**。よって P0 では
 「非JPY quote を検出したら `NON_JPY_QUOTE` フラグ + 当該銘柄をガードでブロック（明示エラー）」
-までを実装し、交換の完全計算は P2 のまま——という整理を提案する。この解釈で進めてよいか確認したい。
+までを実装し、交換の完全計算は P2 のまま——という整理を提案する。
 
-### 4-5. ロードマップの記述が付録E.5 と不整合 ★軽微・修正予定
+**未解決。既定の進め方**: 反対がなければこの整理で進める（当年分の計算に交換ロジックは不要で、
+必要になるのは過年度からの簿価再構築のみ。黙って誤計算するより明示エラーで止める方が安全）。
+
+### 4-5. ロードマップの記述が付録E.5 と不整合 → **解決済み（修正コミット済み）**
 
 `tax-roadmap.md` 実機確認 #4 は「BTC 建てペアは全て **delist 済み**（社内確認）／フラグ実値の確認が残」
 と書いているが、付録E.5 で **`is_enabled=true` かつ `stop_order=true`**（新規注文停止だが定義は有効）と
