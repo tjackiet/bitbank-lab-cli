@@ -10,15 +10,21 @@
 > §4-2 は「`decStr` を `cli/schema-helpers.ts` に追加し、chaos x14 のスコープを `cli/tax/` へ
 > 広げる」で決着（規約から外れるのではなく規約側を拡張した）。
 >
-> **実装状況（P0-1〜4 完了）**: §2 のモジュール分割は `import-csv/` を除いてすべて実装済み。
-> CLI は `bitbank tax events / reconcile / pnl` の 3 本。差分は次の 3 点:
+> **実装状況（P0-1〜4 完了 + 年間取引報告書突合）**: §2 のモジュール分割は
+> `import-csv/` の販売所側を除いてすべて実装済み。
+> CLI は `bitbank tax events / reconcile / verify-report / pnl` の 4 本。差分は次の 4 点:
 > - `import/` に `paginate.ts`（3 エンドポイント共通のページャ）と `fetch-assets.ts`（突合の基準）を追加
 > - `to-events.ts` は現物 / 信用 / 入出庫を別ファイルに割り、組み立てたイベントを
 >   **TaxEvent スキーマで検証**してから返す（条件付き必須の単一ソースを superRefine に保つため）
 > - 移動平均法（非丸め）に**売却 5,000 件の上限**を入れた（ADR-005 の計測。超過は黙って劣化させず
 >   violations で明示して総平均法 / 互換モードへ誘導する）
+> - `import-csv/` は先に**年間取引報告書（集計 CSV）**側を実装した（`parse-csv.ts` /
+>   `annual-report*.ts`）。突合本体は `verify/`。販売所の「売買履歴」CSV は取込元が別なので
+>   `import-csv/brokerage.ts` として P0-6 に残る
 >
-> **残り**: P0-6（UI CSV 取込・`import-csv/`）と P1 以降。
+> **残り**: P0-6（販売所「売買履歴」CSV の取込・`import-csv/brokerage.ts` / `merge.ts`）と P1 以降。
+> 年間取引報告書との突合（`tax verify-report`）は取込ではなく**検証**なので P0-6 とは別物で、
+> 販売所ぶんの欠落を「数量として見える化する」役割を担う。
 >
 > **【2026-07-26 仕様訂正の反映】販売所（即時売買）は API に一切現れない**（付録E.3 訂正）。
 > UI CSV 取込が P1 → **P0 に昇格**したため、本メモに `MarketType` / `SourceSystem` と

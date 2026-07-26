@@ -1,0 +1,156 @@
+---
+name: tax-report
+description: |
+  bitbank 口座の取引を確定申告向けに整形する（取引集計・残高突合・年間取引報告書
+  との突合・参考損益）。CLI が計算した確定値だけを提示し、Skill 側では一切計算しない。
+  代表トリガー: 「確定申告のデータを作りたい」「取得価額を出して」
+  「年間取引報告書と合ってる？」「暗号資産の雑所得いくら？」「譲渡原価は？」
+  注意: 出すのは**参考データ**であり税務上の所得金額ではない。申告要否・税額の
+  判定はしない。含み損益の現況把握は portfolio が担当（本 skill は年分の確定データ）。
+compatibility: |
+  Requires the bitbank CLI on PATH (install separately: npm i -g bitbank-lab-cli).
+  Plugin install alone does NOT bundle the CLI or its dependencies. Node.js 22+.
+  Private API commands require API key/secret. **read-only キーを使うこと**
+  （tax サブコマンドは private GET のみで POST は叩かない）。
+metadata:
+  author: bitbank-aiforge
+  version: "1.0"
+  requires:
+    bins:
+      - bitbank
+---
+
+# 税務データ整形 Skill
+
+## この Skill の規律（最優先）
+
+1. **計算しない**。数量・金額・損益は `bitbank tax ...` の出力値をそのまま使う。
+   足し算・平均・按分を自分でやらない（税務は間違えられない領域なので、
+   計算は CLI に閉じている → [ADR-004](../../docs/adr/004-tax-logic-in-cli-exception.md)）
+2. **「税務上の所得金額」と言わない**。「参考データ」「参考損益」と呼ぶ。
+   単一取引所のデータだけでは正確な譲渡原価は原理的に計算できない（FAQ 2-8）
+3. **申告要否・税額・所得区分を判定しない**。20 万円ルールにも触れない
+   （CLI が返す `disclaimers` をそのまま提示する）
+4. コマンドが数値を出さなかった銘柄について、**代わりに推定値を出さない**。
+   `blocked_by` の理由をそのまま伝える
+
+## 前提: 認証
+
+read-only の API キーを profile に登録する（詳細は
+`_shared/references/cli-conventions.md` の「認証」）。
+
+```bash
+bitbank profile add tax     # secret は対話 hidden 入力
+bitbank tax reconcile --format=json --machine
+```
+
+## 実行フロー
+
+### Step 1: 年分と評価方法を確認する
+
+- 年分は **JST** で区切る（`--year=2026`）
+- 評価方法の既定は**総平均法**。移動平均法は税務署へ届出済みのユーザーだけ
+  （`--method=moving-average`）。どちらか分からなければ総平均法のまま進め、
+  「届出をしていれば移動平均法」とだけ伝える
+
+### Step 2: 残高突合で「取り込めているか」を先に見る
+
+```bash
+bitbank tax reconcile --format=json --machine
+```
+
+`rows[].diagnosis` を読む。
+
+- 全銘柄 `MATCH` → API だけで足りている。Step 4 へ進んでよい
+- `MISSING_ACQUISITION` / `MISSING_DISPOSAL` がある → **API に現れない取引がある**。
+  第一候補は**販売所（即時売買）**。Step 3 へ進む
+
+> 残差は「判定」ではなく「検出」。閾値外でもコマンドは成功で返る。
+> 残差が出たこと自体を失敗として伝えない。
+
+### Step 3: 年間取引報告書 CSV をユーザーに用意してもらう
+
+**ここは自動化できない。ユーザーの操作が要る。** 次のように依頼する。
+
+> bitbank の Web サイトにログインして、**年間取引報告書（現物）** の
+> 対象年（例: 2026 年分）の CSV をダウンロードし、そのファイルパスを教えてください。
+
+補足として伝えてよいこと:
+
+- 販売所（即時売買）の取引は API では取得できず、この報告書にだけ現れる
+- ファイルは**ローカルで読むだけ**でどこにも送信しない
+- 氏名が 1 行目に入っているので、パスだけ伝えれば中身を貼る必要はない
+
+パスを受け取ったら突合する。
+
+```bash
+bitbank tax verify-report --year=2026 --csv=/path/to/annual_trade_report.csv --format=json --machine
+```
+
+### Step 4: 差の読み方
+
+まず `report_checks` を見る。`ok: false` があれば**報告書側の読み取りが疑わしい**
+ので、API との差を論じる前にユーザーへ確認する（ファイルが編集されている、
+様式が変わった、等）。
+
+`rows[].diagnosis`:
+
+| diagnosis | 意味 | 次の一手 |
+|---|---|---|
+| `MATCH` | 許容幅内で一致 | なし |
+| `FEE_ROUNDING` | API 手数料の 4 桁丸めで説明できる差 | なし（正常） |
+| `REPORT_EXCESS` | 報告書 > API。**取込漏れ**側 | 購入・売却なら販売所ぶん。CLI はまだ販売所 CSV を取り込めないので、当該銘柄の参考損益は出さない |
+| `API_EXCESS` | API > 報告書 | 年分判定・重複排除のズレ、または報告書の対象外（信用は別様式）。原因が説明できるまで数値を出さない |
+
+`warnings` / `unsupported` は握り潰さずそのまま伝える。特に:
+
+- 「履歴がページ上限で打ち切られています」→ 差の解釈が無効。`--max-pages` を上げて再実行
+- 「信用取引 N 件を集計から除外しました」→ 現物の報告書には現れないので正常
+- `unsupported`（BTC 建て・貸出の列に値がある）→ その銘柄の差はこの分を含む
+
+詳細は [`references/annual-report-guide.md`](references/annual-report-guide.md)。
+
+### Step 5: 前年繰越を確定させる
+
+参考損益は**前年末の数量と取得価額（簿価）が確定していないと出ない**。
+
+- 当年が bitbank 利用初年度 → `--carryover=zero`
+- そうでない → 前年の残高と簿価を JSON で用意してもらう
+
+```json
+{ "btc": { "qty": "1.5", "cost_jpy": "931800" } }
+```
+
+> 年間取引報告書の「年始数量」は数量だけで、**簿価（取得価額）は載っていない**。
+> 数量の裏取りには使えるが、繰越簿価の代わりにはならない。
+
+### Step 6: 参考データを出す
+
+```bash
+bitbank tax pnl --year=2026 --method=total-average --carryover=./carryover.json --attest --format=json --machine
+```
+
+`--attest` は「**この銘柄を bitbank 口座の外で保有・売買していない**」という
+ユーザーの申告。勝手に付けない。ユーザーに確認してから付ける。
+外部に保有がある銘柄では平均法が成立しないため、参考損益は出せない。
+
+### Step 7: 伝え方
+
+- `currencies[].summary`（取引集計）は常に提示してよい
+- `currencies[].reference`（参考損益）は**存在する銘柄だけ**提示する。
+  無い銘柄は `blocked_by` の理由を列挙する（欄が無いことに意味がある。
+  0 と書かない）
+- `disclaimers` は要約せず全文を末尾に置く
+- 最後に「最終的な申告内容は税理士または国税庁にご確認ください」を添える
+
+## Gotchas
+
+- **販売所は API に存在しない**。`trade-history` に出ないのは不具合ではない。
+  取込経路は UI CSV「売買履歴」で、CLI は未対応（開発中）
+- **年分は JST**。UTC で 12/31 でも JST では翌年になる約定がある。`--year` に任せる
+- **手数料の二重計上**をしない。購入時手数料は取得価額に算入済みで、
+  必要経費へ再掲しない（CLI が分けて出す）
+- **信用の `profit_loss` はネット値**。手数料・金利を引き直さない
+- **MKR→SKY のような比率換算転換は名寄せしない**（1:1 でないため簿価が壊れる）
+- `tax` サブコマンドは private GET のみ。注文・出金の API は絶対に呼ばない
+- 参考損益が出なかったことを「損益ゼロ」と表現しない
