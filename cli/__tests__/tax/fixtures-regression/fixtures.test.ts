@@ -28,5 +28,5 @@ describeWithFixtures("実データ回帰（P0-2 で原型から移植）", () =>
   it.todo("(2) 現物全行で fee_amount_quote == fee_occurred_amount_quote");
   it.todo("(3) 信用決済行の profit_loss 検算");
   it.todo("(4) 型スナップショット照合");
-  it.todo("(5) 残高突合: 原型 reconcile.ts と製品コードの結果が一致する（恒久差分検証）");
+  // (5) は oracle-reconcile.test.ts で実装済み（原型を subprocess で回して突合する）
 });
