@@ -9,6 +9,10 @@ const strings = { type: "array", items: s };
 
 const maxPages = p("string", "Max pages per pair/asset (safety valve)");
 const year = p("string", "Tax year in JST (e.g. 2026)");
+const brokerageCsv = p(
+  "string",
+  "Path to the bitbank brokerage (dealer) trade history CSV \u2014 not available via API",
+);
 
 const summaryProps = {
   acquired_qty: s,
@@ -45,7 +49,7 @@ const reconciliationRow = {
 export const taxSchemas: Record<string, SchemaDef> = {
   events: {
     category: "tax",
-    params: { year, "max-pages": maxPages },
+    params: { year, "brokerage-csv": brokerageCsv, "max-pages": maxPages },
     output: {
       type: "object",
       properties: {
@@ -64,7 +68,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
   },
   reconcile: {
     category: "tax",
-    params: { "max-pages": maxPages },
+    params: { "brokerage-csv": brokerageCsv, "max-pages": maxPages },
     output: {
       type: "object",
       properties: {
@@ -83,6 +87,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
       year,
       csv: p("string", "Path to the bitbank annual trade report CSV (spot)"),
       "margin-csv": p("string", "Path to the bitbank annual trade report CSV (margin)"),
+      "brokerage-csv": brokerageCsv,
       "max-pages": maxPages,
     },
     output: {
@@ -138,6 +143,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
         "boolean",
         "Attest that no holdings/trades of the same asset exist outside this bitbank account",
       ),
+      "brokerage-csv": brokerageCsv,
       "max-pages": maxPages,
     },
     output: {

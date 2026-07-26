@@ -10,6 +10,7 @@
 import { EXIT } from "../../exit-codes.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import { readAnnualReport } from "../../tax/import-csv/annual-report.js";
+import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import { readMarginReport } from "../../tax/import-csv/margin-report.js";
 import type { VerifyReport } from "../../tax/schema/verify.js";
 import { runVerifyReport } from "../../tax/verify/run.js";
@@ -23,6 +24,7 @@ export type TaxVerifyReportArgs = {
   year?: string;
   csv?: string;
   marginCsv?: string;
+  brokerageCsv?: string;
   maxPages?: string;
 };
 
@@ -51,6 +53,8 @@ export async function taxVerifyReport(
   if (spot !== undefined && !spot.success) return spot;
   const margin = args.marginCsv === undefined ? undefined : readMarginReport(args.marginCsv);
   if (margin !== undefined && !margin.success) return margin;
+  const brokerage = args.brokerageCsv === undefined ? undefined : readBrokerage(args.brokerageCsv);
+  if (brokerage !== undefined && !brokerage.success) return brokerage;
 
   const market = await resolveMarket(opts);
   if (!market.success) return market;
@@ -63,6 +67,7 @@ export async function taxVerifyReport(
       since: win.data.since,
       end: win.data.end,
       maxPages: mp.data,
+      brokerage: brokerage?.success === true ? brokerage.data.rows : undefined,
     },
     market.data,
     opts,

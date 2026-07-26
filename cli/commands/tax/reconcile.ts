@@ -4,6 +4,7 @@
 // 実口座では販売所取引が API に現れないため「全資産で残差ゼロ」は成立しない
 // （UI CSV 取込は P0-6）。ここで残差が出ること自体が取込漏れの検出手段になっている。
 import type { PrivateHttpOptions } from "../../http-private.js";
+import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import { DUST_THRESHOLD } from "../../tax/reconcile/compare.js";
 import { runReconcile } from "../../tax/reconcile/run.js";
 import type { ReconciliationRow } from "../../tax/schema/report.js";
@@ -13,7 +14,7 @@ import { resolveMarket } from "./market.js";
 
 const MAX_PAGES_DEFAULT = 1000;
 
-export type TaxReconcileArgs = { maxPages?: string };
+export type TaxReconcileArgs = { maxPages?: string; brokerageCsv?: string };
 
 export type TaxReconcileData = {
   dust_threshold: string;
@@ -32,10 +33,17 @@ export async function taxReconcile(
   const mp = parseMaxPages(args.maxPages, MAX_PAGES_DEFAULT);
   if (!mp.success) return mp;
 
+  const brokerage = args.brokerageCsv === undefined ? undefined : readBrokerage(args.brokerageCsv);
+  if (brokerage !== undefined && !brokerage.success) return brokerage;
+
   const market = await resolveMarket(opts);
   if (!market.success) return market;
 
-  const r = await runReconcile(market.data, { maxPages: mp.data }, opts);
+  const r = await runReconcile(
+    market.data,
+    { maxPages: mp.data, brokerage: brokerage?.success === true ? brokerage.data.rows : undefined },
+    opts,
+  );
   if (!r.success) return r;
 
   const data: TaxReconcileData = {

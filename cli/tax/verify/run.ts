@@ -11,6 +11,7 @@ import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
 import { collectEvents } from "../import/collect.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
+import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import type { ParsedMarginReport } from "../import-csv/margin-report.js";
 import type { Market } from "../reconcile/run.js";
 import { verifyDisclaimers } from "../report/disclaimers.js";
@@ -26,6 +27,8 @@ export type VerifyArgs = {
   report?: ParsedAnnualReport;
   /** 信用の年間取引報告書（別様式・別ファイル） */
   marginReport?: ParsedMarginReport;
+  /** 販売所「売買履歴」CSV の行。入れると差が販売所ぶん縮む */
+  brokerage?: readonly BrokerageRow[];
   since?: string;
   end?: string;
   maxPages?: number;
@@ -43,6 +46,7 @@ export async function runVerifyReport(
       since: args.since,
       end: args.end,
       maxPages: args.maxPages,
+      brokerage: args.brokerage,
     },
     opts,
   );

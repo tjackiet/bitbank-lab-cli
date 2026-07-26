@@ -6,6 +6,7 @@ import type { Result } from "../../types.js";
 import { runEngine } from "../engine/run.js";
 import { ZERO_BOOK } from "../engine/total-average.js";
 import type { OpeningBalances } from "../engine/types.js";
+import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import { ledgerFromEvents } from "../ledger/from-events.js";
 import { type Market, runReconcile } from "../reconcile/run.js";
 import type { Method } from "../schema/method.js";
@@ -20,6 +21,8 @@ export type PnlArgs = {
   opening?: OpeningBalances;
   allZero?: boolean;
   maxPages?: number;
+  /** 販売所「売買履歴」CSV の行（API には現れない経路） */
+  brokerage?: readonly BrokerageRow[];
 };
 
 /** --carryover=zero: 当年に出てくる銘柄をゼロ確定の繰越として埋める。 */
@@ -34,7 +37,11 @@ export async function runPnlReport(
   market: Market,
   opts?: PrivateHttpOptions,
 ): Promise<Result<TaxReport>> {
-  const reconciled = await runReconcile(market, { maxPages: args.maxPages }, opts);
+  const reconciled = await runReconcile(
+    market,
+    { maxPages: args.maxPages, brokerage: args.brokerage },
+    opts,
+  );
   if (!reconciled.success) return reconciled;
   const { collected, comparisons } = reconciled.data;
 

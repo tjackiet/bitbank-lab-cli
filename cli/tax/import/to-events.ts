@@ -4,6 +4,8 @@
 // 組み立てたイベントは**必ず TaxEvent スキーマで検証する**。条件付き必須は
 // superRefine が単一ソース（schema/event.ts）なので、ここで独自に条件を書き直すと
 // 契約が二重定義になる。検証に落ちた行は捨てずに保留リストへ回す。
+import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
+import { brokerageEvent } from "../import-csv/to-events-brokerage.js";
 import { TaxEvent } from "../schema/event.js";
 import { isPending, type Normalized, type Pending } from "./event-base.js";
 import { trackMargin } from "./margin-tracker.js";
@@ -17,12 +19,39 @@ export type RawInput = {
   trades: readonly RawTrade[];
   deposits: readonly RawDeposit[];
   withdrawals: readonly RawWithdrawal[];
+  /** 販売所「売買履歴」CSV の行（API には現れない経路。要求仕様 §2.2） */
+  brokerage?: readonly BrokerageRow[];
 };
 
 export type NormalizeResult = Normalized & {
   /** 建玉の整合違反など、取込は出来たが要確認の事象 */
   warnings: string[];
 };
+
+/**
+ * 販売所行のうち取り込んでよいものを返す。**注文ID の重複と、取引所約定の order_id との
+ * 交差を弾く**（要求仕様 §2.4: ID 空間は交差しない想定だが防御的に検査する）。
+ * 交差していれば同じ約定を 2 回計上する恐れがあるので、黙って通さず保留へ回す。
+ */
+function brokerageRows(input: RawInput, pending: Pending[]): BrokerageRow[] {
+  const apiOrderIds = new Set(input.trades.map((t) => String(t.order_id)));
+  const seen = new Set<string>();
+  const out: BrokerageRow[] = [];
+  for (const b of input.brokerage ?? []) {
+    if (seen.has(b.order_id)) {
+      pending.push({ source_ref: b.order_id, reason: "販売所 CSV 内で注文ID が重複しています" });
+    } else if (apiOrderIds.has(b.order_id)) {
+      pending.push({
+        source_ref: b.order_id,
+        reason: "注文ID が API の約定と一致します（二重計上の恐れ。取込元を確認してください）",
+      });
+    } else {
+      seen.add(b.order_id);
+      out.push(b);
+    }
+  }
+  return out;
+}
 
 export function toEvents(input: RawInput): NormalizeResult {
   const events: TaxEvent[] = [];
@@ -40,6 +69,7 @@ export function toEvents(input: RawInput): NormalizeResult {
   }
   for (const d of input.deposits) collect(depositEvent(d));
   for (const w of input.withdrawals) collect(withdrawalEvent(w));
+  for (const b of brokerageRows(input, pending)) collect(brokerageEvent(b));
 
   const validated: TaxEvent[] = [];
   for (const e of events) {

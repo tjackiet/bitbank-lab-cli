@@ -1863,6 +1863,10 @@
             "type": "string",
             "description": "Tax year in JST (e.g. 2026)"
           },
+          "brokerage-csv": {
+            "type": "string",
+            "description": "Path to the bitbank brokerage (dealer) trade history CSV — not available via API"
+          },
           "max-pages": {
             "type": "string",
             "description": "Max pages per pair/asset (safety valve)"
@@ -1928,6 +1932,10 @@
       "params": {
         "type": "object",
         "properties": {
+          "brokerage-csv": {
+            "type": "string",
+            "description": "Path to the bitbank brokerage (dealer) trade history CSV — not available via API"
+          },
           "max-pages": {
             "type": "string",
             "description": "Max pages per pair/asset (safety valve)"
@@ -2022,6 +2030,10 @@
           "margin-csv": {
             "type": "string",
             "description": "Path to the bitbank annual trade report CSV (margin)"
+          },
+          "brokerage-csv": {
+            "type": "string",
+            "description": "Path to the bitbank brokerage (dealer) trade history CSV — not available via API"
           },
           "max-pages": {
             "type": "string",
@@ -2181,6 +2193,10 @@
           "attest": {
             "type": "boolean",
             "description": "Attest that no holdings/trades of the same asset exist outside this bitbank account"
+          },
+          "brokerage-csv": {
+            "type": "string",
+            "description": "Path to the bitbank brokerage (dealer) trade history CSV — not available via API"
           },
           "max-pages": {
             "type": "string",

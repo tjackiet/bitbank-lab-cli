@@ -61,9 +61,9 @@ bitbank tax reconcile --format=json --machine
 
 `rows[].diagnosis` を読む。
 
-- 全銘柄 `MATCH` → API だけで足りている。Step 4 へ進んでよい
+- 全銘柄 `MATCH` → API だけで足りている。Step 5 へ進んでよい
 - `MISSING_ACQUISITION` / `MISSING_DISPOSAL` がある → **API に現れない取引がある**。
-  第一候補は**販売所（即時売買）**。Step 3 へ進む
+  第一候補は**販売所（即時売買）**。Step 3 で売買履歴 CSV をもらって取り込む
 
 > 残差は「判定」ではなく「検出」。閾値外でもコマンドは成功で返る。
 > 残差が出たこと自体を失敗として伝えない。
@@ -72,9 +72,13 @@ bitbank tax reconcile --format=json --machine
 
 **ここは自動化できない。ユーザーの操作が要る。** 次のように依頼する。
 
-> bitbank の Web サイトにログインして、**年間取引報告書**の対象年（例: 2026 年分）の
-> CSV をダウンロードし、そのファイルパスを教えてください。信用取引を使っている場合は
-> **現物と信用で別ファイル**になるので、両方お願いします。
+> bitbank の Web サイトにログインして、次の CSV をダウンロードし、
+> ファイルパスを教えてください。
+>
+> 1. **売買履歴**（販売所＝即時売買の取引）— API では取得できないので、これが無いと
+>    販売所の取引が丸ごと抜けます
+> 2. **年間取引報告書**の対象年（例: 2026 年分）— 突合用。信用取引を使っている場合は
+>    **現物と信用で別ファイル**になるので両方
 
 補足として伝えてよいこと:
 
@@ -82,14 +86,24 @@ bitbank tax reconcile --format=json --machine
 - ファイルは**ローカルで読むだけ**でどこにも送信しない
 - 氏名が 1 行目に入っているので、パスだけ伝えれば中身を貼る必要はない
 
-パスを受け取ったら突合する。どちらか一方だけでも実行できる。
+売買履歴を受け取ったら、まず残高突合をやり直して残差が消えるか見る。
+
+```bash
+bitbank tax reconcile --brokerage-csv=/path/to/dealer_history.csv --format=json --machine
+```
+
+次に報告書と突合する。報告書はどちらか一方だけでも実行できる。
 
 ```bash
 bitbank tax verify-report --year=2026 \
+  --brokerage-csv=/path/to/dealer_history.csv \
   --csv=/path/to/annual_trade_report.csv \
   --margin-csv=/path/to/annual_margin_trade_report.csv \
   --format=json --machine
 ```
+
+`--brokerage-csv` は `events` / `reconcile` / `pnl` / `verify-report` の 4 本すべてで使える。
+**一度渡したら以降のコマンドでも必ず渡す** — 付け忘れると販売所ぶんが抜けた数値が出る。
 
 ### Step 4: 差の読み方
 
@@ -105,7 +119,7 @@ bitbank tax verify-report --year=2026 \
 |---|---|---|
 | `MATCH` | 許容幅内で一致 | なし |
 | `FEE_ROUNDING` | API 手数料の 4 桁丸めで説明できる差 | なし（正常） |
-| `REPORT_EXCESS` | 報告書 > API。**取込漏れ**側 | 購入・売却なら販売所ぶん。CLI はまだ販売所 CSV を取り込めないので、当該銘柄の参考損益は出さない |
+| `REPORT_EXCESS` | 報告書 > API。**取込漏れ**側 | 購入・売却なら販売所ぶんの可能性が高い。`--brokerage-csv` を渡していなければ渡して再実行する。渡しても残るなら原因は別（下記 warnings を見る） |
 | `API_EXCESS` | API > 報告書 | 年分判定・重複排除のズレ、または報告書の対象外（信用は別様式）。原因が説明できるまで数値を出さない |
 
 信用（`report_kind: margin`）の行は 3 本ある。
@@ -166,7 +180,12 @@ bitbank tax pnl --year=2026 --method=total-average --carryover=./carryover.json 
 ## Gotchas
 
 - **販売所は API に存在しない**。`trade-history` に出ないのは不具合ではない。
-  取込経路は UI CSV「売買履歴」で、CLI は未対応（開発中）
+  取込経路は UI CSV「売買履歴」（`--brokerage-csv`）だけ
+- **販売所 CSV には約定代金の列が無い**ので、CLI は `数量 × 指値価格` で算出する。
+  数量は 8 桁で丸められているため、実際の約定代金とわずかにずれる可能性がある
+  （報告書との差が小さく残るときはこれを疑う）
+- **販売所には手数料が無い**（スプレッド内包）。手数料ゼロで約定したわけではないので、
+  「手数料がかかっていない」と説明しない
 - **年分は JST**。UTC で 12/31 でも JST では翌年になる約定がある。`--year` に任せる
 - **手数料の二重計上**をしない。購入時手数料は取得価額に算入済みで、
   必要経費へ再掲しない（CLI が分けて出す）

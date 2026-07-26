@@ -2,6 +2,7 @@
 // ペア・資産の一覧は呼び出し側（コマンド層）が /spot/pairs から解決して渡す。
 import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
+import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import { fetchDeposits } from "./fetch-deposits.js";
 import { fetchTrades } from "./fetch-trades.js";
 import { fetchWithdrawals } from "./fetch-withdrawals.js";
@@ -14,6 +15,8 @@ export type CollectArgs = {
   since?: string;
   end?: string;
   maxPages?: number;
+  /** 販売所「売買履歴」CSV の行。API では取得できないので呼び出し側が読んで渡す */
+  brokerage?: readonly BrokerageRow[];
 };
 
 export type Collected = NormalizeResult & {
@@ -41,6 +44,7 @@ export async function collectEvents(
     trades: trades.data.trades,
     deposits: deposits.data.deposits,
     withdrawals: withdrawals.data.withdrawals,
+    brokerage: args.brokerage,
   });
 
   const truncatedPairs = trades.data.truncatedPairs;

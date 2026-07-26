@@ -2,6 +2,7 @@
 // private GET のみ。POST は絶対に呼ばない（要求仕様 §2.1）。
 import type { PrivateHttpOptions } from "../../http-private.js";
 import { collectEvents } from "../../tax/import/collect.js";
+import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import type { TaxEvent } from "../../tax/schema/event.js";
 import type { Result } from "../../types.js";
 import { parseMaxPages, resolveYearWindow } from "../private/input-schemas.js";
@@ -9,7 +10,7 @@ import { resolveMarket } from "./market.js";
 
 const MAX_PAGES_DEFAULT = 1000;
 
-export type TaxEventsArgs = { year?: string; maxPages?: string };
+export type TaxEventsArgs = { year?: string; maxPages?: string; brokerageCsv?: string };
 
 export type TaxEventsData = {
   events: TaxEvent[];
@@ -28,6 +29,10 @@ export async function taxEvents(
   const win = resolveYearWindow({ year: args.year });
   if (!win.success) return win;
 
+  // 販売所 CSV は API を叩く前に読む（壊れていれば認証・レート制限を消費せずに落ちる）
+  const brokerage = args.brokerageCsv === undefined ? undefined : readBrokerage(args.brokerageCsv);
+  if (brokerage !== undefined && !brokerage.success) return brokerage;
+
   const market = await resolveMarket(opts);
   if (!market.success) return market;
 
@@ -38,6 +43,7 @@ export async function taxEvents(
       since: win.data.since,
       end: win.data.end,
       maxPages: mp.data,
+      brokerage: brokerage?.success === true ? brokerage.data.rows : undefined,
     },
     opts,
   );

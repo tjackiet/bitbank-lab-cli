@@ -27,9 +27,15 @@
 >   **足し戻して**差益/差損に置き、手数料は必要経費として別建てにする
 >   （[ロードマップ](tax-roadmap.md)「P-06 への含意」参照）
 >
-> **残り**: P0-6（販売所「売買履歴」CSV の取込・`import-csv/brokerage.ts` / `merge.ts`）と P1 以降。
-> 年間取引報告書との突合（`tax verify-report`）は取込ではなく**検証**なので P0-6 とは別物で、
-> 販売所ぶんの欠落を「数量として見える化する」役割を担う。
+> **P0-6 完了（2026-07-26）**: 販売所「売買履歴」CSV を `import-csv/brokerage*.ts` +
+> `to-events-brokerage.ts` で取り込む。統合（`merge.ts` 相当）は `import/to-events.ts` に置いた
+> — 注文ID の重複と API 約定の `order_id` との交差を弾く処理は、突き合わせる相手（生の約定）を
+> 持っている場所でしか書けないため。`--brokerage-csv` は events / reconcile / pnl /
+> verify-report の 4 本すべてに付く（どれも `collectEvents` を通るため）。
+>
+> **残り**: 約定履歴 CSV（`trades-csv.ts`。完全精度の手数料を監査用に保持。P-16 の採用値は
+> API のままなので P1）と P1 以降。年間取引報告書との突合（`tax verify-report`）は取込ではなく
+> **検証**なので P0-6 とは別物で、販売所ぶんが埋まったかを測る役割を担う。
 >
 > **【2026-07-26 仕様訂正の反映】販売所（即時売買）は API に一切現れない**（付録E.3 訂正）。
 > UI CSV 取込が P1 → **P0 に昇格**したため、本メモに `MarketType` / `SourceSystem` と
@@ -204,7 +210,7 @@ cli/tax/
     build.ts          # 取引集計 + （ガード成立時のみ）参考損益
     disclaimers.ts    # 免責文言（v2 §1.3/§9/§10/§12 から転記。文言は仕様書が単一ソース）
 cli/commands/tax/     # CLI 表層（Result パターン・--format=json|table|csv）
-  events.ts           # bitbank tax events --year=2026
+  events.ts           # bitbank tax events --year=2026 [--brokerage-csv=...]
   reconcile.ts        # bitbank tax reconcile --year=2026
   verify-report.ts    # bitbank tax verify-report --year=2026 --csv=... [--margin-csv=...]
   pnl.ts              # bitbank tax pnl --year=2026 --method=total-average

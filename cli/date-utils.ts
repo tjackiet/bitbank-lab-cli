@@ -142,6 +142,25 @@ export function jstYearRangeMs(year: number): { startMs: number; endMs: number }
   };
 }
 
+const JST_DATETIME_RE = /^(\d{4})\/(\d{1,2})\/(\d{1,2})[ T](\d{1,2}):(\d{2}):(\d{2})$/;
+
+/**
+ * bitbank の UI CSV が使う `YYYY/M/D HH:MM:SS` を epoch ms へ。**タイムゾーン表記が
+ * 無く JST 固定**なので、ここで +09:00 として読む（UTC として読むと 1/1 前後の
+ * 約定が前年分に落ちる）。形式違い・存在しない日付は null を返す（呼び出し側が保留へ）。
+ */
+export function jstDateTimeToMs(s: string): number | null {
+  const m = JST_DATETIME_RE.exec(s.trim());
+  if (m === null) return null;
+  const [y, mo, d, hh, mm, ss] = m.slice(1).map(Number);
+  if (mo < 1 || mo > 12 || d < 1 || d > 31 || hh > 23 || mm > 59 || ss > 59) return null;
+  const ms = Date.UTC(y, mo - 1, d, hh, mm, ss) - JST_OFFSET_MS;
+  // 2026/02/31 のような繰り上がりを弾く（Date.UTC は黙って翌月へ送る）
+  return jstIso(ms).startsWith(`${y}-${String(mo).padStart(2, "0")}-${String(d).padStart(2, "0")}`)
+    ? ms
+    : null;
+}
+
 /** epoch ms を JST の ISO 8601 文字列（+09:00 付き）で返す。正規化の ts_jst 用。 */
 export function jstIso(ms: number): string {
   const d = new Date(ms + JST_OFFSET_MS);
