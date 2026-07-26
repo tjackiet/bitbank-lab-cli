@@ -20,6 +20,13 @@ npx tsx cli/index.ts    # CLI 実行
   のため、ローカル状態（`~/.bitbank/paper-state.json`）を読み書きする。
   これは public ticker のみを叩く読み取り専用の sim であり、
   private/trade エンドポイントは絶対に叩かない
+- **例外: `tax` サブコマンド**（[ADR-004](docs/adr/004-tax-logic-in-cli-exception.md)）は
+  税務・会計データ整形のため CLI 内で損益計算を行う。税務は「間違えられない」領域で、
+  LLM に計算させられないための例外。**private GET のみで POST は絶対に叩かない**。
+  数値は厳密有理数で保持し、丸めは境界で 1 回だけ
+  （[ADR-005](docs/adr/005-tax-exact-rational-arithmetic.md)）。
+  年分判定は JST（「JST は表示用のみ」規約の例外。`cli/date-utils.ts`）。
+  出力は「税務上の所得金額」ではなく **参考データ** と呼ぶ
 - **1 ファイル 100 行は目安**。超えたら設計を見直す（責務が広がっていないか、
   リトライ・パース・整形などが混ざっていないか）。どうしても超過に妥当な
   理由がある場合は、ファイル冒頭にコメントで理由を書く

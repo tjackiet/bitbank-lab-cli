@@ -9,20 +9,24 @@
 | trade | `cli/commands/trade/` | `bitbank trade <cmd>` | 必要 | 資金に影響する操作（create-order, cancel-order 等） |
 | paper | `cli/commands/paper/` | `bitbank paper <cmd>` | 不要 | 仮想資金での練習用（ライブ価格 × ローカル state、実 API は public ticker のみ） |
 | profile | `cli/commands/profile/` | `bitbank profile <cmd>` | 不要 | API キー切替用プロファイル管理（`profiles.json` 0600 / atomic write、API は叩かない） |
+| tax | `cli/commands/tax/` | `bitbank tax <cmd>` | 必要 | 税務・会計データ整形（[ADR-004](../../docs/adr/004-tax-logic-in-cli-exception.md) の例外。**private GET のみ・POST は絶対に叩かない**）。計算本体は `cli/tax/` |
 | meta | （登録なし、`router.ts` の `handleSpecialCommand` で振り分け） | `bitbank <cmd>` | 不要 | API を叩かないユーティリティ（`schema`, `profiles`, `completion`） |
 
 メタコマンドは bitbank API ではなく CLI 自体の情報（コマンド一覧・補完スクリプト）を返す。
-`COMMANDS` / `TRADE_COMMANDS` / `PAPER_COMMANDS` / `PROFILE_COMMANDS` には登録せず、`router.ts` の `handleSpecialCommand` で個別にディスパッチする。
+`COMMANDS` / `TRADE_COMMANDS` / `PAPER_COMMANDS` / `PROFILE_COMMANDS` / `TAX_COMMANDS` には登録せず、`router.ts` の `handleSpecialCommand` で個別にディスパッチする。
 
 `profile`（単数形）と `profiles`（複数形）は別物なので注意:
 - `profile <subcommand>` は `PROFILE_COMMANDS` に登録される profile カテゴリ（add / list / show / remove / set-default）。実体は `cli/commands/profile/`
 - `profiles` は legacy meta コマンドで `cwd` 配下の `.env.*` ファイル一覧を返すだけ。`router.ts` の `handleSpecialCommand` で個別ディスパッチされ、registry には入らない。新規に `profiles` を再登録しない
 
 
-trade / paper / profile だけサブコマンド形式にしているのは、フラット一覧での誤爆を減らすため（discoverability・視覚的警告）。
+trade / paper / profile / tax だけサブコマンド形式にしているのは、フラット一覧での誤爆を減らすため（discoverability・視覚的警告）。
+グループ名の一覧は `router.ts` の `GROUP_REGISTRY` が単一ソース（`resolveCommand` が返す `group`）。
 trade の安全ガード自体は `--execute` / `--confirm` フラグ側にある（`trading-safety.md`）。
 paper は実 API を叩かないため `--execute` は存在しないが、`reset` のみ `--confirm` を必須にして state の誤削除を防ぐ。
 profile は実 API を叩かないが、`remove` のみ `--confirm` を必須にして profile の誤削除を防ぐ。secret は flag 受け禁止（shell 履歴に残るため）、env か対話 hidden 入力のみ。
+tax は読み取り専用（private GET のみ）なので `--execute` / `--confirm` は無い。代わりに**参考損益の表示ガード**を持ち、
+アテステーション（`--attest`）・未解決入庫の不在・前年繰越の確定・残高突合の一致がすべて揃った銘柄でのみ数値を出す。
 
 ## 新規コマンド追加手順
 
