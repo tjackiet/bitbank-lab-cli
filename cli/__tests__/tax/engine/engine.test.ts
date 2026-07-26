@@ -145,14 +145,18 @@ describe("runEngine: 通貨をまたぐ I3", () => {
     expect(r.get("eth")?.invariants.filter((v) => v.id === "I3")).toEqual([]);
   });
 
-  it("無関係な通貨には他イベントの I3 違反を付けない", () => {
+  it("交換に関与していない通貨には配賦しない", () => {
+    // 第三の通貨（交換イベントに現れない xrp）を置く。ここを空で固定しないと、
+    // 「全通貨へ配る」誤実装でも関与通貨側の期待値は通ってしまい判別できない
     const r = runEngine({
-      entries: [...exchange("1000", "999"), acquire(2, "1", "100")],
+      entries: [...exchange("1000", "999"), { ...acquire(2, "1", "100"), currency: "xrp" }],
       method: "total-average",
-      opening: { btc: ZERO_BOOK, eth: ZERO_BOOK },
+      opening: { btc: ZERO_BOOK, eth: ZERO_BOOK, xrp: ZERO_BOOK },
     });
-    // acquire(2) は currency=btc なので btc には付くが、別通貨には波及しない
-    expect(r.get("eth")?.invariants.filter((v) => v.id === "I3")).toHaveLength(1);
+    const i3 = (c: string) => r.get(c)?.invariants.filter((v) => v.id === "I3");
+    expect(i3("btc")).toHaveLength(1);
+    expect(i3("eth")).toHaveLength(1);
+    expect(i3("xrp")).toEqual([]);
   });
 });
 
