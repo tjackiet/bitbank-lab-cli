@@ -100,7 +100,11 @@ function save(name: string, body: unknown): string {
     console.log(`deposit_history page${page}: rows=${deposits.length} added=${added}`);
     if (deposits.length < 1000 || added === 0) break;
     end = String(Math.min(...deposits.map((d) => d.found_at as number)));
-    if (page >= 50) break;
+    if (page >= 50) {
+      // 黙って打ち切ると「全件採取した」と誤認する。税務用途では取りこぼしが致命的
+      console.log("deposit_history: page cap reached");
+      break;
+    }
   }
   console.log(`deposit_history TOTAL unique=${seen.size}`);
   console.log(`  assets: ${[...assets.entries()].map(([a, n]) => `${a}=${n}`).join(", ")}`);
@@ -110,9 +114,12 @@ function save(name: string, body: unknown): string {
 // ---- 3. withdrawal_history: asset 必須のため保有・取扱 48 資産を逐次巡回 ----
 {
   const assetsRes = await rawGet("/user/assets");
-  const assetCodes = (
-    (assetsRes.body as Envelope).data?.assets as Array<{ asset: string }>
-  ).map((a) => a.asset);
+  const assetsEnv = assetsRes.body as Envelope;
+  // success を見ないと data?.assets が undefined のまま .map して不明瞭な TypeError になる
+  if (assetsEnv.success !== 1) {
+    throw new Error(`/user/assets failed: code=${assetsEnv.data?.code}`);
+  }
+  const assetCodes = (assetsEnv.data?.assets as Array<{ asset: string }>).map((a) => a.asset);
 
   let emptySaved = false;
   const summary: string[] = [];

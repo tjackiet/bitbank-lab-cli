@@ -25,13 +25,18 @@ function gen(n: number, kind: "worst" | "realistic"): Ev[] {
   const r = rng(20260725);
   const LOTS = [1000n, 10000n, 100000n, 50000n]; // 1e-8 単位: 0.00001〜0.001
   const out: Ev[] = [];
+  let held = 0n; // 保有数量（1e-8 単位）。保有を超える売却は実際には起き得ない
   for (let i = 0; i < n; i++) {
-    const buy = i === 0 || r() < 0.6;
-    const qUnits =
+    let buy = i === 0 || r() < 0.6;
+    let qUnits =
       kind === "worst"
         ? BigInt(Math.floor(r() * 9_000_000) + 1_000_000) // 0.01〜0.1 の 8 桁バラバラ
         : LOTS[Math.floor(r() * LOTS.length)];
     const price = BigInt(Math.floor(r() * 4_000_000) + 8_000_000); // 800万〜1200万円
+    // 台帳として成立しない系列（残高が負）を計測すると分母肥大の測定値が実態から外れる
+    if (!buy && held === 0n) buy = true;
+    if (!buy && qUnits > held) qUnits = held;
+    held = buy ? held + qUnits : held - qUnits;
     out.push({
       buy,
       q: ratio(qUnits, 100_000_000n),
@@ -91,6 +96,11 @@ function run(evs: Ev[], compat: boolean, budgetMs: number) {
 }
 
 const N = Number(process.argv[2] ?? 100_000);
+if (!Number.isInteger(N) || N <= 0) {
+  // 不正値で「ok 0ms」と出ると計測できたと誤解するため、ここで止める
+  console.error(`件数は正の整数で指定してください（received: ${process.argv[2]}）`);
+  process.exit(1);
+}
 const BUDGET_MS = 60_000;
 for (const kind of ["realistic", "worst"] as const) {
   const evs = gen(N, kind);

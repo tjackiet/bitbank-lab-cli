@@ -3,7 +3,7 @@
 // 対象: uuid / account_uuid / txid / address / label / destination_tag /
 //        bank_name / branch_name / account_number / account_owner
 import { readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 
 const RAW = process.argv[2];
 if (!RAW) throw new Error("usage: tsx mask.ts <dir>");
@@ -60,12 +60,27 @@ function maskNode(node: unknown): unknown {
   return node;
 }
 
-for (const f of readdirSync(RAW).sort()) {
-  if (!f.endsWith(".json")) continue;
-  const body = JSON.parse(readFileSync(join(RAW, f), "utf8"));
-  writeFileSync(join(RAW, f), `${JSON.stringify(maskNode(body), null, 2)}\n`);
-  console.log(`masked: ${f}`);
+// **再帰的に**走査する。collect2.ts は `raw/batch2-<stamp>/` 配下に保存するため、
+// 直下だけを見ると**未マスクの生データを残したまま「masked」と報告する**
+let maskedFiles = 0;
+function maskDir(dir: string): void {
+  for (const e of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+    a.name < b.name ? -1 : 1,
+  )) {
+    const p = join(dir, e.name);
+    if (e.isDirectory()) {
+      maskDir(p);
+      continue;
+    }
+    if (!e.name.endsWith(".json")) continue;
+    const body = JSON.parse(readFileSync(p, "utf8"));
+    writeFileSync(p, `${JSON.stringify(maskNode(body), null, 2)}\n`);
+    maskedFiles++;
+    console.log(`masked: ${relative(RAW, p)}`);
+  }
 }
+maskDir(RAW);
+console.log(`masked files: ${maskedFiles}`);
 console.log(
   `unique tokens: ${[...counters.entries()].map(([f, n]) => `${f}=${n}`).join(", ")}`,
 );

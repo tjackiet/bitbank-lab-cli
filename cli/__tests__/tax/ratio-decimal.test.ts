@@ -27,7 +27,7 @@ describe("fromDecimalString: float を経由しないパース", () => {
   it("有効桁を落とさない（number 経由なら丸まる桁数）", () => {
     const r = fromDecimalString("999999999.999999999999999999");
     expect(r).not.toBeNull();
-    // 24 桁を保持している（Number では 999999999.9999999 に丸まる）
+    // 有効 27 桁（整数部 9 + 小数部 18）を保持（Number では 999999999.9999999 に丸まる）
     expect(toDecimalString(r as never, 18, "ROUNDDOWN")).toBe("999999999.999999999999999999");
   });
 

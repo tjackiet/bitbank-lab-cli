@@ -11,10 +11,11 @@ if (state.kind === "skip") {
 }
 
 describe("実データ fixtures の同一性", () => {
-  it("manifest と一致する（データ相違は skip ではなく fail）", () => {
-    if (state.kind === "skip") return; // データ無し → 検証しない
+  // skipIf を使う（早期 return だと「合格」として報告され、データ無しとデータ一致が
+  // レポート上で区別できなくなる。skip / fail / 実行の 3 状態を分けるのが本ガードの目的）
+  it.skipIf(state.kind === "skip")("manifest と一致する（データ相違は skip ではなく fail）", () => {
     if (state.kind === "mismatch") expect.fail(formatMismatch(state));
-    expect(state.files).toBeGreaterThan(0);
+    if (state.kind === "ready") expect(state.files).toBeGreaterThan(0);
   });
 });
 
