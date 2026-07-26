@@ -7,7 +7,10 @@ import { test } from "node:test";
 import { fileURLToPath } from "node:url";
 import { absBig, batchDirs, buildSnapshot, dec, filesIn, loadBatch, mul, SCALE } from "./lib.mjs";
 
-const SNAPSHOT_PATH = join(dirname(fileURLToPath(import.meta.url)), "..", "SCHEMA_SNAPSHOT.json");
+const SNAPSHOT_PATH = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../../../cli/__tests__/tax/fixtures-regression/SCHEMA_SNAPSHOT.json",
+);
 const TOLERANCE = dec("0.001"); // 検算許容誤差（円）
 
 // 件数の「固定」は SCHEMA_SNAPSHOT の絶対件数ではなく **fixture の SHA-256**（manifest）が担う。
