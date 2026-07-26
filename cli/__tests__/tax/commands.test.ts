@@ -78,6 +78,13 @@ describe("tax verify-report の入力検証", () => {
     expect(r.success).toBe(false);
     if (!r.success) expect(r.error).toContain("Cannot read CSV file");
   });
+
+  it("--margin-csv だけでも実行できる（現物と信用は別様式・別ファイル）", async () => {
+    // CSV 必須ゲートを通過して読み込みまで進むこと（存在しないので読み込みで落ちる）
+    const r = await taxVerifyReport({ year: "2026", marginCsv: "/nonexistent/margin.csv" }, noCall);
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("Cannot read CSV file");
+  });
 });
 
 describe("繰越の読み込み", () => {

@@ -2019,6 +2019,10 @@
             "type": "string",
             "description": "Path to the bitbank annual trade report CSV (spot)"
           },
+          "margin-csv": {
+            "type": "string",
+            "description": "Path to the bitbank annual trade report CSV (margin)"
+          },
           "max-pages": {
             "type": "string",
             "description": "Max pages per pair/asset (safety valve)"
@@ -2038,6 +2042,9 @@
               "csv_rows": {
                 "type": "number"
               },
+              "margin_csv_rows": {
+                "type": "number"
+              },
               "events": {
                 "type": "number"
               },
@@ -2054,6 +2061,9 @@
             "items": {
               "type": "object",
               "properties": {
+                "report_kind": {
+                  "type": "string"
+                },
                 "currency": {
                   "type": "string"
                 },

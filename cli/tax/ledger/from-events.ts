@@ -4,13 +4,14 @@
 // - DEPOSIT / WITHDRAWAL は課税イベントではない（付録A）。§13.3 のとおり簿価も数量も
 //   動かさない（自己移転前提）。**残高再構築（reconcile）は別の帳簿**で、そちらは
 //   出庫を amount+fee で減らす。両者が食い違って見えるのは仕様
-// - MARGIN_OPEN は決済年に帰属させるため（v2 §5）決済側でだけ計上する
+// - MARGIN_OPEN は決済年に帰属させるため（v2 §5）決済側でだけ計上する（margin-entries.ts）
 // - TRADE_EXCHANGE は P0 では計算しない（設計メモ §4-4）。deferred に積んでガードが止める
 import { add, cmp, neg, ZERO } from "../ratio.js";
 import { fromDecimalString, toExactDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import { feeSplit, makeEntry } from "./entry-parts.js";
+import { marginEntries } from "./margin-entries.js";
 
 export type Deferred = { event_id: string; currency: string; reason: string };
 export type LedgerResult = { entries: LedgerEntry[]; deferred: Deferred[] };
@@ -49,29 +50,6 @@ function spotEntries(e: TaxEvent): LedgerEntry[] | string {
     );
   }
   return entries;
-}
-
-function marginEntries(e: TaxEvent): LedgerEntry[] | string {
-  const net = e.margin?.realized_net;
-  if (net === undefined) return [];
-  const value = fromDecimalString(net);
-  if (value === null) return "realized_net を十進文字列として読めません";
-  // 金額は JPY だが、帰属先は**建玉の銘柄**（国税庁の計算書は銘柄別で、信用・証拠金の
-  // 差益 / 差損欄も銘柄シート内にある）。fee / interest は profit_loss にネット済みなので
-  // ここで再控除しない（二重計上）
-  const gain = cmp(value, ZERO) >= 0;
-  const amount = toExactDecimalString(gain ? value : neg(value));
-  if (amount === null) return "信用損益を厳密な十進で表現できません";
-  return [
-    makeEntry(
-      e,
-      0,
-      gain ? "INCOME" : "EXPENSE",
-      { qty: "0", amount_jpy: amount },
-      gain ? "margin_net_gain" : "margin_net_loss",
-      ["P-05", "P-06"],
-    ),
-  ];
 }
 
 /** 付録A の対応表に従って仕訳へ落とす。落とせないものは deferred に理由付きで残す。 */

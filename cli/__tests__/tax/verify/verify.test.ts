@@ -66,7 +66,11 @@ describe("compareAnnualReport", () => {
       ],
       [spot("TRADE_SPOT_BUY", "btc", "1", "10000000")],
     );
-    expect(find(data, "btc", "buy_qty")).toMatchObject({ diff: "1", diagnosis: "REPORT_EXCESS" });
+    expect(find(data, "btc", "buy_qty")).toMatchObject({
+      diff: "1",
+      diagnosis: "REPORT_EXCESS",
+      report_kind: "spot",
+    });
     expect(find(data, "btc", "buy_jpy")?.diff).toBe("10000000");
     expect(find(data, "btc", "buy_qty")?.hint).toContain("販売所");
     // 円側は鏡像。買付が漏れていれば「円の売却」も同額漏れる

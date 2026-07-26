@@ -8,15 +8,21 @@ import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
 import { collectEvents } from "../import/collect.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
+import type { ParsedMarginReport } from "../import-csv/margin-report.js";
 import type { Market } from "../reconcile/run.js";
 import { verifyDisclaimers } from "../report/disclaimers.js";
 import type { VerifyReport } from "../schema/verify.js";
 import { aggregateForReport } from "./aggregate.js";
 import { compareAnnualReport } from "./annual-report.js";
+import { aggregateMarginForReport } from "./margin-aggregate.js";
+import { compareMarginReport } from "./margin-report.js";
 
 export type VerifyArgs = {
   year: number;
-  report: ParsedAnnualReport;
+  /** 現物の年間取引報告書。信用だけ突合したいときは省略できる */
+  report?: ParsedAnnualReport;
+  /** 信用の年間取引報告書（別様式・別ファイル） */
+  marginReport?: ParsedMarginReport;
   since?: string;
   end?: string;
   maxPages?: number;
@@ -41,10 +47,25 @@ export async function runVerifyReport(
 
   // 範囲クエリの境界ではなく year_jst で年分を確定させる（ADR-004 の税務例外）
   const events = collected.data.events.filter((e) => e.year_jst === args.year);
-  const compared = compareAnnualReport(args.report, aggregateForReport(events));
-  if (!compared.success) return compared;
 
-  const warnings = [...compared.data.warnings, ...collected.data.warnings];
+  const spot =
+    args.report === undefined
+      ? undefined
+      : compareAnnualReport(args.report, aggregateForReport(events));
+  if (spot !== undefined && !spot.success) return spot;
+  const margin =
+    args.marginReport === undefined
+      ? undefined
+      : compareMarginReport(args.marginReport, aggregateMarginForReport(events));
+  if (margin !== undefined && !margin.success) return margin;
+
+  const spotData = spot?.success === true ? spot.data : undefined;
+  const marginData = margin?.success === true ? margin.data : undefined;
+  const warnings = [
+    ...(spotData?.warnings ?? []),
+    ...(marginData?.warnings ?? []),
+    ...collected.data.warnings,
+  ];
   if (collected.data.truncated) {
     // 打ち切られていれば API 側が一様に少なくなる。その差を販売所ぶんと読んではいけない
     warnings.push("履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）");
@@ -53,15 +74,19 @@ export async function runVerifyReport(
   const data: VerifyReport = {
     year_jst: args.year,
     source: {
-      csv_rows: args.report.rows.length,
+      csv_rows: args.report?.rows.length ?? 0,
+      margin_csv_rows: args.marginReport?.rows.length ?? 0,
       events: events.length,
       pending: collected.data.pending.length,
       truncated: collected.data.truncated,
     },
-    rows: compared.data.rows,
-    report_checks: compared.data.checks,
-    unsupported: compared.data.unsupported,
-    unknown_columns: args.report.unknownColumns,
+    rows: [...(spotData?.rows ?? []), ...(marginData?.rows ?? [])],
+    report_checks: spotData?.checks ?? [],
+    unsupported: [...(spotData?.unsupported ?? []), ...(marginData?.unsupported ?? [])],
+    unknown_columns: [
+      ...(args.report?.unknownColumns ?? []),
+      ...(args.marginReport?.unknownColumns ?? []),
+    ],
     warnings,
     disclaimers: verifyDisclaimers(),
   };

@@ -19,7 +19,7 @@ const LedgerEntryBase = z.object({
   cost_jpy: decStr.optional(), // ACQUIRE: 取得価額（購入手数料込み）
   proceeds_jpy: decStr.optional(), // DISPOSE: 譲渡価額
   amount_jpy: decStr.optional(), // INCOME/EXPENSE
-  category: z.string(), // "rebate_income" / "expense_fee" / "margin_net" 等
+  category: z.string(), // "rebate_income" / "expense_fee" / "margin_gain" / "margin_fee" 等
   policy_ids: z.array(z.string()), // 適用した【方針】ID（P-04 等）をレポートに露出
 });
 

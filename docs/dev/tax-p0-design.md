@@ -19,8 +19,13 @@
 > - 移動平均法（非丸め）に**売却 5,000 件の上限**を入れた（ADR-005 の計測。超過は黙って劣化させず
 >   violations で明示して総平均法 / 互換モードへ誘導する）
 > - `import-csv/` は先に**年間取引報告書（集計 CSV）**側を実装した（`parse-csv.ts` /
->   `annual-report*.ts`）。突合本体は `verify/`。販売所の「売買履歴」CSV は取込元が別なので
->   `import-csv/brokerage.ts` として P0-6 に残る
+>   `parse-report.ts` / `annual-report*.ts` / `margin-report*.ts`）。現物と信用は別様式・
+>   別ファイルなので別スキーマで読む。突合本体は `verify/`。販売所の「売買履歴」CSV は
+>   取込元が別なので `import-csv/brokerage.ts` として P0-6 に残る
+> - 信用の仕訳は `ledger/margin-entries.ts` に分離した。報告書の「年中信用取引損益」は
+>   利息だけを控除した値なので、API の `profit_loss`（手数料も控除済み）へ手数料を
+>   **足し戻して**差益/差損に置き、手数料は必要経費として別建てにする
+>   （[ロードマップ](tax-roadmap.md)「P-06 への含意」参照）
 >
 > **残り**: P0-6（販売所「売買履歴」CSV の取込・`import-csv/brokerage.ts` / `merge.ts`）と P1 以降。
 > 年間取引報告書との突合（`tax verify-report`）は取込ではなく**検証**なので P0-6 とは別物で、

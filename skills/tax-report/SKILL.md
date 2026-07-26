@@ -72,8 +72,9 @@ bitbank tax reconcile --format=json --machine
 
 **ここは自動化できない。ユーザーの操作が要る。** 次のように依頼する。
 
-> bitbank の Web サイトにログインして、**年間取引報告書（現物）** の
-> 対象年（例: 2026 年分）の CSV をダウンロードし、そのファイルパスを教えてください。
+> bitbank の Web サイトにログインして、**年間取引報告書**の対象年（例: 2026 年分）の
+> CSV をダウンロードし、そのファイルパスを教えてください。信用取引を使っている場合は
+> **現物と信用で別ファイル**になるので、両方お願いします。
 
 補足として伝えてよいこと:
 
@@ -81,10 +82,13 @@ bitbank tax reconcile --format=json --machine
 - ファイルは**ローカルで読むだけ**でどこにも送信しない
 - 氏名が 1 行目に入っているので、パスだけ伝えれば中身を貼る必要はない
 
-パスを受け取ったら突合する。
+パスを受け取ったら突合する。どちらか一方だけでも実行できる。
 
 ```bash
-bitbank tax verify-report --year=2026 --csv=/path/to/annual_trade_report.csv --format=json --machine
+bitbank tax verify-report --year=2026 \
+  --csv=/path/to/annual_trade_report.csv \
+  --margin-csv=/path/to/annual_margin_trade_report.csv \
+  --format=json --machine
 ```
 
 ### Step 4: 差の読み方
@@ -93,7 +97,9 @@ bitbank tax verify-report --year=2026 --csv=/path/to/annual_trade_report.csv --f
 ので、API との差を論じる前にユーザーへ確認する（ファイルが編集されている、
 様式が変わった、等）。
 
-`rows[].diagnosis`:
+`rows[].report_kind` が `spot` か `margin` かで、差の読み方が変わる。
+
+`rows[].diagnosis`（現物 = `report_kind: spot`）:
 
 | diagnosis | 意味 | 次の一手 |
 |---|---|---|
@@ -101,6 +107,20 @@ bitbank tax verify-report --year=2026 --csv=/path/to/annual_trade_report.csv --f
 | `FEE_ROUNDING` | API 手数料の 4 桁丸めで説明できる差 | なし（正常） |
 | `REPORT_EXCESS` | 報告書 > API。**取込漏れ**側 | 購入・売却なら販売所ぶん。CLI はまだ販売所 CSV を取り込めないので、当該銘柄の参考損益は出さない |
 | `API_EXCESS` | API > 報告書 | 年分判定・重複排除のズレ、または報告書の対象外（信用は別様式）。原因が説明できるまで数値を出さない |
+
+信用（`report_kind: margin`）の行は 3 本ある。
+
+| field | 意味 |
+|---|---|
+| `margin_pnl` | 年中信用取引損益。**報告書は手数料を控除していない**（利息だけ控除）ので、CLI は API の `profit_loss` に手数料を足し戻して比べる |
+| `margin_fee` | 支払手数料を**精算ベース**（決済時に建て分と合算）で合計したもの |
+| `margin_fee_occurred` | 同じ列を**発生ベース**（各約定日）で合計したもの |
+
+`margin_fee` と `margin_fee_occurred` は**同じ報告書の列**と比べている。報告書がどちらの
+基準で合計しているかは未確定なので、一致した方が基準。年をまたぐ建玉が無ければ両方一致する。
+
+年末建玉（売建玉 / 買建玉）は全履歴が必要なので突合せず `unsupported` に出る。
+法人向けの項目なので、個人の申告では報告書の値をそのまま使えばよい。
 
 `warnings` / `unsupported` は握り潰さずそのまま伝える。特に:
 
@@ -150,7 +170,14 @@ bitbank tax pnl --year=2026 --method=total-average --carryover=./carryover.json 
 - **年分は JST**。UTC で 12/31 でも JST では翌年になる約定がある。`--year` に任せる
 - **手数料の二重計上**をしない。購入時手数料は取得価額に算入済みで、
   必要経費へ再掲しない（CLI が分けて出す）
-- **信用の `profit_loss` はネット値**。手数料・金利を引き直さない
+- **信用の損益と手数料は別欄**。報告書の「年中信用取引損益」は利息だけを控除した値で、
+  手数料は「支払手数料」列に分かれる。申告時はユーザーが**現物の手数料と足して**計算書の
+  「手数料等」欄へ入れる。CLI もこの分け方に合わせてある（差益/差損と手数料を別仕訳にする）
+- **信用は個別法（FIFO）**。現物の総平均法・移動平均法とは別系統で、`--method` の
+  影響を受けない
+- **信用の `profit_loss` は手数料・金利控除後のネット値**。CLI は報告書の定義へ揃えるために
+  手数料を足し戻すが、これは控除の**取り消し**であって二重控除ではない。
+  自分で改めて手数料や金利を引かないこと
 - **MKR→SKY のような比率換算転換は名寄せしない**（1:1 でないため簿価が壊れる）
 - `tax` サブコマンドは private GET のみ。注文・出金の API は絶対に呼ばない
 - 参考損益が出なかったことを「損益ゼロ」と表現しない

@@ -91,18 +91,49 @@ describe("信用の仕訳化", () => {
       },
     }) as TaxEvent;
 
-  it("決済益は銘柄別の INCOME（fee / interest を再控除しない）", () => {
+  // 報告書（信用）の「年中信用取引損益」は利息だけを控除した値で、取引手数料は
+  // 「支払手数料」列に分かれる。API の profit_loss は手数料も控除済みなので、
+  // 差益 / 差損へ載せる前に**手数料を足し戻す**（控除の取り消しであって二重控除ではない）
+  it("決済益は手数料を足し戻した額を INCOME に、手数料を EXPENSE に分ける", () => {
     const { entries } = ledgerFromEvents([marginClose("1000")]);
-    expect(entries).toHaveLength(1);
-    expect(entries[0].kind).toBe("INCOME");
+    expect(entries.map((e) => e.kind)).toEqual(["INCOME", "EXPENSE"]);
     expect(entries[0].currency).toBe("btc");
-    expect(entries[0].amount_jpy).toBe("1000"); // 100 の手数料を引かない
+    expect(entries[0].amount_jpy).toBe("1100"); // 1000 + 手数料 100
+    expect(entries[1].category).toBe("margin_fee");
+    expect(entries[1].amount_jpy).toBe("100");
+  });
+
+  it("分け方を変えても所得の合計は変わらない（収入 − 経費が realized_net に戻る）", () => {
+    const { entries } = ledgerFromEvents([marginClose("1000")]);
+    const signed = entries.map((e) => (e.kind === "INCOME" ? 1 : -1) * Number(e.amount_jpy));
+    expect(signed.reduce((a, b) => a + b, 0)).toBe(1000);
   });
 
   it("決済損は EXPENSE（絶対値で計上）", () => {
     const { entries } = ledgerFromEvents([marginClose("-2500")]);
     expect(entries[0].kind).toBe("EXPENSE");
-    expect(entries[0].amount_jpy).toBe("2500");
+    expect(entries[0].amount_jpy).toBe("2400"); // -2500 + 手数料 100 = -2400
+  });
+
+  it("負の手数料（メイカーリベート）は収入計上する（P-04・現物と同じ扱い）", () => {
+    const e = marginClose("1000");
+    const rebate = { ...e, margin: { ...e.margin, fee_charged: "-30" } } as TaxEvent;
+    const { entries } = ledgerFromEvents([rebate]);
+    expect(entries.map((e) => e.category)).toEqual(["margin_gain", "margin_rebate_income"]);
+    expect(entries[0].amount_jpy).toBe("970"); // 1000 + (-30)
+    expect(entries[1].amount_jpy).toBe("30");
+  });
+
+  it("fee_charged が無い決済は保留に回す（手数料ぶんずれた差益を黙って出さない）", () => {
+    const e = marginClose("1000");
+    const { margin, ...rest } = e;
+    const broken = {
+      ...rest,
+      margin: { position_side: "long", role: "CLOSE", realized_net: "1000" },
+    } as TaxEvent;
+    const r = ledgerFromEvents([broken]);
+    expect(r.entries).toEqual([]);
+    expect(r.deferred[0].reason).toContain("fee_charged");
   });
 
   it("新規建ては仕訳を作らない（決済年に帰属させるため）", () => {

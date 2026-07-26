@@ -2,18 +2,16 @@
 // 差が出ること自体は異常ではない（販売所は API に一切現れないため、CSV 未投入の
 // 口座では購入・売却の差が必ず残る）。この差を数量として示すのがこのモジュールの仕事。
 
-import { EXIT } from "../../exit-codes.js";
 import type { Result } from "../../types.js";
-import { canonicalAsset } from "../import/symbol-alias.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
 import type { AnnualReportRow } from "../import-csv/annual-report-columns.js";
 import { UNSUPPORTED_FIELDS } from "../import-csv/annual-report-columns.js";
-import { isZero, type Ratio, ZERO } from "../ratio.js";
-import { fromDecimalString } from "../ratio-decimal.js";
+import { isZero, ZERO } from "../ratio.js";
 import type { ReportCheck, VerifyRow } from "../schema/verify.js";
 import { type Aggregated, COMPARED_FIELDS, zeroFigures } from "./aggregate.js";
 import { reportChecks } from "./checks.js";
-import { toleranceFor, verifyRow } from "./rows.js";
+import { indexByCurrency, readField } from "./index-rows.js";
+import { buildRow, spotHint, toleranceFor } from "./rows.js";
 
 export type Unsupported = { currency: string; field: string; value: string };
 
@@ -24,37 +22,13 @@ export type VerifyOutcome = {
   warnings: string[];
 };
 
-const at = (row: AnnualReportRow, field: keyof AnnualReportRow): Ratio =>
-  fromDecimalString(row[field]) ?? ZERO;
-
-/**
- * 資産キーを名寄せして引けるようにする。**正規化後に衝突したら黙って上書きせず
- * エラーにする** — 旧名と新名の行が両方あると後勝ちで片方の数量が消え、その分が
- * まるごと「取込漏れ」に見えてしまう（合算すべきか別物かは人が判断する領域）。
- */
-function byCanonicalCurrency(
-  rows: readonly AnnualReportRow[],
-): Result<Map<string, AnnualReportRow>> {
-  const out = new Map<string, AnnualReportRow>();
-  for (const row of rows) {
-    const key = canonicalAsset(row.currency);
-    if (out.has(key)) {
-      return {
-        success: false,
-        error: `Duplicate report currency after normalization: ${row.currency} (=> ${key})`,
-        exitCode: EXIT.PARAM,
-      };
-    }
-    out.set(key, row);
-  }
-  return { success: true, data: out };
-}
-
 function unsupportedOf(rows: readonly AnnualReportRow[]): Unsupported[] {
   const out: Unsupported[] = [];
   for (const row of rows) {
     for (const field of UNSUPPORTED_FIELDS) {
-      if (!isZero(at(row, field))) out.push({ currency: row.currency, field, value: row[field] });
+      if (!isZero(readField(row, field))) {
+        out.push({ currency: row.currency, field, value: row[field] });
+      }
     }
   }
   return out;
@@ -64,7 +38,7 @@ export function compareAnnualReport(
   report: ParsedAnnualReport,
   aggregated: Aggregated,
 ): Result<VerifyOutcome> {
-  const indexed = byCanonicalCurrency(report.rows);
+  const indexed = indexByCurrency(report.rows, "report");
   if (!indexed.success) return indexed;
 
   const checked = reportChecks(report.rows);
@@ -85,13 +59,15 @@ export function compareAnnualReport(
       warnings.push(`${currency}: 報告書に行がありません（API 側の集計のみで比較しています）`);
     }
     for (const field of COMPARED_FIELDS) {
-      const row = verifyRow(
+      const row = buildRow({
+        reportKind: "spot",
         currency,
         field,
-        reported === undefined ? ZERO : at(reported, field),
-        api[field],
-        toleranceFor(field, api.fee_rounded_count),
-      );
+        report: reported === undefined ? ZERO : readField(reported, field),
+        api: api[field],
+        tolerance: toleranceFor(field, api.fee_rounded_count),
+        hint: spotHint(field),
+      });
       if (row !== null) rows.push(row);
     }
   }

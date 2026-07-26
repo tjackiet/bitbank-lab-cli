@@ -35,3 +35,23 @@ function line(row: Row, header: readonly string[] = HEADER): string {
 export function buildCsv(rows: readonly Row[], header: readonly string[] = HEADER): string {
   return [META, header.join(","), ...rows.map((r) => line(r, header))].join("\r\n");
 }
+
+/** 信用の年間取引報告書（別様式・別ファイル。4 項目 + 通貨名）。 */
+export const MARGIN_HEADER = [
+  "通貨名",
+  "年末保有中売建玉",
+  "年末保有中買建玉",
+  "年中信用取引損益",
+  "支払手数料",
+];
+
+export type MarginRow = Partial<Record<(typeof MARGIN_HEADER)[number], string>> & {
+  通貨名: string;
+};
+
+export function buildMarginCsv(
+  rows: readonly MarginRow[],
+  header: readonly string[] = MARGIN_HEADER,
+): string {
+  return [META, header.join(","), ...rows.map((r) => line(r, header))].join("\r\n");
+}

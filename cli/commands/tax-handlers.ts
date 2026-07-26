@@ -19,10 +19,11 @@ export const taxCommands: Record<string, CommandEntry> = {
   },
   "verify-report": {
     description: "Reconcile the official annual trade report CSV against API-derived totals",
-    options: { year: str, csv: str, "max-pages": str },
+    options: { year: str, csv: str, "margin-csv": str, "max-pages": str },
     handler: handler("./tax/verify-report.js", "taxVerifyReport", (_a, v) => ({
       year: valStr(v, "year"),
       csv: valStr(v, "csv"),
+      marginCsv: valStr(v, "margin-csv"),
       maxPages: valStr(v, "max-pages"),
     })),
   },

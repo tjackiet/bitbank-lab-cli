@@ -16,6 +16,8 @@ export const VerifyDiagnosis = z.enum([
 export type VerifyDiagnosis = z.infer<typeof VerifyDiagnosis>;
 
 export const VerifyRow = z.object({
+  /** どちらの報告書との比較か。現物と信用は別様式・別ファイル */
+  report_kind: z.enum(["spot", "margin"]),
   currency: z.string(),
   field: z.string(),
   report: decStr,
@@ -42,6 +44,8 @@ export const VerifyReport = z.object({
   year_jst: z.number().int(),
   source: z.object({
     csv_rows: z.number().int(),
+    /** 信用の報告書を渡さなかったときは 0 */
+    margin_csv_rows: z.number().int(),
     events: z.number().int(),
     pending: z.number().int(),
     truncated: z.boolean(),

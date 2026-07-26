@@ -82,6 +82,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
     params: {
       year,
       csv: p("string", "Path to the bitbank annual trade report CSV (spot)"),
+      "margin-csv": p("string", "Path to the bitbank annual trade report CSV (margin)"),
       "max-pages": maxPages,
     },
     output: {
@@ -90,13 +91,14 @@ export const taxSchemas: Record<string, SchemaDef> = {
         year_jst: n,
         source: {
           type: "object",
-          properties: { csv_rows: n, events: n, pending: n, truncated: b },
+          properties: { csv_rows: n, margin_csv_rows: n, events: n, pending: n, truncated: b },
         },
         rows: {
           type: "array",
           items: {
             type: "object",
             properties: {
+              report_kind: s,
               currency: s,
               field: s,
               report: s,
