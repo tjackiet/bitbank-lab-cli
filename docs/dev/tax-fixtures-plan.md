@@ -95,11 +95,25 @@
 | `raw/` | 置かない | SHA-256 のみ `cli/__tests__/tax/fixtures-regression/manifest.json` に記録 |
 | MD レポート類（FIELDS / ANSWERS / BALANCE_RECONCILIATION / ENDPOINTS / SYMBOL_ALIASES） | `docs/dev/tax-evidence/` | **取り込み済み**。実測値・絶対件数・実日時を丸め／関係式へ置換。BALANCE_RECONCILIATION の資産別結果表は口座の資産構成そのものなので、**表を載せず「表が示した性質」を記述**する形に置換 |
 | `PAIRS_MASTER.json` | `cli/__tests__/__fixtures__/tax/pairs-master.json` | **取り込み済み**（公開 API 出力なので値は無加工。`raw/` への参照のみ一般化） |
-| `SCHEMA_SNAPSHOT.json` | `cli/__tests__/tax/fixtures-regression/` | 未取り込み。旧フォーマット（counts 入り）のため、修正版 `gen-schema-snapshot.mjs` を実データ環境で実行して生成する |
+| `SCHEMA_SNAPSHOT.json` | `cli/__tests__/tax/fixtures-regression/` | **取り込み済み**（修正版生成器で再生成。7 エンドポイント・140 フィールド。`present` は always/partial のみ・`counts` なし・数値リテラル 0 件を検証済み） |
 
 **件数の扱い**: `SCHEMA_SNAPSHOT.json` の `counts` と `present` の絶対値は口座規模の情報に
 なるため出さない。件数の固定は **fixture の SHA-256**（manifest）が担い、テストは件数に依存しない
 構造的不変条件（ページ内重複なし・重複は隣接ページのみ・dedup の冪等性）だけを検査する。
+
+### 散文の docs と機械可読ファイルで基準を分ける【確定】
+
+同じ文字列（例: batch ディレクトリ名 `batch2-<採取タイムスタンプ>`）でも、置かれる場所で扱いを変える:
+
+| 種別 | 例 | 基準 |
+|---|---|---|
+| **散文の docs** | `docs/dev/tax-evidence/`、tax-research 付録E | 口座について語る文脈にあるため、規模・値・日時は丸める。batch 名も文脈の一部として除去する |
+| **機械可読な同定ファイル** | `manifest.json`、`SCHEMA_SNAPSHOT.json` | ファイルを一意に指すことが目的。**口座の内容を語らない限り**、相対パス・SHA-256・型名・batch 名はそのまま持つ |
+
+理由: (1) manifest はファイル同定が目的なので相対パスに batch 名を含むのは必然で、片方だけ落とすと
+manifest と snapshot が不整合になる。(2) 採取タイムスタンプが示すのは**調査を実施した時刻**であって
+口座の取引・残高・保有ではない。採取日自体は再現性のため `docs/dev/tax-evidence/` 各文書の冒頭に
+明示的に残してある。分単位に精度が上がっても口座について新たに分かることはない。
 
 ## 3. 移行後の実 fixture の扱い
 
