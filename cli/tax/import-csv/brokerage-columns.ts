@@ -11,15 +11,28 @@
 // - 重複排除キーは **注文ID**（取引所約定の trade_id とは別空間）
 import { z } from "zod";
 import { decStr } from "../../schema-helpers.js";
+import { isNegative, isZero } from "../ratio.js";
+import { fromDecimalString } from "../ratio-decimal.js";
+
+/**
+ * 販売所の数量・価格は**必ず正**。`decStr` は負値も 0 も通すため、そのままだと
+ * 負の約定イベントが作れてしまい、取得価額がマイナスに振れる。
+ * 年間取引報告書側は負値が正当（信用損益・リベート）なのでこの制約は付けない。
+ */
+const positiveDecStr = decStr.refine((v) => {
+  const r = fromDecimalString(v);
+  return r !== null && !isZero(r) && !isNegative(r);
+}, "positive decimal required");
 
 export const BrokerageRow = z.object({
-  order_id: z.string(),
-  currency: z.string(),
+  // 空の注文ID は event_id が `brk:` に潰れて重複排除が壊れる
+  order_id: z.string().min(1),
+  currency: z.string().min(1),
   /** `買` / `売`。未知の値で CSV 全体を落とさないよう生文字列で受け、to-events で判定する */
   side: z.string(),
-  qty: decStr,
-  price: decStr,
-  executed_at: z.string(),
+  qty: positiveDecStr,
+  price: positiveDecStr,
+  executed_at: z.string().min(1),
 });
 export type BrokerageRow = z.infer<typeof BrokerageRow>;
 

@@ -46,6 +46,20 @@ describe("販売所 CSV のパース", () => {
     if (!r.success) expect(r.error).toContain("recurring-purchase");
   });
 
+  it("数量・価格が 0 や負なら受け付けない（負の取得価額を作らない）", () => {
+    for (const bad of [{ qty: "0" }, { qty: "-0.001" }, { px: "0" }, { px: "-1" }]) {
+      const r = parseBrokerage(parseCsv(csv([bad])));
+      expect(r.success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
+  it("注文ID・通貨・日時が空なら受け付けない（重複排除が壊れる）", () => {
+    for (const bad of [{ id: "" }, { cur: "" }, { at: "" }]) {
+      const r = parseBrokerage(parseCsv(csv([bad])));
+      expect(r.success, JSON.stringify(bad)).toBe(false);
+    }
+  });
+
   it("数量は十進文字列のまま保持する（number 化しない）", () => {
     expect(rowsOf([{ qty: "0.00009542" }])[0].qty).toBe("0.00009542");
   });

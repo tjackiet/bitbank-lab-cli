@@ -84,6 +84,10 @@ export const VerifyReport = z.object({
     truncated: z.boolean(),
   }),
   rows: z.array(VerifyRow),
+  /**
+   * **現物の報告書だけが対象**。信用の様式は 4 列がそれぞれ独立した年間集計で、
+   * 列どうしを結ぶ恒等式が存在しないため検算する対象が無い（空配列になる）。
+   */
   report_checks: z.array(ReportCheck),
   /** 当 CLI が API から再現できない列に値がある行（BTC 建て・貸出） */
   unsupported: z.array(z.object({ currency: z.string(), field: UnsupportedField, value: decStr })),
