@@ -41,7 +41,7 @@ const files = walk(raw)
 const manifest = {
   note:
     "実データ fixtures の同一性マニフェスト（生成物）。実データは本リポジトリに置かない。" +
-    "件数・日時・金額は意図的に記録しない（SHA-256 のみで同一性を担保する）。",
+    "集計値（件数・金額）は記録しない。パスは実ファイル名をそのまま用いる（不一致ファイルの特定に必要なため）。",
   generator: "scripts/dev/tax/gen-fixtures-manifest.ts",
   env_var: ENV_VAR,
   files,

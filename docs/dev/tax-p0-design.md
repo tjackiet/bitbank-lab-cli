@@ -7,6 +7,11 @@
 > **状況（2026-07-25 更新）**: §4-1（fixtures）・§4-3（数値表現）・§4-5（ロードマップ）は解決済み。
 > **未解決は §4-2（decStr と chaos x14）と §4-4（TRADE_EXCHANGE の優先度）の 2 件**で、
 > どちらも P0-1 の着手判断に効く。既定の進め方は各節の末尾に記載。
+>
+> **【2026-07-26 仕様訂正の反映】販売所（即時売買）は API に一切現れない**（付録E.3 訂正）。
+> UI CSV 取込が P1 → **P0 に昇格**したため、本メモに `MarketType` / `SourceSystem` と
+> `import-csv/` を追加した。BALANCE_RECONCILIATION の「積立」「ダスト消滅」は誤診で、
+> **両者とも販売所取引**だったことが確定している。
 
 ## 1. 正規化スキーマ型定義案（v2 §13 準拠）
 
@@ -18,6 +23,12 @@ Zod が型の単一ソース（CLAUDE.md）。`z.infer` で型を導出し、手
 export const decStr = z.string().regex(/^-?\d+(\.\d+)?$/, "decimal string required");
 
 export const Venue = z.enum(["BITBANK", "EXTERNAL_EXCHANGE", "SELF_WALLET", "COUNTERPARTY", "UNKNOWN"]);
+
+/** 約定の場（付録E.3 訂正）。**販売所は API に一切現れない**ため、これは
+ *  「どのソースから来たか」ではなく「どこで約定したか」を表す税務上の属性 */
+export const MarketType = z.enum(["ORDERBOOK", "BROKERAGE"]); // 取引所（板） / 販売所（即時売買）
+/** 取込元。P-16 の優先順位判定と監査に使う（要求仕様 §2.4） */
+export const SourceSystem = z.enum(["API", "UI_CSV_TRADES", "UI_CSV_BROKERAGE", "MANUAL"]);
 export const RecognitionPolicy = z.enum(["DELIVERY_DATE", "CONTRACT_DATE"]); // P-09
 export const TransferReason = z.enum([
   "SELF_TRANSFER", "PURCHASE_EXTERNAL", "GIFT", "INHERITANCE", "REWARD", "PAYMENT", "UNKNOWN",
@@ -33,6 +44,8 @@ export const EventFlag = z.enum([
   "FEE_API_ROUNDED",      // 付録E.1: API 手数料は 4 桁丸め値（P-16）
   "NON_JPY_QUOTE",        // 付録E.5: BTC 建てペア検出（TRADE_EXCHANGE 経路 or 明示エラー）
   "UNOBSERVED_SHAPE",     // §9-8: 未観測形状 → 保留リスト
+  "BROKERAGE_SPREAD",     // 付録E.3: 販売所は手数料列なし（スプレッド内包）。fee=0 と混同しない
+  "API_UNREACHABLE",      // API では取得不能な経路（販売所）由来。CSV 未投入なら欠落する
 ]);
 ```
 
@@ -55,6 +68,8 @@ export const TaxEvent = z.object({
   year_jst: z.number().int(),           // jstYear()。年分判定はこれだけを使う
   account_id: z.string(),               // 既定 "bitbank:default"（サブアカウントは P2）
   kind: EventKind,
+  market_type: MarketType.optional(),   // 約定系のみ。BROKERAGE は CSV 経由でしか入らない
+  source_system: SourceSystem,          // §2.4 の優先順位判定・監査ログ用
   currency: z.string(),                 // 名寄せ後の資産キー（matic→pol, rndr→render のみ）
   qty: decStr,
   jpy_value: decStr.optional(),
@@ -87,8 +102,18 @@ export const TaxEvent = z.object({
 export type TaxEvent = z.infer<typeof TaxEvent>;
 ```
 
-- `event_id` は `<kind>:<source_ref>`（trade は `trade:<trade_id>`、入出庫は `dep:<uuid>`/`wd:<uuid>`）
-  で決定論的に生成する。再取得で同一 → 冪等性（NFR）と重複排除を同じキーで満たす
+- `event_id` は `<kind>:<source_ref>`（取引所約定は `trade:<trade_id>`、**販売所は `brk:<注文ID>`**、
+  入出庫は `dep:<uuid>`/`wd:<uuid>`）で決定論的に生成する。再取得で同一 → 冪等性（NFR）と
+  重複排除を同じキーで満たす
+- **販売所（`BROKERAGE`）の扱い**（付録E.3 訂正・要求仕様 §2.4）:
+  - `/user/spot/trade_history` には**1 件も現れない**。取込経路は UI CSV「売買履歴」のみ
+  - 取引所約定の `trade_id` と販売所の注文 ID は**ID 空間が交差しない**ことを実データで確認済みだが、
+    **防御的に「両者の source_ref 集合が交差しないこと」を取込時にチェック**し、交差したら
+    重複排除の前提が崩れたとして明示エラーにする（黙って片方を落とさない）
+  - 販売所は**手数料列を持たない**（スプレッド内包）。`fee` を省略し `BROKERAGE_SPREAD` を立てる。
+    「手数料 0 円」として記帳すると、後段で fee 集計の欠落と区別できなくなる
+  - CSV が未投入の口座では販売所分が丸ごと欠落する。**ガード(d) の残高突合がこれを検出する**
+    （実際にこの経路で検出された。BALANCE_RECONCILIATION.md §2-1）
 - **仕訳（ledger）は Event から派生させる別型**にする。v2 §13.3 のパイプライン
   `Event列 → ACQUIRE/DISPOSE/INCOME/EXPENSE → 平均法 → レポート`。変換規則は v2 付録A の表が単一ソース
 
@@ -131,6 +156,11 @@ cli/tax/
     to-events.ts      # 生レコード → TaxEvent（現物/信用の振り分け・非JPY quote 検出）
     grant-suspect.ts  # 付録E.3 の付与痕跡判定（txid=null ／ 円未満端数 & found_at==confirmed_at & 秒以下 00.000）
     symbol-alias.ts   # {matic→pol, rndr→render} のみ。mkr→sky は名寄せ禁止（手動マスタ）
+  import-csv/         # ★P0 に昇格（販売所が API 非対応のため。要求仕様 §2.2 / §2.4）
+    parse-csv.ts      # CSV パーサ（JST ミリ秒・8 桁ゼロ詰め・列名の小文字混じりに対応）
+    brokerage.ts      # 「売買履歴」→ TaxEvent（market_type=BROKERAGE・手数料列なし）
+    trades-csv.ts     # 「約定履歴」→ 完全精度の手数料を監査用に保持（採用値は API。P-16）
+    merge.ts          # §2.4 の優先順位で API 由来と統合。ID 空間の交差チェックと差分ログ
   ledger/
     from-events.ts    # 付録A の対応表に従い LedgerEntry へ
   reconcile/          # 原型は scripts/dev/tax/reconcile.ts（検証済みオラクル。恒久保全）
