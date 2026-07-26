@@ -4,7 +4,7 @@ import type { RuntimeContext } from "./commands/handler-types.js";
 import { COMMON_OPTIONS } from "./common-options.js";
 import { sanitizeErrorMessage } from "./error-sanitize.js";
 import { EXIT, type ExitCode } from "./exit-codes.js";
-import { showHelp, showPaperHelp, showProfileHelp, showTradeHelp } from "./help-print.js";
+import { showGroupHelp, showHelp } from "./help-print.js";
 import { machineOutput } from "./output.js";
 import { handleSpecialCommand, resolveCommand, runCommandHelp } from "./router.js";
 import { resolveStartupCredentials } from "./startup-credentials.js";
@@ -30,7 +30,7 @@ async function main(): Promise<void> {
     return;
   }
 
-  const { isTrade, isPaper, isProfile, command, entry } = resolveCommand(p1);
+  const { group, command, entry } = resolveCommand(p1);
   const merged = { ...COMMON_OPTIONS, ...(entry?.options ?? {}) };
   const { values, positionals, tokens } = parseArgs({
     allowPositionals: true,
@@ -58,18 +58,15 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (isTrade || isPaper || isProfile) {
-    const label = isTrade ? "trade" : isPaper ? "paper" : "profile";
+  if (group) {
     if (!command) {
-      if (isTrade) showTradeHelp();
-      else if (isPaper) showPaperHelp();
-      else showProfileHelp();
+      showGroupHelp(group);
       return;
     }
     if (!entry) {
       fail(
         machine,
-        `Unknown ${label} subcommand "${command}". Run 'bitbank ${label}' for the list.`,
+        `Unknown ${group} subcommand "${command}". Run 'bitbank ${group}' for the list.`,
         EXIT.PARAM,
       );
       return;

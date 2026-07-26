@@ -15,12 +15,15 @@ function toParamsJsonSchema(params: SchemaDef["params"]): object {
   return { type: "object", properties, required };
 }
 
+/** サブコマンド形式で呼ぶカテゴリ（`bitbank <group> <name>`）。 */
+const SUBCOMMAND_GROUPS = new Set<SchemaDef["category"]>(["trade", "tax"]);
+
 function invocationPath(name: string, schema: SchemaDef): string {
-  return schema.category === "trade" ? `trade ${name}` : name;
+  return SUBCOMMAND_GROUPS.has(schema.category) ? `${schema.category} ${name}` : name;
 }
 
 function descKey(name: string, schema: SchemaDef): string {
-  return schema.category === "trade" ? `trade ${name}` : name;
+  return invocationPath(name, schema);
 }
 
 function listAll(descriptions: Record<string, string>) {
@@ -61,7 +64,8 @@ export function buildSchemaHandler(descriptions: Record<string, string>): Comman
       output({ success: true, data: listAll(descriptions) }, fmt);
       return;
     }
-    const name = args[0] === "trade" && args[1] ? args[1] : args[0];
+    const name =
+      SUBCOMMAND_GROUPS.has(args[0] as SchemaDef["category"]) && args[1] ? args[1] : args[0];
     output(detail(name, descriptions), fmt);
   };
 }
