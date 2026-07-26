@@ -1,3 +1,7 @@
+// 100行超: 「報告書と同じ軸」の項目定義と、その軸へイベントを流し込むループ。
+// 両者を分けても項目定義に独立した利用者ができず、re-export の層が増えるだけだった
+// （信用側 margin-aggregate.ts も同じ形で 1 ファイルに収めている）。
+//
 // API 由来イベントを、年間取引報告書（現物）と同じ軸へ集計する。
 //
 // 報告書の JPY 行は暗号資産行の鏡像（暗号資産を売れば円が増える）なので、
@@ -11,9 +15,32 @@ import { splitPair } from "../import/symbol-alias.js";
 import { add, type Ratio, ZERO } from "../ratio.js";
 import { fromDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
-import { type Aggregated, type ComparedField, type Figures, zeroFigures } from "./figures.js";
+import type { VerifyField } from "../schema/verify.js";
 
-export { type Aggregated, COMPARED_FIELDS, type ComparedField, zeroFigures } from "./figures.js";
+export const COMPARED_FIELDS = [
+  "buy_qty",
+  "buy_jpy",
+  "sell_qty",
+  "sell_jpy",
+  "deposit_qty",
+  "withdrawal_qty",
+  "fee",
+] as const satisfies readonly VerifyField[];
+export type ComparedField = (typeof COMPARED_FIELDS)[number];
+
+export type Figures = Record<ComparedField, Ratio> & {
+  /** API 4 桁丸め（付録E.1 / P-16）の手数料が何件寄与したか。許容幅の算出に使う */
+  fee_rounded_count: number;
+};
+
+export type Aggregated = { byCurrency: Map<string, Figures>; warnings: string[] };
+
+/** 報告書にしか現れない銘柄の API 側（= 全項目ゼロ）としても使う。 */
+export function zeroFigures(): Figures {
+  const f = { fee_rounded_count: 0 } as Figures;
+  for (const k of COMPARED_FIELDS) f[k] = ZERO;
+  return f;
+}
 
 export function aggregateForReport(events: readonly TaxEvent[]): Aggregated {
   const byCurrency = new Map<string, Figures>();

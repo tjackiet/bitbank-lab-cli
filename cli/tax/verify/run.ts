@@ -1,3 +1,6 @@
+// 100行超: 収集 → 突合 → 組み立ての 1 本道。組み立てを別関数に切り出すと、呼び出し元が
+// すでに持っている値を 7 フィールドの引数オブジェクトで渡し直すだけになり、合計行数も増えた。
+//
 // 年間取引報告書突合の実行（当年イベント収集 → 集計 → 突合）。
 // 残高突合（reconcile）と違って**全履歴を必要としない**。報告書は年単位で閉じており、
 // 比較対象も当年フローだけなので、収集は年ウィンドウで済む。
@@ -10,12 +13,12 @@ import { collectEvents } from "../import/collect.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
 import type { ParsedMarginReport } from "../import-csv/margin-report.js";
 import type { Market } from "../reconcile/run.js";
+import { verifyDisclaimers } from "../report/disclaimers.js";
 import type { VerifyReport } from "../schema/verify.js";
 import { aggregateForReport } from "./aggregate.js";
 import { compareAnnualReport } from "./annual-report.js";
 import { aggregateMarginForReport } from "./margin-aggregate.js";
 import { compareMarginReport } from "./margin-report.js";
-import { shapeVerifyReport } from "./shape.js";
 
 export type VerifyArgs = {
   year: number;
@@ -76,18 +79,25 @@ export async function runVerifyReport(
     warnings.push("履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）");
   }
 
-  const data = shapeVerifyReport(
-    {
-      year: args.year,
-      report: args.report,
-      marginReport: args.marginReport,
+  const data: VerifyReport = {
+    year_jst: args.year,
+    source: {
+      csv_rows: args.report?.rows.length ?? 0,
+      margin_csv_rows: args.marginReport?.rows.length ?? 0,
       events: events.length,
-      collected: collected.data,
-      spot: spotData,
-      margin: marginData,
+      pending: collected.data.pending.length,
+      truncated: collected.data.truncated,
     },
+    rows: [...(spotData?.rows ?? []), ...(marginData?.rows ?? [])],
+    report_checks: spotData?.checks ?? [],
+    unsupported: [...(spotData?.unsupported ?? []), ...(marginData?.unsupported ?? [])],
+    unknown_columns: [
+      ...(args.report?.unknownColumns ?? []),
+      ...(args.marginReport?.unknownColumns ?? []),
+    ],
     warnings,
-  );
+    disclaimers: verifyDisclaimers(),
+  };
   return collected.partial
     ? { success: true, data, partial: true, meta: collected.meta }
     : { success: true, data };
