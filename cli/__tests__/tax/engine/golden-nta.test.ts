@@ -4,6 +4,9 @@
 //   4 BTC @1,845,000 購入 → 2 BTC @1,650,000 購入 → 2 BTC 売却 2,400,000
 //   → 0.5 BTC @542,800 購入 → 3 BTC 売却 2,895,000
 //
+// 100行超: 公式設例 1 本の取引列に対して総平均法・移動平均法の両方の公表値を
+// 一体で追跡するため（設例を分割すると「同じ入力から両方式が出る」ことが担保できない）。
+//
 // 公表値: 総平均法 単価621,200 / 譲渡原価3,106,000 / 年末残高931,800 / 所得2,189,000
 //         移動平均法 譲渡原価3,080,200 / 年末単価638,400 / 年末残高価額957,600
 import { describe, expect, it } from "vitest";
@@ -83,8 +86,8 @@ describe("ゴールデンケース: FAQ 2-4 総平均法", () => {
     expect(income).toBe(2_189_000);
   });
 
-  it("不変条件 I1〜I3 を満たす", () => {
-    expect(checkInvariants(o, FAQ_2_4)).toEqual([]);
+  it("不変条件 I1・I2 を満たす", () => {
+    expect(checkInvariants(o)).toEqual([]);
     expect(o.violations).toEqual([]);
   });
 });
@@ -106,8 +109,8 @@ describe("ゴールデンケース: FAQ 2-4 移動平均法", () => {
     expect(exact(o.closing.qty)).toBe("1.5");
   });
 
-  it("不変条件 I1〜I3 を満たす", () => {
-    expect(checkInvariants(o, FAQ_2_4)).toEqual([]);
+  it("不変条件 I1・I2 を満たす", () => {
+    expect(checkInvariants(o)).toEqual([]);
     expect(o.violations).toEqual([]);
   });
 

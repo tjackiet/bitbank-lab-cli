@@ -44,11 +44,25 @@ describe("paginate", () => {
       fetchPage: async () => ({ success: true, data: pages[i++] ?? [] }),
       keyOf: (x) => String(x.id),
       nextCursor: () => "next",
-      pageSize: 2,
       maxPages: 10,
     });
     expect(r.success && r.data.rows.map((x) => x.id)).toEqual([1, 2, 3, 4]);
     expect(r.success && r.data.deduped).toBe(1);
+    expect(r.success && r.data.truncated).toBe(false);
+  });
+
+  it("要求 count より短いページでも打ち切らない（サーバのクランプで欠損しないこと）", async () => {
+    // count=1000 を要求してもサーバが 100 にクランプする可能性がある。短いページを
+    // 最終ページと決めつけると、そこで静かに欠損する
+    const pages = [[{ id: 1 }], [{ id: 2 }], []];
+    let i = 0;
+    const r = await paginate<{ id: number }>({
+      fetchPage: async () => ({ success: true, data: pages[i++] ?? [] }),
+      keyOf: (x) => String(x.id),
+      nextCursor: () => "next",
+      maxPages: 10,
+    });
+    expect(r.success && r.data.rows.map((x) => x.id)).toEqual([1, 2]);
     expect(r.success && r.data.truncated).toBe(false);
   });
 
@@ -58,7 +72,6 @@ describe("paginate", () => {
       fetchPage: async () => ({ success: true, data: [{ id: id++ }, { id: id++ }] }),
       keyOf: (x) => String(x.id),
       nextCursor: () => "next",
-      pageSize: 2,
       maxPages: 3,
     });
     expect(r.success && r.data.truncated).toBe(true);
@@ -93,22 +106,46 @@ describe("fetchTrades", () => {
 });
 
 describe("fetchDeposits", () => {
+  /** 系統ごとに 1 ページ返して以降は空。paginate は「新規ゼロ」で止まるので終端が要る。 */
+  function oneShot(rowFor: (asset: string | null) => unknown, seen?: (string | null)[]) {
+    const served = new Set<string>();
+    return routedFetch((url) => {
+      const asset = url.searchParams.get("asset");
+      seen?.push(asset);
+      const key = String(asset);
+      if (served.has(key)) return { deposits: [] };
+      served.add(key);
+      return { deposits: [rowFor(asset)] };
+    });
+  }
+
   it("asset 省略（crypto）と asset=jpy（fiat）の 2 系統を両方取る", async () => {
     const seen: (string | null)[] = [];
-    const fetch = routedFetch((url) => {
-      const asset = url.searchParams.get("asset");
-      seen.push(asset);
-      return {
-        deposits: [
-          asset === "jpy"
-            ? { uuid: "j1", asset: "jpy", amount: "10000", status: "DONE", found_at: 2 }
-            : { uuid: "c1", asset: "btc", amount: "0.1", status: "DONE", found_at: 1 },
-        ],
-      };
-    });
+    const fetch = oneShot(
+      (asset) =>
+        asset === "jpy"
+          ? { uuid: "j1", asset: "jpy", amount: "10000", status: "DONE", found_at: 2 }
+          : { uuid: "c1", asset: "btc", amount: "0.1", status: "DONE", found_at: 1 },
+      seen,
+    );
     const r = await fetchDeposits({}, opts(fetch));
-    expect(seen).toEqual([null, "jpy"]);
+    // 問い合わせ回数（終端確認の 1 往復）は実装詳細。2 系統を叩いたことだけを固定する
+    expect(new Set(seen)).toEqual(new Set([null, "jpy"]));
     expect(r.success && r.data.deposits.map((d) => d.uuid)).toEqual(["c1", "j1"]);
+  });
+
+  it("2 系統に同じ uuid が出たら再排除して deduped に数える（二重計上の防止）", async () => {
+    // crypto と fiat は排他の想定だが、仕様変更で重なっても二重計上しないこと
+    const fetch = oneShot(() => ({
+      uuid: "d1",
+      asset: "jpy",
+      amount: "1",
+      status: "DONE",
+      found_at: 1,
+    }));
+    const r = await fetchDeposits({}, opts(fetch));
+    expect(r.success && r.data.deposits).toHaveLength(1);
+    expect(r.success && r.data.deduped).toBe(1);
   });
 });
 

@@ -36,13 +36,22 @@ export const CurrencyReport = z.object({
   policy_ids: z.array(z.string()),
 });
 
+/** 突合の診断（付録E.4）。`compare-parts.ts` の Diagnosis はこの enum から導出する。 */
+export const Diagnosis = z.enum([
+  "MATCH",
+  "MISSING_ACQUISITION",
+  "MISSING_DISPOSAL",
+  "UNRECONCILABLE",
+  "UNREADABLE",
+]);
+
 export const ReconciliationRow = z.object({
   currency: z.string(),
   theoretical: decStr,
   actual: decStr,
   residual: decStr,
   within_dust: z.boolean(),
-  diagnosis: z.string(),
+  diagnosis: Diagnosis,
   hint: z.string(),
 });
 
@@ -65,6 +74,7 @@ export const TaxReport = z.object({
   disclaimers: z.array(z.string()),
 });
 
+export type Diagnosis = z.infer<typeof Diagnosis>;
 export type CurrencySummary = z.infer<typeof CurrencySummary>;
 export type ReferencePnl = z.infer<typeof ReferencePnl>;
 export type CurrencyReport = z.infer<typeof CurrencyReport>;

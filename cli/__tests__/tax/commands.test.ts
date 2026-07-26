@@ -70,6 +70,19 @@ describe("繰越の読み込み", () => {
     }
   });
 
+  it("正規化後に衝突する通貨キーは明示エラー（黙って上書きしない）", () => {
+    // BTC / btc を両方書かれると後勝ちで繰越簿価が入れ替わり、参考損益が静かに狂う
+    const r = parseCarryover({
+      BTC: { qty: "1", cost_jpy: "100" },
+      btc: { qty: "2", cost_jpy: "999" },
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.exitCode).toBe(EXIT.PARAM);
+      expect(r.error).toContain("Duplicate carryover currency");
+    }
+  });
+
   it("十進文字列でない値は PARAM エラー（黙って 0 にしない）", () => {
     const r = parseCarryover({ btc: { qty: "1.5e3", cost_jpy: "1" } });
     expect(r.success).toBe(false);

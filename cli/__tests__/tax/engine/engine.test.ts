@@ -57,6 +57,17 @@ describe("総平均法の境界", () => {
     expect(checkI2(o)).not.toEqual([]);
   });
 
+  it("数量ゼロで簿価だけ残る繰越は、簿価を譲渡原価に流さず違反として止める", () => {
+    // 繰越の入力ミス（qty=0 なのに cost>0）。簿価を cogs へ流すと実際には処分して
+    // いない額がまるごと参考損失になり、しかも I1 は成立するので検知できない
+    const opening = bookFromDecimal("0", "1000");
+    const o = totalAverage("btc", [], opening as never);
+    expect(exact(o.cogs)).toBe("0");
+    expect(exact(o.closing.cost)).toBe("1000"); // 簿価は期末に残す
+    expect(o.violations.join()).toContain("数量ゼロなのに取得価額が残っています");
+    expect(checkI2(o)).not.toEqual([]); // ガードが確実に止める
+  });
+
   it("割り切れない単価でも I1 が厳密に成立する（丸めを挟まない）", () => {
     const entries = [acquire(1, "3", "100"), dispose(2, "1", "50")];
     const o = totalAverage("btc", entries, ZERO_BOOK);
@@ -103,6 +114,45 @@ describe("不変条件", () => {
     ];
     expect(checkI3(swap("1000", "1000"))).toEqual([]);
     expect(checkI3(swap("1000", "999"))[0].id).toBe("I3");
+  });
+});
+
+describe("runEngine: 通貨をまたぐ I3", () => {
+  // 交換取引は支払側と受取側が別通貨。通貨で分割した仕訳だけを見ると片側しか
+  // 入らないので、I3 を通貨別に評価すると常に素通りしてしまう
+  const exchange = (cost: string, proceeds: string): LedgerEntry[] => [
+    { ...acquire(1, "1", cost), event_id: "ex:1", currency: "eth" },
+    { ...dispose(1, "1", proceeds), event_id: "ex:1", currency: "btc" },
+  ];
+
+  it("金額が食い違えば関与した両通貨に I3 違反が付く", () => {
+    const r = runEngine({
+      entries: exchange("1000", "999"),
+      method: "total-average",
+      opening: { btc: ZERO_BOOK, eth: ZERO_BOOK },
+    });
+    expect(r.get("btc")?.invariants.map((v) => v.id)).toContain("I3");
+    expect(r.get("eth")?.invariants.map((v) => v.id)).toContain("I3");
+  });
+
+  it("金額が一致していれば I3 違反は出ない", () => {
+    const r = runEngine({
+      entries: exchange("1000", "1000"),
+      method: "total-average",
+      opening: { btc: ZERO_BOOK, eth: ZERO_BOOK },
+    });
+    expect(r.get("btc")?.invariants.filter((v) => v.id === "I3")).toEqual([]);
+    expect(r.get("eth")?.invariants.filter((v) => v.id === "I3")).toEqual([]);
+  });
+
+  it("無関係な通貨には他イベントの I3 違反を付けない", () => {
+    const r = runEngine({
+      entries: [...exchange("1000", "999"), acquire(2, "1", "100")],
+      method: "total-average",
+      opening: { btc: ZERO_BOOK, eth: ZERO_BOOK },
+    });
+    // acquire(2) は currency=btc なので btc には付くが、別通貨には波及しない
+    expect(r.get("eth")?.invariants.filter((v) => v.id === "I3")).toHaveLength(1);
   });
 });
 

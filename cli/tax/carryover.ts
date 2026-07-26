@@ -25,8 +25,19 @@ export function parseCarryover(json: unknown): Result<OpeningBalances> {
       exitCode: EXIT.PARAM,
     };
   }
-  const opening: OpeningBalances = {};
+  // プロトタイプ汚染を避けるため null プロトタイプで持つ（"__proto__" 等のキーが来ても安全）
+  const opening = Object.create(null) as OpeningBalances;
   for (const [currency, v] of Object.entries(parsed.data)) {
+    // 資産キーは小文字へ寄せる。**正規化後に衝突したら黙って上書きせずエラーにする** —
+    // `BTC` と `btc` を両方書かれると後勝ちで繰越簿価が入れ替わり、参考損益が静かに狂う
+    const key = currency.toLowerCase();
+    if (Object.hasOwn(opening, key)) {
+      return {
+        success: false,
+        error: `Duplicate carryover currency after normalization: ${currency} (=> ${key})`,
+        exitCode: EXIT.PARAM,
+      };
+    }
     const qty = fromDecimalString(v.qty);
     const cost = fromDecimalString(v.cost_jpy);
     if (qty === null || cost === null) {
@@ -36,7 +47,7 @@ export function parseCarryover(json: unknown): Result<OpeningBalances> {
         exitCode: EXIT.PARAM,
       };
     }
-    opening[currency.toLowerCase()] = { qty, cost };
+    opening[key] = { qty, cost };
   }
   return { success: true, data: opening };
 }

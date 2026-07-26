@@ -25,10 +25,17 @@ export function totalAverage(
   const unit = isZero(totalQty) ? null : div(totalCost, totalQty);
 
   const closingQty = sub(totalQty, s.disposed.qty);
-  // 数量ゼロなら簿価もゼロ（I2）。単価が引けないケースはここに落ちる
-  const closingCost = unit === null ? ZERO : mul(unit, closingQty);
-  const cogs = sub(totalCost, closingCost);
+  // 単価が引けない（数量ゼロ）ときは簿価を**期末に残す**。ここで簿価を譲渡原価へ
+  // 流すと、実際には処分していない簿価がまるごと参考損失になり、しかも I1 は
+  // 成立してしまうので検知できない（繰越の入力ミスが静かに損失を生む）
+  const closingCost = unit === null ? totalCost : mul(unit, closingQty);
+  const cogs = unit === null ? ZERO : sub(totalCost, closingCost);
 
+  if (isZero(totalQty) && !isZero(totalCost)) {
+    violations.push(
+      `${currency}: 数量ゼロなのに取得価額が残っています（前年繰越の入力を確認してください）`,
+    );
+  }
   if (cmp(closingQty, ZERO) < 0) {
     violations.push(
       `${currency}: 年末残高数量が負です（処分が取得を超過。取込漏れか前年繰越の未入力）`,

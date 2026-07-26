@@ -1,3 +1,8 @@
+// 100行超: 現物 / 信用 / 入出庫の 3 経路を **toEvents オーケストレータ経由**で検証するため。
+// 実装は to-events-{spot,margin,transfer}.ts に分かれているが、テストを同じ粒度で割ると
+// 共有フィクスチャの組み立て helper を 3 重化することになり見通しが悪くなる。
+// ここで見たいのは「振り分け + スキーマ検証まで通った結果」なので入口をひとつに保つ。
+//
 // 生レコード → 正規化イベントの変換。API 形状は共有フィクスチャ
 // （__fixtures__/private/*）を土台にし、税務固有の条件だけを上書きして作る
 // （インライン即席モックで実 API 形状から乖離させないため。X-18 と同じ理由）。
@@ -96,6 +101,11 @@ describe("信用約定の正規化", () => {
     // 分解明細のため fee / interest は併記する（損益からは引かない）
     expect(r.events[1].margin?.fee_charged).toBe("0");
     expect(r.events[1].margin?.interest).toBe("-5");
+  });
+
+  it("暗号資産建て手数料は信用でも未観測形状として立てる（現物と同じガード）", () => {
+    const r = run([{ ...close, fee_amount_base: "0.0001" }] as RawTrade[]);
+    expect(r.events[0].flags).toContain("UNOBSERVED_SHAPE");
   });
 
   it("決済されずに残った建玉は警告として報告する", () => {

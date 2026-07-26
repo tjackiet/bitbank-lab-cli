@@ -12,7 +12,6 @@ export type PageSpec<T> = {
   keyOf: (row: T) => string;
   /** このページから次カーソルを作る。undefined で打ち切り */
   nextCursor: (rows: T[]) => string | undefined;
-  pageSize: number;
   maxPages: number;
   initialCursor?: string;
 };
@@ -41,8 +40,12 @@ export async function paginate<T>(spec: PageSpec<T>): Promise<Result<Paged<T>>> 
       added++;
     }
 
-    // 満たないページ = 最終ページ。added===0 は境界重複のみ = これ以上進めない
-    if (r.data.length < spec.pageSize || added === 0) {
+    // 停止条件は「新規行がゼロ」だけにする。**「要求 count より短いページ = 最終ページ」
+    // とは判定しない** — サーバが count をエンドポイント固有の上限にクランプすると、
+    // その仮定は初回ページで成立してしまい、残りを取らないまま truncated:false を返す
+    // （= 黙って欠損する）。カーソルは境界行を必ず含むので、続きが無いときだけ
+    // added が 0 になる。代償は打ち切り判定のための余分な 1 リクエストのみ。
+    if (added === 0) {
       return { success: true, data: { rows, deduped, truncated: false } };
     }
     const next = spec.nextCursor(r.data);

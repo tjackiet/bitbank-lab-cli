@@ -1,7 +1,12 @@
 // 銘柄ごとにエンジンを回す薄い層。評価方法は「暗号資産の種類ごと」に選定するもの
 // （所令119の2、FAQ 2-5）なので、全体既定 + 銘柄別上書きという形にしてある。
 import type { LedgerEntry } from "../schema/ledger.js";
-import { checkInvariants, type InvariantViolation } from "./invariants.js";
+import {
+  checkI3,
+  checkInvariants,
+  currenciesByEvent,
+  type InvariantViolation,
+} from "./invariants.js";
 import { movingAverage } from "./moving-average.js";
 import { totalAverage, ZERO_BOOK } from "./total-average.js";
 import type { AverageOutcome, Method, OpeningBalances } from "./types.js";
@@ -39,6 +44,15 @@ export function runEngine(args: RunArgs): Map<string, CurrencyResult> {
     if (!NON_CRYPTO.has(currency) && !byCurrency.has(currency)) byCurrency.set(currency, []);
   }
 
+  // I3（交換取引の支払側 proceeds == 受取側 cost）は通貨をまたぐので、分割前の
+  // 全台帳で 1 回だけ評価し、そのイベントに関与した通貨すべてへ配る
+  const crossCurrency = checkI3(args.entries);
+  const eventCurrencies = currenciesByEvent(args.entries);
+  const i3For = (currency: string): InvariantViolation[] =>
+    crossCurrency.filter(
+      (v) => v.event_id !== undefined && eventCurrencies.get(v.event_id)?.has(currency),
+    );
+
   const results = new Map<string, CurrencyResult>();
   for (const [currency, entries] of byCurrency) {
     const method = args.methodByCurrency?.[currency] ?? args.method;
@@ -50,7 +64,7 @@ export function runEngine(args: RunArgs): Map<string, CurrencyResult> {
         : movingAverage(currency, entries, opening);
     results.set(currency, {
       outcome,
-      invariants: checkInvariants(outcome, entries),
+      invariants: [...checkInvariants(outcome), ...i3For(currency)],
       openingKnown,
     });
   }

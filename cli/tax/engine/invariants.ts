@@ -9,7 +9,12 @@ import { fromDecimalString } from "../ratio-decimal.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import type { AverageOutcome } from "./types.js";
 
-export type InvariantViolation = { id: "I1" | "I2" | "I3"; detail: string };
+export type InvariantViolation = {
+  id: "I1" | "I2" | "I3";
+  detail: string;
+  /** I3 のみ。どのイベントで壊れたかを run.ts が通貨へ配るのに使う */
+  event_id?: string;
+};
 
 export function checkI1(o: AverageOutcome): InvariantViolation[] {
   const left = add(o.opening.cost, o.acquired.cost);
@@ -50,15 +55,35 @@ export function checkI3(entries: readonly LedgerEntry[]): InvariantViolation[] {
     const c = fromDecimalString(slot.cost);
     const p = fromDecimalString(slot.proceeds);
     if (c === null || p === null || !eq(c, p)) {
-      out.push({ id: "I3", detail: `${eventId}: 支払側 proceeds と受取側 cost が一致しません` });
+      out.push({
+        id: "I3",
+        detail: `${eventId}: 支払側 proceeds と受取側 cost が一致しません`,
+        event_id: eventId,
+      });
     }
   }
   return out;
 }
 
-export function checkInvariants(
-  outcome: AverageOutcome,
+/**
+ * 銘柄単位で完結する不変条件（I1・I2）だけを見る。
+ * **I3 はここに含めない** — 交換取引は支払側と受取側が別通貨なので、通貨で分割した
+ * 仕訳には片方しか入らず、ここで評価すると常に素通りする（false assurance になる）。
+ * I3 は全台帳に対して 1 回評価し、関与した通貨それぞれへ配る（run.ts）。
+ */
+export function checkInvariants(outcome: AverageOutcome): InvariantViolation[] {
+  return [...checkI1(outcome), ...checkI2(outcome)];
+}
+
+/** 交換取引（同一 event_id の ACQUIRE / DISPOSE）に関与した通貨の集合。 */
+export function currenciesByEvent(
   entries: readonly LedgerEntry[],
-): InvariantViolation[] {
-  return [...checkI1(outcome), ...checkI2(outcome), ...checkI3(entries)];
+): Map<string, ReadonlySet<string>> {
+  const out = new Map<string, Set<string>>();
+  for (const e of entries) {
+    const set = out.get(e.event_id) ?? new Set<string>();
+    set.add(e.currency);
+    out.set(e.event_id, set);
+  }
+  return out;
 }

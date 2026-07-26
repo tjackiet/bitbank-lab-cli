@@ -6,6 +6,9 @@ import type { Result } from "../../types.js";
 import { paginate } from "./paginate.js";
 import { type RawWithdrawal, RawWithdrawalHistory } from "./raw-transfer.js";
 
+// count の上限はエンドポイントごとに異なる可能性がある（約定履歴は 1000 と実測済み、
+// 入出庫は未確定）。サーバが上限へクランプしても paginate は「新規行ゼロ」で止まるので
+// 取りこぼさない — この値は 1 往復あたりの取得量の希望であって、停止判定には使わない。
 const PAGE_SIZE = 1000;
 export const MAX_PAGES_DEFAULT = 1000;
 
@@ -53,7 +56,6 @@ export async function fetchWithdrawals(
       keyOf: (w) => w.uuid,
       // 後方 end 走査: このページ最古の requested_at より前へ
       nextCursor: (rows) => String(Math.min(...rows.map((w) => w.requested_at))),
-      pageSize: PAGE_SIZE,
       maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
       initialCursor: args.end,
     });

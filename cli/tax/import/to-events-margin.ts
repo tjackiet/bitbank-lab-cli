@@ -5,7 +5,7 @@
 // fee / interest は分解明細のために併記するだけで、損益から再減算してはいけない
 // （要求仕様 §3.1・§6。再減算は二重計上）。
 
-import { mul } from "../ratio.js";
+import { isZero, mul } from "../ratio.js";
 import { fromDecimalString, toExactDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
 import type { EventFlag } from "../schema/primitives.js";
@@ -28,12 +28,18 @@ export function marginEvent(t: RawTrade, role: MarginRole | undefined): TaxEvent
 
   const amount = fromDecimalString(t.amount);
   const price = fromDecimalString(t.price);
-  if (amount === null || price === null) return fail("amount / price が十進文字列として読めません");
+  const feeBase = fromDecimalString(t.fee_amount_base);
+  if (amount === null || price === null || feeBase === null) {
+    return fail("amount / price / fee_amount_base が十進文字列として読めません");
+  }
   const notional = toExactDecimalString(mul(amount, price));
   if (notional === null) return fail("約定代金を厳密な十進で表現できません");
 
   const jpyQuote = isJpyQuote(pair.quote);
   const flags: EventFlag[] = ["FEE_API_ROUNDED"];
+  // `fee_amount_base` は現物 / 信用の共通フィールド。現物側（to-events-spot.ts）と
+  // 同じガードを置く — 片方だけ見ていると信用で base 建て手数料が出たとき無言で落ちる
+  if (!isZero(feeBase)) flags.push("UNOBSERVED_SHAPE");
   if (!jpyQuote) flags.push("NON_JPY_QUOTE", "NO_RATE");
 
   const event = baseEvent({

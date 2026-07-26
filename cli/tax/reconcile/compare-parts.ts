@@ -3,16 +3,13 @@ import type { RawAsset } from "../import/fetch-assets.js";
 import { canonicalAsset } from "../import/symbol-alias.js";
 import { add, isNegative, type Ratio, sub, ZERO } from "../ratio.js";
 import { fromDecimalString, toExactDecimalString } from "../ratio-decimal.js";
+import type { Diagnosis as ReportDiagnosis } from "../schema/report.js";
 
 /** 既定のダスト閾値 1e-4（付録E.4）。資産別に上書きできる。 */
 export const DUST_THRESHOLD = "0.0001";
 
-export type Diagnosis =
-  | "MATCH"
-  | "MISSING_ACQUISITION"
-  | "MISSING_DISPOSAL"
-  | "UNRECONCILABLE"
-  | "UNREADABLE";
+// 診断の値は schema/report.ts の Zod enum が単一ソース（出力バリデーションと型がずれないように）
+export type Diagnosis = ReportDiagnosis;
 
 export type AssetComparison = {
   currency: string;

@@ -35,7 +35,7 @@ tax は読み取り専用（private GET のみ）なので `--execute` / `--conf
 3. Result パターンで返す（throw 禁止）
 4. `--format=json|table|csv` オプションをサポート（デフォルト json）
 5. `cli/commands/<category>/index.ts` にエクスポートを追加しない（自動検出）
-6. ハンドラ登録: public/private は `cli/commands/registry.ts` の `COMMANDS`、trade は `TRADE_COMMANDS`、paper は `PAPER_COMMANDS`、profile は `PROFILE_COMMANDS` に入る
+6. ハンドラ登録: public/private は `cli/commands/registry.ts` の `COMMANDS`、trade は `TRADE_COMMANDS`、paper は `PAPER_COMMANDS`、profile は `PROFILE_COMMANDS`、tax は `TAX_COMMANDS` に入る
 7. `cli/__tests__/` にテストを追加
 8. 1 ファイル 100 行を目安。超えたら分割を検討。分割が不自然な場合は
    ファイル冒頭にコメントで理由を明記すれば許容（CLAUDE.md 参照）
