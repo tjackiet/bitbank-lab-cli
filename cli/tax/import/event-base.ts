@@ -14,6 +14,8 @@ export const ID_PREFIX = {
   margin: "margin",
   deposit: "dep",
   withdrawal: "wd",
+  /** 販売所は注文ID が単位（取引所約定の trade_id とは別の ID 空間） */
+  brokerage: "brk",
 } as const;
 
 /** 取り込めなかった行。**黙って捨てない**（NFR 堅牢性: 未知は警告して保留リストへ）。 */

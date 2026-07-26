@@ -3,6 +3,7 @@
 import { EXIT } from "../../exit-codes.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import { CARRYOVER_ZERO, loadCarryover } from "../../tax/carryover.js";
+import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import { runPnlReport } from "../../tax/report/run.js";
 import { DEFAULT_METHOD, Method } from "../../tax/schema/method.js";
 import type { TaxReport } from "../../tax/schema/report.js";
@@ -21,6 +22,7 @@ export type TaxPnlArgs = {
   /** (a) アテステーション。付けないと参考損益は出ない */
   attest?: boolean;
   maxPages?: string;
+  brokerageCsv?: string;
 };
 
 export async function taxPnl(
@@ -48,6 +50,9 @@ export async function taxPnl(
     args.carryover !== undefined && !allZero ? loadCarryover(args.carryover) : undefined;
   if (carryover !== undefined && !carryover.success) return carryover;
 
+  const brokerage = args.brokerageCsv === undefined ? undefined : readBrokerage(args.brokerageCsv);
+  if (brokerage !== undefined && !brokerage.success) return brokerage;
+
   const market = await resolveMarket(opts);
   if (!market.success) return market;
 
@@ -59,6 +64,7 @@ export async function taxPnl(
       opening: carryover?.success ? carryover.data : undefined,
       allZero,
       maxPages: mp.data,
+      brokerage: brokerage?.success === true ? brokerage.data.rows : undefined,
     },
     market.data,
     opts,

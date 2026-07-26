@@ -9,6 +9,10 @@ const strings = { type: "array", items: s };
 
 const maxPages = p("string", "Max pages per pair/asset (safety valve)");
 const year = p("string", "Tax year in JST (e.g. 2026)");
+const brokerageCsv = p(
+  "string",
+  "Path to the bitbank brokerage (dealer) trade history CSV \u2014 not available via API",
+);
 
 const summaryProps = {
   acquired_qty: s,
@@ -45,7 +49,7 @@ const reconciliationRow = {
 export const taxSchemas: Record<string, SchemaDef> = {
   events: {
     category: "tax",
-    params: { year, "max-pages": maxPages },
+    params: { year, "brokerage-csv": brokerageCsv, "max-pages": maxPages },
     output: {
       type: "object",
       properties: {
@@ -64,7 +68,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
   },
   reconcile: {
     category: "tax",
-    params: { "max-pages": maxPages },
+    params: { "brokerage-csv": brokerageCsv, "max-pages": maxPages },
     output: {
       type: "object",
       properties: {
@@ -74,6 +78,55 @@ export const taxSchemas: Record<string, SchemaDef> = {
         problems: strings,
         warnings: strings,
         counts: { type: "object", properties: { events: n, pending: n } },
+      },
+    },
+  },
+  "verify-report": {
+    category: "tax",
+    params: {
+      year,
+      csv: p("string", "Path to the bitbank annual trade report CSV (spot)"),
+      "margin-csv": p("string", "Path to the bitbank annual trade report CSV (margin)"),
+      "brokerage-csv": brokerageCsv,
+      "max-pages": maxPages,
+    },
+    output: {
+      type: "object",
+      properties: {
+        year_jst: n,
+        source: {
+          type: "object",
+          properties: { csv_rows: n, margin_csv_rows: n, events: n, pending: n, truncated: b },
+        },
+        rows: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              report_kind: s,
+              currency: s,
+              field: s,
+              report: s,
+              api: s,
+              diff: s,
+              tolerance: s,
+              within_tolerance: b,
+              diagnosis: s,
+              hint: s,
+            },
+          },
+        },
+        report_checks: {
+          type: "array",
+          items: { type: "object", properties: { id: s, target: s, ok: b, detail: s } },
+        },
+        unsupported: {
+          type: "array",
+          items: { type: "object", properties: { currency: s, field: s, value: s } },
+        },
+        unknown_columns: strings,
+        warnings: strings,
+        disclaimers: strings,
       },
     },
   },
@@ -90,6 +143,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
         "boolean",
         "Attest that no holdings/trades of the same asset exist outside this bitbank account",
       ),
+      "brokerage-csv": brokerageCsv,
       "max-pages": maxPages,
     },
     output: {

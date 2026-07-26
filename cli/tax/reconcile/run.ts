@@ -4,6 +4,7 @@ import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
 import { type Collected, collectEvents } from "../import/collect.js";
 import { fetchAssets } from "../import/fetch-assets.js";
+import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import { type AssetComparison, compareBalances } from "./compare.js";
 import { type Rebuilt, rebuildBalances } from "./rebuild.js";
 
@@ -17,11 +18,20 @@ export type ReconcileOutcome = {
 
 export async function runReconcile(
   market: Market,
-  args: { maxPages?: number; dustByCurrency?: Record<string, string> } = {},
+  args: {
+    maxPages?: number;
+    dustByCurrency?: Record<string, string>;
+    brokerage?: readonly BrokerageRow[];
+  } = {},
   opts?: PrivateHttpOptions,
 ): Promise<Result<ReconcileOutcome>> {
   const collected = await collectEvents(
-    { pairs: market.pairs, assets: market.assets, maxPages: args.maxPages },
+    {
+      pairs: market.pairs,
+      assets: market.assets,
+      maxPages: args.maxPages,
+      brokerage: args.brokerage,
+    },
     opts,
   );
   if (!collected.success) return collected;

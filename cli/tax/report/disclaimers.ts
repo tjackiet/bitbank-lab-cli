@@ -49,6 +49,15 @@ export const ROUNDING_NOTE =
   "（円未満切捨て）。各項目を独立に丸めるため、表示上の「収入金額計 − 必要経費計」と" +
   "「参考損益」が 1 円ずれることがあります。国税庁計算書互換モードは別途提供予定です。";
 
+/** 年間取引報告書との突合用。差の有無は「取込の網羅性」の話で、税務上の正しさではない。 */
+export const VERIFY_NOTE =
+  "本突合は取込データの網羅性を確認するもので、税務上の正しさを保証するものでは" +
+  "ありません。差がゼロであっても、bitbank 口座外の取引・保有は反映されていません。";
+
+export function verifyDisclaimers(): string[] {
+  return [POSITIONING, VERIFY_NOTE];
+}
+
 /** レポート末尾に常時載せる免責の並び。 */
 export function disclaimers(): string[] {
   return [
