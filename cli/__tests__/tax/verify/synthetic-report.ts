@@ -28,13 +28,24 @@ export const META = "氏名:,テスト 太郎,,年間取引報告書,,発行者:
 export type Row = Partial<Record<(typeof HEADER)[number], string>> & { 通貨名: string };
 
 /**
+ * 見出しに付く単位注記。**実物にあるのは「（円）」だけ**なので、そこだけを外す。
+ * 任意の末尾括弧を落とすと、将来 `支払手数料（税抜）` のような列が増えたとき
+ * `支払手数料` の値が黙って入り、**誤ったフィクスチャを生成する**。
+ *
+ * production 側（`parse-report.ts` の `stripUnitNote`）は任意の括弧を落とすが、
+ * あちらは「落とした形が**宣言済みの列名と完全一致するときだけ**採用する」ガードが
+ * あるので広くて安全。ここにはそのガードが無いので、狭くする。
+ */
+const YEN_NOTE = /(?:（円）|\(円\))$/;
+
+/**
  * 行リテラルのキーは**単位注記を外した論理名**にする。見出しに `（円）` が付く様式
  * （信用・実機確認 #10）でも `{ 年中信用取引損益: "100" }` と書けるようにするため。
  * 見出し文字列を直接キーにすると、様式を実物へ寄せた瞬間に全テストの行リテラルが
  * 巻き添えになる。
  */
 function line(row: Record<string, string | undefined>, header: readonly string[]): string {
-  return header.map((h) => row[h.replace(/[（(][^（）()]*[）)]$/, "")] ?? "0").join(",");
+  return header.map((h) => row[h.replace(YEN_NOTE, "")] ?? "0").join(",");
 }
 
 /** ヘッダ行の前にメタ行を置いた CSV を組み立てる。現物は CRLF。 */
@@ -55,18 +66,15 @@ export const MARGIN_HEADER = [
   "年末保有中売建玉",
   "年中信用取引損益（円）",
   "支払手数料（円）",
-];
-
-/** 行リテラルのキー（見出しから単位注記を外したもの）。 */
-const MARGIN_FIELDS = [
-  "通貨名",
-  "年末保有中買建玉",
-  "年末保有中売建玉",
-  "年中信用取引損益",
-  "支払手数料",
 ] as const;
 
-export type MarginRow = Partial<Record<(typeof MARGIN_FIELDS)[number], string>> & {
+/**
+ * 行リテラルのキーは見出しから**型レベルで導出する**。論理名を別に列挙すると
+ * 見出しとの二重管理になり、様式を直したとき片方だけ古くなる。
+ */
+type StripYen<S extends string> = S extends `${infer Base}（円）` ? Base : S;
+
+export type MarginRow = Partial<Record<StripYen<(typeof MARGIN_HEADER)[number]>, string>> & {
   通貨名: string;
 };
 
