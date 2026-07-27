@@ -76,12 +76,15 @@ const match: AssetComparison = {
 };
 
 function build(attested: boolean, over: Partial<Collected> = {}) {
+  const full: Collected = { ...collected, ...over };
   return buildReport({
     year: 2026,
     method: "total-average",
     taxation: { mode: "comprehensive", certainty: "settled", basis: "2026 年分は総合課税" },
     attested,
-    collected: { ...collected, ...over },
+    // 全履歴（collected）と当年（yearEvents）は別スコープで渡す
+    collected: full,
+    yearEvents: full.events.filter((e) => e.year_jst === 2026),
     ledger,
     results: runEngine({
       entries: ledger.entries,
@@ -118,9 +121,53 @@ describe("buildReport", () => {
   // 打ち切りは残高突合が MATCH でも通してはいけない（欠けた買いと売りが偶然
   // ネットゼロなら突合は成立してしまう）
   it("履歴が打ち切られていれば reference 欄を出さない", () => {
-    const c = build(true, { truncated: true }).currencies[0];
-    expect(c.reference).toBeUndefined();
-    expect(c.blocked_by.join()).toContain("打ち切られています");
+    const r = build(true, { truncated: true });
+    expect(r.currencies[0].reference).toBeUndefined();
+    expect(r.currencies[0].blocked_by.join()).toContain("打ち切られています");
+    // レポート本体だけを読む経路（LLM / 保存した JSON）にも打ち切りを残す
+    expect(r.warnings.join()).toContain("打ち切られています");
+  });
+
+  // source のフィールドはスコープが混ざっていた（当年の件数と全履歴の件数が同じ
+  // オブジェクトに並び、差を「取込漏れ」と誤読させた）。名前でスコープが分かること
+  describe("source のスコープ", () => {
+    // 収集は全履歴（残高突合のため）。前年イベントと、年に紐づかない取込結果を混ぜる
+    const priorYear: TaxEvent = {
+      ...event,
+      event_id: "e0",
+      source_ref: "0",
+      year_jst: 2025,
+      kind: "DEPOSIT",
+      market_type: undefined,
+      costbasis_provenance: undefined,
+      flags: ["UNRESOLVED_TRANSFER"],
+    };
+    const mixed = build(true, {
+      events: [priorYear, event],
+      pending: [{ source_ref: "9", reason: "未知の形状" }],
+      counts: { trades: 2, deposits: 1, withdrawals: 0, deduped: 3 },
+    });
+
+    it("source.year は当年（year_jst）だけを数える", () => {
+      expect(mixed.source.year.events).toBe(1);
+      expect(mixed.source.year.deferred).toBe(0);
+    });
+
+    it("source.full_history は年で絞る前の全履歴を数える", () => {
+      expect(mixed.source.full_history.pending).toBe(1);
+      expect(mixed.source.full_history.deduped).toBe(3);
+      expect(mixed.source.full_history.truncated).toBe(false);
+    });
+
+    // ガードに渡すのは当年イベントだけ。前年の未解決入庫で当年をブロックしない
+    it("前年イベントのブロックフラグは当年の参考損益を止めない", () => {
+      expect(mixed.currencies[0].reference).toBeDefined();
+      expect(mixed.currencies[0].blocked_by).toEqual([]);
+    });
+
+    it("保留行そのものは全履歴のまま出す（件数と本体を食い違わせない）", () => {
+      expect(mixed.pending).toHaveLength(mixed.source.full_history.pending);
+    });
   });
 
   it("適用した【方針】ID をレポートに露出する", () => {

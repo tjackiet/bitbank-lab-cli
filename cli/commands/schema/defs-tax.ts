@@ -162,9 +162,13 @@ export const taxSchemas: Record<string, SchemaDef> = {
         method: s,
         taxation: { type: "object", properties: { mode: s, certainty: s, basis: s } },
         attested: b,
+        // スコープが名前で分かるように当年 / 全履歴で分ける（schema/report.ts と対）
         source: {
           type: "object",
-          properties: { events: n, pending: n, deferred: n, deduped: n, truncated: b },
+          properties: {
+            year: { type: "object", properties: { events: n, deferred: n } },
+            full_history: { type: "object", properties: { pending: n, deduped: n, truncated: b } },
+          },
         },
         currencies: {
           type: "array",

@@ -84,12 +84,23 @@ export const TaxReport = z.object({
   /** 適用した課税方式。数値の意味（損益通算の範囲・繰越・税率）を固定するため常に出す */
   taxation: Taxation,
   attested: z.boolean(),
+  /**
+   * 取込サマリー。**フィールドごとに集計スコープが違う**ので構造で分ける。
+   * 収集は全履歴で行い（残高突合＝ガード(d) が全履歴でしか成立しない）、仕訳化は
+   * 当年分だけに絞るため、件数は必ず食い違う。混ぜると差を「取込漏れ」と誤読させる。
+   */
   source: z.object({
-    events: z.number().int(),
-    pending: z.number().int(),
-    deferred: z.number().int(),
-    deduped: z.number().int(),
-    truncated: z.boolean(),
+    /** 当年（`year_jst`）に絞ったあとの件数 */
+    year: z.object({
+      events: z.number().int(),
+      deferred: z.number().int(),
+    }),
+    /** 年で絞る前、全履歴の取込で観測した件数 */
+    full_history: z.object({
+      pending: z.number().int(),
+      deduped: z.number().int(),
+      truncated: z.boolean(),
+    }),
   }),
   currencies: z.array(CurrencyReport),
   reconciliation: z.array(ReconciliationRow),

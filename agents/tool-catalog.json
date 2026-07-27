@@ -2242,20 +2242,30 @@
           "source": {
             "type": "object",
             "properties": {
-              "events": {
-                "type": "number"
+              "year": {
+                "type": "object",
+                "properties": {
+                  "events": {
+                    "type": "number"
+                  },
+                  "deferred": {
+                    "type": "number"
+                  }
+                }
               },
-              "pending": {
-                "type": "number"
-              },
-              "deferred": {
-                "type": "number"
-              },
-              "deduped": {
-                "type": "number"
-              },
-              "truncated": {
-                "type": "boolean"
+              "full_history": {
+                "type": "object",
+                "properties": {
+                  "pending": {
+                    "type": "number"
+                  },
+                  "deduped": {
+                    "type": "number"
+                  },
+                  "truncated": {
+                    "type": "boolean"
+                  }
+                }
               }
             }
           },

@@ -55,7 +55,8 @@ describe("runPnlReport の打ち切り時の振る舞い", () => {
     const r = await run(5);
     expect(r.success).toBe(true);
     if (!r.success) return;
-    expect(r.data.source.truncated).toBe(false);
+    expect(r.data.source.full_history.truncated).toBe(false);
+    expect(r.data.source.year.events).toBe(1);
     expect(r.data.currencies[0].currency).toBe("btc");
     expect(r.data.currencies[0].reference).toBeDefined();
     expect(r.data.warnings.join()).not.toContain("打ち切");
@@ -66,7 +67,7 @@ describe("runPnlReport の打ち切り時の振る舞い", () => {
     expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.partial).toBe(true);
-    expect(r.data.source.truncated).toBe(true);
+    expect(r.data.source.full_history.truncated).toBe(true);
     // 突合は MATCH のままでもブロックする（欠けたイベントが打ち消し合う場合の穴）
     expect(r.data.reconciliation.find((x) => x.currency === "btc")?.diagnosis).toBe("MATCH");
     expect(r.data.currencies[0].reference).toBeUndefined();
