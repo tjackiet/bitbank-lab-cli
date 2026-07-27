@@ -19,6 +19,13 @@ export type CollectArgs = {
   brokerage?: readonly BrokerageRow[];
 };
 
+/**
+ * 打ち切りをレポート本体（`warnings`）に残す文言。partial envelope と stderr 警告は
+ * レポートだけを読む経路からは見えないので、pnl / verify-report で同じ一言を出す。
+ */
+export const TRUNCATED_WARNING =
+  "履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）";
+
 export type Collected = NormalizeResult & {
   counts: { trades: number; deposits: number; withdrawals: number; deduped: number };
   /** ページ上限で打ち切られた = 履歴が欠けている。集計を信用してはいけない */

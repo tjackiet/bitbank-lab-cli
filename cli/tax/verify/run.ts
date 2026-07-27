@@ -9,7 +9,7 @@
 // 認証・レート制限だけ消費して何も得られない。
 import type { PrivateHttpOptions } from "../../http-private.js";
 import type { Result } from "../../types.js";
-import { collectEvents } from "../import/collect.js";
+import { collectEvents, TRUNCATED_WARNING } from "../import/collect.js";
 import type { ParsedAnnualReport } from "../import-csv/annual-report.js";
 import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import type { ParsedMarginReport } from "../import-csv/margin-report.js";
@@ -89,7 +89,7 @@ export async function runVerifyReport(
   }
   if (collected.data.truncated) {
     // 打ち切られていれば API 側が一様に少なくなる。その差を販売所ぶんと読んではいけない
-    warnings.push("履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）");
+    warnings.push(TRUNCATED_WARNING);
   }
 
   const data: VerifyReport = {

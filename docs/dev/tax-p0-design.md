@@ -205,7 +205,9 @@ cli/tax/
     invariants.ts     # I1〜I4 の機械検証
     nta-compat.ts     # NTA_SHEET_2025_12（P1。P0 では型と分岐点だけ用意）
   guard/
-    reference-pnl.ts  # ガード(a)〜(d) 判定 → 表示可否とブロック理由
+    reference-pnl.ts  # ガード(a)〜(d) + 履歴打ち切り判定 → 表示可否とブロック理由
+                      # 打ち切りは (a)〜(d) の外。欠けたイベントが偶然ネットゼロだと
+                      # 突合(d) が MATCH のまま通るので、独立条件として全銘柄を止める
   report/
     build.ts          # 取引集計 + （ガード成立時のみ）参考損益
     disclaimers.ts    # 免責文言（v2 §1.3/§9/§10/§12 から転記。文言は仕様書が単一ソース）

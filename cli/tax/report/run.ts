@@ -6,6 +6,7 @@ import type { Result } from "../../types.js";
 import { runEngine } from "../engine/run.js";
 import { ZERO_BOOK } from "../engine/total-average.js";
 import type { OpeningBalances } from "../engine/types.js";
+import { TRUNCATED_WARNING } from "../import/collect.js";
 import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import { ledgerFromEvents } from "../ledger/from-events.js";
 import { type Market, runReconcile } from "../reconcile/run.js";
@@ -56,13 +57,19 @@ export async function runPnlReport(
     : (args.opening ?? {});
   const results = runEngine({ entries: ledger.entries, method: args.method, opening });
 
+  // 打ち切りは partial envelope と stderr にしか出ないと、レポート本体だけを読む
+  // 経路（LLM / --format=json の保存物）から落ちる。verify-report と同じ一言を足す
+  const warnings = collected.truncated
+    ? [...collected.warnings, TRUNCATED_WARNING]
+    : collected.warnings;
+
   const report = buildReport({
     year: args.year,
     method: args.method,
     taxation: args.taxation,
     attested: args.attested,
     // ガードは当年のイベントだけを見る（過年度の未解決入庫まで当年をブロックしない）
-    collected: { ...collected, events: yearEvents },
+    collected: { ...collected, events: yearEvents, warnings },
     ledger,
     results,
     reconciliation: comparisons,
