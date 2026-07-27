@@ -117,10 +117,13 @@ describe("信用約定の正規化", () => {
 describe("入出庫の正規化", () => {
   const [confirmed, found, jpy] = depositHistoryFixture.deposits as RawDeposit[];
 
-  it("DONE 以外の入庫は残高に載せず保留リストへ", () => {
+  it("DONE 以外の入庫は残高に載せず、種別と「異常ではない」ことを添えて保留へ", () => {
+    // 実口座で CANCELED を観測（未確定事項#8）。正常な除外なので、異常と読まれる文言に
+    // しない。入庫か出庫かも書かないと利用者が追えない
     const r = run([], [found]);
     expect(r.events).toEqual([]);
-    expect(r.pending[0].reason).toContain("FOUND");
+    expect(r.pending[0].reason).toContain("入庫 status=FOUND");
+    expect(r.pending[0].reason).toContain("異常ではありません");
   });
 
   it("暗号資産の入庫は UNRESOLVED_TRANSFER でブロック対象になる", () => {
