@@ -1,3 +1,7 @@
+// 100行超: tax コマンドの出力契約を 1 箇所に集約している（reconcile / pnl）。
+// 契約どうしは部品を共有する（ReconciliationRow / PendingRow）ので、分けると
+// どちらが単一ソースか分からなくなる。
+//
 // レポート出力型（v2 §1.2 の「ガード成立時のみ参考損益」を型で表す）。
 // `reference` が optional なのが本質: **ガードが通らない銘柄では欄そのものが存在しない**。
 // 0 や null を入れると「損益ゼロ」と読めてしまうため、欄を出さないことで区別する。
@@ -50,9 +54,27 @@ export const ReconciliationRow = z.object({
   theoretical: decStr,
   actual: decStr,
   residual: decStr,
+  /** この資産に適用したダスト閾値。JPY は円未満を無視するので通貨で異なる */
+  dust: decStr,
   within_dust: z.boolean(),
   diagnosis: Diagnosis,
   hint: z.string(),
+});
+
+/** 取り込めなかった行（NFR 堅牢性: 未知は警告して保留リストへ）。 */
+export const PendingRow = z.object({ source_ref: z.string(), reason: z.string() });
+
+/** `bitbank tax reconcile` の出力契約。 */
+export const ReconciliationReport = z.object({
+  /** 全体既定。実際に適用した値は行ごとの `dust`（JPY は円未満を無視する） */
+  dust_threshold: decStr,
+  rows: z.array(ReconciliationRow),
+  /** 突合不能（非 JPY クォートを含む）資産 */
+  unreconcilable: z.array(z.string()),
+  problems: z.array(z.string()),
+  warnings: z.array(z.string()),
+  pending: z.array(PendingRow),
+  counts: z.object({ events: z.number().int(), pending: z.number().int() }),
 });
 
 export const TaxReport = z.object({
@@ -68,8 +90,7 @@ export const TaxReport = z.object({
   }),
   currencies: z.array(CurrencyReport),
   reconciliation: z.array(ReconciliationRow),
-  /** 取り込めなかった行（NFR 堅牢性: 未知は警告して保留リストへ） */
-  pending: z.array(z.object({ source_ref: z.string(), reason: z.string() })),
+  pending: z.array(PendingRow),
   warnings: z.array(z.string()),
   disclaimers: z.array(z.string()),
 });
@@ -79,4 +100,6 @@ export type CurrencySummary = z.infer<typeof CurrencySummary>;
 export type ReferencePnl = z.infer<typeof ReferencePnl>;
 export type CurrencyReport = z.infer<typeof CurrencyReport>;
 export type ReconciliationRow = z.infer<typeof ReconciliationRow>;
+export type PendingRow = z.infer<typeof PendingRow>;
+export type ReconciliationReport = z.infer<typeof ReconciliationReport>;
 export type TaxReport = z.infer<typeof TaxReport>;

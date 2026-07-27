@@ -8,6 +8,18 @@ import type { Diagnosis as ReportDiagnosis } from "../schema/report.js";
 /** 既定のダスト閾値 1e-4（付録E.4）。資産別に上書きできる。 */
 export const DUST_THRESHOLD = "0.0001";
 
+/**
+ * 法定通貨は桁の意味が暗号資産と違う。**JPY の 1e-4 は「100 分の 1 銭」**で、
+ * 約定代金の丸め由来の残差を毎回「未取込の処分」と誤診する（実口座で確認）。
+ * 取込漏れは円単位で現れるので、円未満に材料性はない。
+ */
+const DUST_BY_CURRENCY: Record<string, string> = { jpy: "1" };
+
+/** 資産に適用するダスト閾値。呼び出し側の上書き > 通貨別既定 > 全体既定。 */
+export function dustFor(currency: string, override: Record<string, string> = {}): string {
+  return override[currency] ?? DUST_BY_CURRENCY[currency] ?? DUST_THRESHOLD;
+}
+
 // 診断の値は schema/report.ts の Zod enum が単一ソース（出力バリデーションと型がずれないように）
 export type Diagnosis = ReportDiagnosis;
 
@@ -17,6 +29,8 @@ export type AssetComparison = {
   actual: string;
   /** 実残高 − 理論残高 */
   residual: string;
+  /** この資産に適用したダスト閾値（通貨で違うので行に載せる） */
+  dust: string;
   withinDust: boolean;
   diagnosis: Diagnosis;
   hint: string;
@@ -63,6 +77,7 @@ export function row(
   residual: Ratio,
   withinDust: boolean,
   diagnosis: Diagnosis,
+  dust: string = DUST_THRESHOLD,
 ): AssetComparison {
   // 残高は有限小数の和なので厳密な十進表現になる（丸めない）
   const dec = (r: Ratio): string => toExactDecimalString(r) ?? "";
@@ -71,6 +86,7 @@ export function row(
     theoretical: dec(theo),
     actual: dec(act),
     residual: dec(residual),
+    dust,
     withinDust,
     diagnosis,
     hint: HINTS[diagnosis],

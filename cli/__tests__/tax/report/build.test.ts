@@ -69,6 +69,7 @@ const match: AssetComparison = {
   theoretical: "3",
   actual: "3",
   residual: "0",
+  dust: "0.0001",
   withinDust: true,
   diagnosis: "MATCH",
   hint: "ダスト閾値内で一致",

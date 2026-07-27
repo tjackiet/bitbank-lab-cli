@@ -5,7 +5,7 @@
 // 失敗にはせず残差の量と符号を返すことを固定する。
 import { describe, expect, it } from "vitest";
 import type { RawAsset } from "../../../tax/import/fetch-assets.js";
-import { toExactDecimalString } from "../../../tax/ratio-decimal.js";
+import { fromDecimalString, toExactDecimalString } from "../../../tax/ratio-decimal.js";
 import { compareBalances } from "../../../tax/reconcile/compare.js";
 import { rebuildBalances } from "../../../tax/reconcile/rebuild.js";
 import type { TaxEvent } from "../../../tax/schema/event.js";
@@ -156,5 +156,50 @@ describe("compareBalances", () => {
   it("資産別にダスト閾値を上書きできる", () => {
     const rows = compareBalances(rebuilt, [asset("btc", "0.6")], { btc: "0.2" });
     expect(rows.find((r) => r.currency === "btc")?.diagnosis).toBe("MATCH");
+  });
+});
+
+describe("通貨別のダスト閾値", () => {
+  // JPY の 1e-4 は「100 分の 1 銭」。約定代金の丸め由来の残差を毎回「未取込の処分」と
+  // 誤診していた（実口座で確認）。取込漏れは円単位で現れるので円未満に材料性はない
+  const compare = (currency: string, theo: string, actual: string) =>
+    compareBalances(
+      {
+        balances: new Map([[currency, fromDecimalString(theo) as never]]),
+        unreconcilable: new Set<string>(),
+        problems: [],
+      },
+      [{ asset: currency, onhand_amount: actual, withdrawing_amount: "0" } as never],
+    )[0];
+
+  it("JPY は円未満を無視する（暗号資産の閾値を流用しない）", () => {
+    const r = compare("jpy", "789.34844457975", "789.3463");
+    expect(r.dust).toBe("1");
+    expect(r).toMatchObject({ withinDust: true, diagnosis: "MATCH" });
+  });
+
+  it("JPY でも円単位の差は検出する", () => {
+    expect(compare("jpy", "1000", "998")).toMatchObject({
+      withinDust: false,
+      diagnosis: "MISSING_DISPOSAL",
+    });
+  });
+
+  it("突合できない行にも同じ閾値を返す（出力の dust が実際の基準と食い違わない）", () => {
+    const r = compareBalances(
+      {
+        balances: new Map([["jpy", fromDecimalString("100") as never]]),
+        unreconcilable: new Set(["jpy"]),
+        problems: [],
+      },
+      [{ asset: "jpy", onhand_amount: "100", withdrawing_amount: "0" } as never],
+    )[0];
+    expect(r).toMatchObject({ diagnosis: "UNRECONCILABLE", dust: "1" });
+  });
+
+  it("暗号資産は 1e-4 のまま", () => {
+    const r = compare("btc", "1.0002", "1");
+    expect(r.dust).toBe("0.0001");
+    expect(r.withinDust).toBe(false);
   });
 });

@@ -7,7 +7,7 @@ import type { PrivateHttpOptions } from "../../http-private.js";
 import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import { DUST_THRESHOLD } from "../../tax/reconcile/compare.js";
 import { runReconcile } from "../../tax/reconcile/run.js";
-import type { ReconciliationRow } from "../../tax/schema/report.js";
+import type { ReconciliationReport } from "../../tax/schema/report.js";
 import type { Result } from "../../types.js";
 import { parseMaxPages } from "../private/input-schemas.js";
 import { resolveMarket } from "./market.js";
@@ -16,15 +16,8 @@ const MAX_PAGES_DEFAULT = 1000;
 
 export type TaxReconcileArgs = { maxPages?: string; brokerageCsv?: string };
 
-export type TaxReconcileData = {
-  dust_threshold: string;
-  rows: ReconciliationRow[];
-  /** 突合不能（非 JPY クォートを含む）資産 */
-  unreconcilable: string[];
-  problems: string[];
-  warnings: string[];
-  counts: { events: number; pending: number };
-};
+/** 出力契約は Zod が単一ソース（pnl / verify-report と同じ扱い）。 */
+export type TaxReconcileData = ReconciliationReport;
 
 export async function taxReconcile(
   args: TaxReconcileArgs,
@@ -53,6 +46,7 @@ export async function taxReconcile(
       theoretical: c.theoretical,
       actual: c.actual,
       residual: c.residual,
+      dust: c.dust,
       within_dust: c.withinDust,
       diagnosis: c.diagnosis,
       hint: c.hint,
@@ -60,6 +54,7 @@ export async function taxReconcile(
     unreconcilable: [...r.data.rebuilt.unreconcilable].sort(),
     problems: r.data.rebuilt.problems,
     warnings: r.data.collected.warnings,
+    pending: r.data.collected.pending,
     counts: { events: r.data.collected.events.length, pending: r.data.collected.pending.length },
   };
   return r.partial ? { success: true, data, partial: true, meta: r.meta } : { success: true, data };
