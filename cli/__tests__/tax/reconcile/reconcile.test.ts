@@ -185,6 +185,18 @@ describe("通貨別のダスト閾値", () => {
     });
   });
 
+  it("突合できない行にも同じ閾値を返す（出力の dust が実際の基準と食い違わない）", () => {
+    const r = compareBalances(
+      {
+        balances: new Map([["jpy", fromDecimalString("100") as never]]),
+        unreconcilable: new Set(["jpy"]),
+        problems: [],
+      },
+      [{ asset: "jpy", onhand_amount: "100", withdrawing_amount: "0" } as never],
+    )[0];
+    expect(r).toMatchObject({ diagnosis: "UNRECONCILABLE", dust: "1" });
+  });
+
   it("暗号資産は 1e-4 のまま", () => {
     const r = compare("btc", "1.0002", "1");
     expect(r.dust).toBe("0.0001");

@@ -29,20 +29,22 @@ export function compareBalances(
   for (const currency of [...currencies].sort()) {
     const theo = rebuilt.balances.get(currency) ?? ZERO;
     const act = actual.get(currency);
+    // 突合できない分岐でも「その資産に適用される閾値」は同じ。既定値を返すと
+    // 出力の dust が実際の基準と食い違う（JPY だけ 0.0001 と表示される）
+    const dustStr = dustFor(currency, dustByCurrency);
     if (act === null) {
-      out.push(row(currency, theo, ZERO, ZERO, false, "UNREADABLE"));
+      out.push(row(currency, theo, ZERO, ZERO, false, "UNREADABLE", dustStr));
       continue;
     }
     const actualValue = act ?? ZERO;
     if (rebuilt.unreconcilable.has(currency)) {
-      out.push(row(currency, theo, actualValue, ZERO, false, "UNRECONCILABLE"));
+      out.push(row(currency, theo, actualValue, ZERO, false, "UNRECONCILABLE", dustStr));
       continue;
     }
     // 活動も残高も無い資産は行にしない（pairs マスタ全巡回でゼロ行が大量に出るため）
     if (isZero(theo) && isZero(actualValue)) continue;
 
     const residual = sub(actualValue, theo);
-    const dustStr = dustFor(currency, dustByCurrency);
     const dust = fromDecimalString(dustStr) ?? ZERO;
     const withinDust = cmp(abs(residual), dust) <= 0;
     const diagnosis: Diagnosis = withinDust
