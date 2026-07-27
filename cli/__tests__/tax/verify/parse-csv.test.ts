@@ -83,30 +83,44 @@ describe("parseAnnualReport", () => {
 });
 
 // 信用の社内資料は「出力項目」リストが注記なし・「CSVラベル名」表が `（円）` 付きで
-// **食い違っていた**。注記付きを弾くと、正しいファイルに「様式が違う」と出る
-// （しかも目印の列なのでファイル全体が読めない）。
+// **食い違っていた**。実機確認 #10 で**実物は注記付き**と判明している（`MARGIN_HEADER`）。
+// 注記付きを弾くと、正しいファイルに「様式が違う」と出る（しかも目印の列なので
+// ファイル全体が読めない）。資料の片方だけに賭けず、両方の様式を固定する。
 describe("見出しの単位注記", () => {
-  const withYen = MARGIN_HEADER.map((h) =>
-    h === "年中信用取引損益" || h === "支払手数料" ? `${h}（円）` : h,
-  );
+  /** 要件定義側の様式（注記なし）。実物ではないが、資料が食い違うので読めること */
+  const plain = MARGIN_HEADER.map((h) => h.replace("（円）", ""));
 
-  it("「（円）」付きの見出しでも読める", () => {
-    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], withYen)));
+  it("実物の様式（「（円）」付き）で読める", () => {
+    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }])));
     expect(r.success).toBe(true);
     if (r.success) expect(r.data.unknownColumns).toEqual([]);
   });
 
   it("目印の列だけが注記付きでも見つかる（見つからないとファイル全体が読めない）", () => {
     // ヘッダ行の探索は列の対応付けとは**別の照合**なので、目印列だけを注記付きにして
-    // 単独で固定する（他の列も注記付きにすると上のケースと同じになり、何も切り分けない）
-    const onlyMarker = MARGIN_HEADER.map((h) => (h === MARGIN_HEADER_MARKER ? `${h}（円）` : h));
+    // 単独で固定する（全列を注記付きにすると上のケースと同じになり、何も切り分けない）
+    const onlyMarker = plain.map((h) => (h === MARGIN_HEADER_MARKER ? `${h}（円）` : h));
     expect(parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], onlyMarker))).success).toBe(
       true,
     );
   });
 
-  it("注記なしの見出しも従来どおり読める", () => {
-    expect(parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }]))).success).toBe(true);
+  it("注記なしの見出しも読める（資料の片方はこの様式だった）", () => {
+    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], plain)));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.unknownColumns).toEqual([]);
+  });
+
+  it("実物の列順（買建玉が先）で買と売を取り違えない", () => {
+    // 位置で引く実装なら**入れ替わったまま黙って通る**。値で区別できる形で固定する
+    const r = parseMarginReport(
+      table(buildMarginCsv([{ 通貨名: "btc", 年末保有中買建玉: "2", 年末保有中売建玉: "3" }])),
+    );
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data.rows[0].end_long_position).toBe("2");
+      expect(r.data.rows[0].end_short_position).toBe("3");
+    }
   });
 
   it("注記の有無で同じ列が 2 本あればエラー（どちらが正かは人が決める）", () => {
