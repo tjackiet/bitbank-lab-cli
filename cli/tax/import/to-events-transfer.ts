@@ -12,7 +12,12 @@ import { canonicalAsset } from "./symbol-alias.js";
 
 export function depositEvent(d: RawDeposit): TaxEvent | Pending {
   if (d.status !== STATUS_DONE) {
-    return { source_ref: d.uuid, reason: `status=${d.status}（DONE 以外は残高に載せない）` };
+    // 「取り込めなかった」ではなく「成立していないので載せない」。異常と読まれないよう
+    // 種別と意図を書く（実口座で CANCELED を観測。要求仕様 §9 未確定事項#8 の 1 つ）
+    return {
+      source_ref: d.uuid,
+      reason: `入庫 status=${d.status}: 成立していないので残高・税務に載せません（異常ではありません）`,
+    };
   }
   const currency = canonicalAsset(d.asset);
   const flags: EventFlag[] = [];
@@ -36,7 +41,10 @@ export function depositEvent(d: RawDeposit): TaxEvent | Pending {
 
 export function withdrawalEvent(w: RawWithdrawal): TaxEvent | Pending {
   if (w.status !== STATUS_DONE) {
-    return { source_ref: w.uuid, reason: `status=${w.status}（DONE 以外は残高に載せない）` };
+    return {
+      source_ref: w.uuid,
+      reason: `出庫 status=${w.status}: 成立していないので残高・税務に載せません（異常ではありません）`,
+    };
   }
   const event = baseEvent({
     prefix: ID_PREFIX.withdrawal,
