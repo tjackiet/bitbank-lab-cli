@@ -37,6 +37,7 @@ function toRow(c: AssetComparison): ReconciliationRow {
 export function buildReport(args: BuildArgs): TaxReport {
   const guardInput: GuardInput = {
     attested: args.attested,
+    truncated: args.collected.truncated,
     events: args.collected.events,
     results: args.results,
     reconciliation: args.reconciliation,

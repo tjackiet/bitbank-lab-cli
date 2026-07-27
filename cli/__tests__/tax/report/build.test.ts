@@ -75,13 +75,13 @@ const match: AssetComparison = {
   hint: "ダスト閾値内で一致",
 };
 
-function build(attested: boolean) {
+function build(attested: boolean, over: Partial<Collected> = {}) {
   return buildReport({
     year: 2026,
     method: "total-average",
     taxation: { mode: "comprehensive", certainty: "settled", basis: "2026 年分は総合課税" },
     attested,
-    collected,
+    collected: { ...collected, ...over },
     ledger,
     results: runEngine({
       entries: ledger.entries,
@@ -113,6 +113,14 @@ describe("buildReport", () => {
     // 取引集計はガードに関係なく常に出す
     expect(c.summary.acquired_qty).toBe("3");
     expect(c.summary.proceeds_jpy).toBe("500");
+  });
+
+  // 打ち切りは残高突合が MATCH でも通してはいけない（欠けた買いと売りが偶然
+  // ネットゼロなら突合は成立してしまう）
+  it("履歴が打ち切られていれば reference 欄を出さない", () => {
+    const c = build(true, { truncated: true }).currencies[0];
+    expect(c.reference).toBeUndefined();
+    expect(c.blocked_by.join()).toContain("打ち切られています");
   });
 
   it("適用した【方針】ID をレポートに露出する", () => {

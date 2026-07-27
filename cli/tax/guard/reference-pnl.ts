@@ -1,4 +1,4 @@
-// 参考損益の表示ガード（v2 §1.2 (a)〜(c) + 付録E.4 (d)）。**B案の核心**。
+// 参考損益の表示ガード（v2 §1.2 (a)〜(c) + 付録E.4 (d) + 履歴打ち切り）。**B案の核心**。
 // すべて満たす銘柄だけ参考損益を数値表示し、満たさない銘柄は取引集計のみを出して
 // 「表示できない理由」を明示する。ガードは黙って通さない側に倒す。
 
@@ -10,6 +10,12 @@ import type { TaxEvent } from "../schema/event.js";
 export type GuardInput = {
   /** (a) ユーザーの明示的なアテステーション（コマンドの --attest） */
   attested: boolean;
+  /**
+   * 履歴がページ上限で打ち切られたか。欠けたイベントが通貨ごとに偶然ネットゼロだと
+   * 残高突合（d）は MATCH のまま通るので、打ち切り自体を独立したブロック条件にする。
+   * 打ち切りは入出金側も含み銘柄に正確に紐づけられないため、判定は全銘柄一括。
+   */
+  truncated: boolean;
   events: readonly TaxEvent[];
   results: Map<string, CurrencyResult>;
   reconciliation: readonly AssetComparison[];
@@ -55,6 +61,12 @@ export function evaluateGuard(input: GuardInput, currency: string): GuardVerdict
   const blockedBy: string[] = [];
   const warnings: string[] = [];
 
+  // 履歴が欠けていれば (a)〜(d) の成否によらず集計自体を信用できない
+  if (input.truncated) {
+    blockedBy.push(
+      "履歴がページ上限で打ち切られています（全履歴が必要です。--max-pages を上げて再実行してください）",
+    );
+  }
   if (!input.attested) {
     blockedBy.push(
       "(a) アテステーション未取得: bitbank 以外の取引所・ウォレット・他アカウントでの" +

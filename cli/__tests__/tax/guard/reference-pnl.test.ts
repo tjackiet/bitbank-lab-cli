@@ -59,6 +59,7 @@ const match: AssetComparison = {
 function input(over: Partial<GuardInput> = {}): GuardInput {
   return {
     attested: true,
+    truncated: false,
     events: [event()],
     results: runEngine({ entries: [entry], method: "total-average", opening: { btc: ZERO_BOOK } }),
     reconciliation: [match],
@@ -70,6 +71,25 @@ function input(over: Partial<GuardInput> = {}): GuardInput {
 describe("evaluateGuard", () => {
   it("(a)〜(d) がすべて揃えば参考損益を許可する", () => {
     expect(evaluateGuard(input(), "btc")).toEqual({ allowed: true, blockedBy: [], warnings: [] });
+  });
+
+  it("履歴がページ上限で打ち切られていればブロックする", () => {
+    const v = evaluateGuard(input({ truncated: true }), "btc");
+    expect(v.allowed).toBe(false);
+    expect(v.blockedBy.join()).toContain("打ち切られています");
+    expect(v.blockedBy.join()).toContain("--max-pages");
+  });
+
+  // 欠けた買いと売りが偶然ネットゼロだと残高突合は MATCH のまま通る。
+  // 打ち切りを独立したブロック条件にしていないと、その穴から数値が出る
+  it("打ち切り時は残高突合が MATCH でもブロックする", () => {
+    const v = evaluateGuard(input({ truncated: true }), "btc");
+    expect(v.allowed).toBe(false);
+    expect(v.blockedBy.join()).not.toContain("(d)");
+  });
+
+  it("打ち切りが無ければ従来どおり通る", () => {
+    expect(evaluateGuard(input({ truncated: false }), "btc").allowed).toBe(true);
   });
 
   it("(a) アテステーションが無ければブロック", () => {
