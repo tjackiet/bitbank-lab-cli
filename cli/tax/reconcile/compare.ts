@@ -10,7 +10,7 @@ import {
   abs,
   actualByCurrency,
   type Diagnosis,
-  DUST_THRESHOLD,
+  dustFor,
   row,
 } from "./compare-parts.js";
 import type { Rebuilt } from "./rebuild.js";
@@ -42,14 +42,15 @@ export function compareBalances(
     if (isZero(theo) && isZero(actualValue)) continue;
 
     const residual = sub(actualValue, theo);
-    const dust = fromDecimalString(dustByCurrency[currency] ?? DUST_THRESHOLD) ?? ZERO;
+    const dustStr = dustFor(currency, dustByCurrency);
+    const dust = fromDecimalString(dustStr) ?? ZERO;
     const withinDust = cmp(abs(residual), dust) <= 0;
     const diagnosis: Diagnosis = withinDust
       ? "MATCH"
       : cmp(residual, ZERO) < 0
         ? "MISSING_DISPOSAL"
         : "MISSING_ACQUISITION";
-    out.push(row(currency, theo, actualValue, residual, withinDust, diagnosis));
+    out.push(row(currency, theo, actualValue, residual, withinDust, diagnosis, dustStr));
   }
   return out;
 }

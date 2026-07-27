@@ -128,6 +128,14 @@ describe("compareAnnualReport", () => {
     if (!r.success) expect(r.error).toContain("Duplicate report currency");
   });
 
+  it("ヒントは年分の取り違えを第一候補に挙げる（実運用で最初に踏んだ原因）", () => {
+    const data = ok(
+      [{ 通貨名: "btc", JPY建て年中購入数量: "2", JPY建て年中購入金額: "20000000", 年末数量: "2" }],
+      [],
+    );
+    expect(find(data, "btc", "buy_qty")?.hint).toContain("対象年");
+  });
+
   it("BTC 建て列に値があれば unsupported として出す（差の原因を隠さない）", () => {
     const data = ok([{ 通貨名: "xrp", BTC建て年中購入数量: "100", 年末数量: "100" }], []);
     expect(data.unsupported).toEqual([{ currency: "xrp", field: "buy_qty_btc", value: "100" }]);

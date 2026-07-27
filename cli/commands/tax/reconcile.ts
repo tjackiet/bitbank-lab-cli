@@ -17,12 +17,15 @@ const MAX_PAGES_DEFAULT = 1000;
 export type TaxReconcileArgs = { maxPages?: string; brokerageCsv?: string };
 
 export type TaxReconcileData = {
+  /** 全体既定。実際に適用した値は行ごとの `dust`（JPY は円未満を無視する） */
   dust_threshold: string;
   rows: ReconciliationRow[];
   /** 突合不能（非 JPY クォートを含む）資産 */
   unreconcilable: string[];
   problems: string[];
   warnings: string[];
+  /** 取り込めなかった行。件数だけでは追えないので理由ごと出す */
+  pending: { source_ref: string; reason: string }[];
   counts: { events: number; pending: number };
 };
 
@@ -53,6 +56,7 @@ export async function taxReconcile(
       theoretical: c.theoretical,
       actual: c.actual,
       residual: c.residual,
+      dust: c.dust,
       within_dust: c.withinDust,
       diagnosis: c.diagnosis,
       hint: c.hint,
@@ -60,6 +64,7 @@ export async function taxReconcile(
     unreconcilable: [...r.data.rebuilt.unreconcilable].sort(),
     problems: r.data.rebuilt.problems,
     warnings: r.data.collected.warnings,
+    pending: r.data.collected.pending,
     counts: { events: r.data.collected.events.length, pending: r.data.collected.pending.length },
   };
   return r.partial ? { success: true, data, partial: true, meta: r.meta } : { success: true, data };

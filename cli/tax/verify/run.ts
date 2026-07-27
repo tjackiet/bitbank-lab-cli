@@ -78,6 +78,15 @@ export async function runVerifyReport(
   warnings.push(
     `CSV には年度情報が無いため --year=${args.year} との一致は検証できません。対象年の報告書か確認してください`,
   );
+  // 年分を取り違えると**ほぼ全項目**が両方向に外れる。個別の原因を追う前に気づけるよう、
+  // 不一致の割合が高いときは真っ先にそれを疑わせる（実運用で 1 回目に踏んだ）
+  const rows = [...(spotData?.rows ?? []), ...(marginData?.rows ?? [])];
+  const mismatched = rows.filter((r) => !r.within_tolerance).length;
+  if (rows.length >= 5 && mismatched * 5 >= rows.length * 4) {
+    warnings.push(
+      `${rows.length} 項目中 ${mismatched} 項目が一致していません。個別の原因を追う前に、報告書の対象年が --year=${args.year} と食い違っていないか確認してください`,
+    );
+  }
   if (collected.data.truncated) {
     // 打ち切られていれば API 側が一様に少なくなる。その差を販売所ぶんと読んではいけない
     warnings.push("履歴がページ上限で打ち切られています。差は取込漏れを含みます（--max-pages）");
@@ -92,7 +101,7 @@ export async function runVerifyReport(
       pending: collected.data.pending.length,
       truncated: collected.data.truncated,
     },
-    rows: [...(spotData?.rows ?? []), ...(marginData?.rows ?? [])],
+    rows,
     report_checks: spotData?.checks ?? [],
     unsupported: [...(spotData?.unsupported ?? []), ...(marginData?.unsupported ?? [])],
     unknown_columns: [

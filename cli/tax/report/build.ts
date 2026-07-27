@@ -25,6 +25,7 @@ function toRow(c: AssetComparison): ReconciliationRow {
     theoretical: c.theoretical,
     actual: c.actual,
     residual: c.residual,
+    dust: c.dust,
     within_dust: c.withinDust,
     diagnosis: c.diagnosis,
     hint: c.hint,

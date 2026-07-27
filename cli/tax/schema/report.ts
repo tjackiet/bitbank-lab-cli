@@ -50,6 +50,8 @@ export const ReconciliationRow = z.object({
   theoretical: decStr,
   actual: decStr,
   residual: decStr,
+  /** この資産に適用したダスト閾値。JPY は円未満を無視するので通貨で異なる */
+  dust: decStr,
   within_dust: z.boolean(),
   diagnosis: Diagnosis,
   hint: z.string(),

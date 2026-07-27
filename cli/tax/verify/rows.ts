@@ -80,11 +80,11 @@ export function spotHint(field: ComparedField): (d: VerifyDiagnosis) => string {
     }
     if (diagnosis === "REPORT_EXCESS") {
       return TRADE_FIELDS.has(field)
-        ? "報告書が多い: 販売所（即時売買）は API に現れない。UI CSV「売買履歴」の取込で解消する見込み"
-        : "報告書が多い: 取込の打ち切り（--max-pages）か、API に現れない移転の可能性";
+        ? "報告書が多い: 報告書の対象年と --year の取り違え、または販売所（即時売買。API に現れないので --brokerage-csv が要る）"
+        : "報告書が多い: 報告書の対象年と --year の取り違え、取込の打ち切り（--max-pages）、API に現れない移転";
     }
     return TRADE_FIELDS.has(field)
-      ? "API が多い: 報告書の対象外（信用は別様式）か、年分判定・重複排除のズレの可能性"
-      : "API が多い: 年分判定（JST）のズレか、報告書の対象外の移転の可能性";
+      ? "API が多い: 報告書の対象年と --year の取り違え、報告書の対象外（信用は別様式）、年分判定・重複排除のズレ"
+      : "API が多い: 報告書の対象年と --year の取り違え、年分判定（JST）のズレ、報告書の対象外の移転";
   };
 }
