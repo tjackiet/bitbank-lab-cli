@@ -7,6 +7,7 @@ import { readBrokerage } from "../../tax/import-csv/brokerage.js";
 import { runPnlReport } from "../../tax/report/run.js";
 import { DEFAULT_METHOD, Method } from "../../tax/schema/method.js";
 import type { TaxReport } from "../../tax/schema/report.js";
+import { resolveTaxation } from "../../tax/taxation.js";
 import type { Result } from "../../types.js";
 import { formatZodError } from "../../validators.js";
 import { parseMaxPages, resolveYearWindow } from "../private/input-schemas.js";
@@ -17,6 +18,8 @@ const MAX_PAGES_DEFAULT = 1000;
 export type TaxPnlArgs = {
   year?: string;
   method?: string;
+  /** 課税方式の**確認**。年から決まる値と食い違えばエラー（上書きではない） */
+  taxation?: string;
   /** 前年繰越 JSON のパス、または "zero"（当年が初年度） */
   carryover?: string;
   /** (a) アテステーション。付けないと参考損益は出ない */
@@ -44,6 +47,9 @@ export async function taxPnl(
   if (!method.success) {
     return { success: false, error: formatZodError(method.error), exitCode: EXIT.PARAM };
   }
+  // 課税方式は年で決まる。API を叩く前に確定させる（決まらない年で認証を消費しない）
+  const taxation = resolveTaxation(year, args.taxation);
+  if (!taxation.success) return taxation;
 
   const allZero = args.carryover === CARRYOVER_ZERO;
   const carryover =
@@ -60,6 +66,7 @@ export async function taxPnl(
     {
       year,
       method: method.data,
+      taxation: taxation.data,
       attested: args.attest === true,
       opening: carryover?.success ? carryover.data : undefined,
       allZero,

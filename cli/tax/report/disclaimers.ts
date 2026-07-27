@@ -9,6 +9,7 @@
 // 正しく出る。これは v2 §1.2 の表示ガードが体現している条件そのもの（(a) アテステーション
 // = 口座外に保有・取引が無い旨の申告）で、無条件に「原理的に計算できない」と書くと
 // **自分のガードを否定し、bitbank だけで取引している利用者の数値まで無効に見せる**。
+import type { Taxation } from "../schema/taxation.js";
 
 export const POSITIONING =
   "本レポートは「bitbank 口座における取引集計・税計算用参考データ」であり、" +
@@ -24,12 +25,23 @@ export const OUT_OF_SCOPE = [
   "確定申告書の作成",
 ] as const;
 
-/** v2 §9【方針】の固定注記（そのまま転記）。 */
-export const AGGREGATION_NOTE =
+/** v2 §9【方針】の固定注記（本文はそのまま転記。末尾の括弧だけ対象年を埋める）。 */
+const AGGREGATION_BODY =
   "本金額は当社（bitbank）における暗号資産取引の参考損益であり、所得区分が雑所得" +
   "（その他雑所得）となる場合、他の取引所・ウォレットの損益、暗号資産以外の雑所得と" +
   "合算した上で雑所得の金額が計算されます。雑所得の損失は給与所得等と通算できず、" +
-  "翌年へ繰り越せません（2026年分・現行制度）。";
+  "翌年へ繰り越せません";
+
+/**
+ * `futureRegime` と同じ理由で対象年を埋める。v2 §9 の転記は末尾が「（2026年分・現行制度）」
+ * 固定で、`--year=2027` だと**別の年の制度を対象年の説明として出す**ことになる。
+ * `projected` の年は現行制度と言い切れないので、計算の前提だと分かる書き方にする
+ * （`futureRegime` の「総合課税を前提に計算しています」と揃える）。
+ */
+export function aggregationNote(taxation: Taxation, year: number): string {
+  const premise = taxation.certainty === "settled" ? "現行制度" : "総合課税を前提";
+  return `${AGGREGATION_BODY}（${year}年分・${premise}）。`;
+}
 
 /** v2 §10【方針】の免責文言テンプレート（そのまま転記）。 */
 export const TWENTY_MAN_RULE =
@@ -44,11 +56,19 @@ export const TWENTY_MAN_RULE =
   "すべて申告に含める必要があります。詳細は国税庁タックスアンサー No.1900 を" +
   "ご確認ください。";
 
-/** v2 §12 のレポート注記例（そのまま転記）。 */
-export const FUTURE_REGIME =
-  "暗号資産の課税方式を見直す法改正が成立していますが（2026年7月時点）、" +
-  "本レポートが対象とする2026年分には適用されません。" +
-  "適用開始時期・対象範囲は今後の政省令等で確定します。";
+/**
+ * v2 §12 のレポート注記。**対象年を埋める**（元は「2026年分」がハードコードされており、
+ * `--year=2027` を渡すと事実と食い違う文言が出ていた）。
+ * `projected` の年は「適用されません」と言い切れないので、そこだけ表現を変える。
+ */
+export function futureRegime(taxation: Taxation, year: number): string {
+  const head = "暗号資産の課税方式を見直す法改正が成立していますが（2026年7月時点）、";
+  const tail = "適用開始時期・対象範囲は今後の政省令等で確定します。";
+  return taxation.certainty === "settled"
+    ? `${head}本レポートが対象とする${year}年分には適用されません。${tail}`
+    : `${head}本レポートが対象とする${year}年分に適用されるかは施行日により確定します。` +
+        `本レポートは総合課税を前提に計算しています。${tail}`;
+}
 
 /** 出力層の表示丸めの説明（v2 §3【方針】・ADR-005）。 */
 export const ROUNDING_NOTE =
@@ -66,13 +86,13 @@ export function verifyDisclaimers(): string[] {
 }
 
 /** レポート末尾に常時載せる免責の並び。 */
-export function disclaimers(): string[] {
+export function disclaimers(taxation: Taxation, year: number): string[] {
   return [
     POSITIONING,
     `スコープ外: ${OUT_OF_SCOPE.join(" / ")}`,
-    AGGREGATION_NOTE,
+    aggregationNote(taxation, year),
     TWENTY_MAN_RULE,
-    FUTURE_REGIME,
+    futureRegime(taxation, year),
     ROUNDING_NOTE,
   ];
 }

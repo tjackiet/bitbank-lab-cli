@@ -8,6 +8,7 @@
 import { z } from "zod";
 import { Method } from "./method.js";
 import { decStr } from "./primitives.js";
+import { Taxation } from "./taxation.js";
 
 /** 取引集計。ガードの成否に関係なく常に出す（年間取引報告書相当のデータ）。 */
 export const CurrencySummary = z.object({
@@ -80,6 +81,8 @@ export const ReconciliationReport = z.object({
 export const TaxReport = z.object({
   year_jst: z.number().int(),
   method: Method,
+  /** 適用した課税方式。数値の意味（損益通算の範囲・繰越・税率）を固定するため常に出す */
+  taxation: Taxation,
   attested: z.boolean(),
   source: z.object({
     events: z.number().int(),

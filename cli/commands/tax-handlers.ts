@@ -35,6 +35,7 @@ export const taxCommands: Record<string, CommandEntry> = {
     options: {
       year: str,
       method: str,
+      taxation: str,
       carryover: str,
       attest: bool(),
       "brokerage-csv": str,
@@ -43,6 +44,7 @@ export const taxCommands: Record<string, CommandEntry> = {
     handler: handler("./tax/pnl.js", "taxPnl", (_a, v) => ({
       year: valStr(v, "year"),
       method: valStr(v, "method"),
+      taxation: valStr(v, "taxation"),
       carryover: valStr(v, "carryover"),
       attest: v.attest === true,
       brokerageCsv: valStr(v, "brokerage-csv"),

@@ -6,12 +6,14 @@ import type { LedgerResult } from "../ledger/from-events.js";
 import type { AssetComparison } from "../reconcile/compare.js";
 import type { Method } from "../schema/method.js";
 import type { ReconciliationRow, TaxReport } from "../schema/report.js";
+import type { Taxation } from "../schema/taxation.js";
 import { currencyReport } from "./currency.js";
 import { disclaimers } from "./disclaimers.js";
 
 export type BuildArgs = {
   year: number;
   method: Method;
+  taxation: Taxation;
   attested: boolean;
   collected: Collected;
   ledger: LedgerResult;
@@ -47,6 +49,7 @@ export function buildReport(args: BuildArgs): TaxReport {
   return {
     year_jst: args.year,
     method: args.method,
+    taxation: args.taxation,
     attested: args.attested,
     source: {
       events: args.collected.events.length,
@@ -59,6 +62,6 @@ export function buildReport(args: BuildArgs): TaxReport {
     reconciliation: args.reconciliation.map(toRow),
     pending: args.collected.pending,
     warnings: args.collected.warnings,
-    disclaimers: disclaimers(),
+    disclaimers: disclaimers(args.taxation, args.year),
   };
 }

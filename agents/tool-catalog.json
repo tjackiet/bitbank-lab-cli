@@ -2186,6 +2186,14 @@
             ],
             "default": "total-average"
           },
+          "taxation": {
+            "type": "string",
+            "description": "Confirm the taxation regime for the year (derived from --year; mismatch is an error)",
+            "enum": [
+              "comprehensive",
+              "separate"
+            ]
+          },
           "carryover": {
             "type": "string",
             "description": "Path to carryover JSON, or \"zero\" for a first year"
@@ -2213,6 +2221,20 @@
           },
           "method": {
             "type": "string"
+          },
+          "taxation": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string"
+              },
+              "certainty": {
+                "type": "string"
+              },
+              "basis": {
+                "type": "string"
+              }
+            }
           },
           "attested": {
             "type": "boolean"
