@@ -75,6 +75,12 @@ const reach = walkFromTax();
 
 describe("Chaos X-20: tax は POST ヘルパーに到達しない（private GET のみ）", () => {
   it(`cli/tax/ ・ cli/commands/tax/ から ${FORBIDDEN} に推移的に到達しない`, () => {
+    // 禁止対象が rename / typo で存在しなくなると chain は常に undefined になり、
+    // 何も検査しないまま緑になる（fail-open）。先に存在を固定して fail-closed にする
+    expect(
+      existsSync(FORBIDDEN),
+      `${FORBIDDEN} が存在しない。POST ヘルパーを rename したなら FORBIDDEN を追随させる`,
+    ).toBe(true);
     const chain = reach.chains.get(FORBIDDEN);
     expect(
       chain,
