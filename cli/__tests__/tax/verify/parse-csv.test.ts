@@ -3,6 +3,7 @@
 import { describe, expect, it } from "vitest";
 import { parseAnnualReport } from "../../../tax/import-csv/annual-report.js";
 import { parseMarginReport } from "../../../tax/import-csv/margin-report.js";
+import { MARGIN_HEADER_MARKER } from "../../../tax/import-csv/margin-report-columns.js";
 import { parseCsv } from "../../../tax/import-csv/parse-csv.js";
 import { buildCsv, buildMarginCsv, HEADER, MARGIN_HEADER } from "./synthetic-report.js";
 
@@ -95,8 +96,10 @@ describe("見出しの単位注記", () => {
     if (r.success) expect(r.data.unknownColumns).toEqual([]);
   });
 
-  it("目印の列も注記付きで見つかる（見つからないとファイル全体が読めない）", () => {
-    const onlyMarker = withYen.map((h) => (h === "通貨名" ? "通貨名" : h));
+  it("目印の列だけが注記付きでも見つかる（見つからないとファイル全体が読めない）", () => {
+    // ヘッダ行の探索は列の対応付けとは**別の照合**なので、目印列だけを注記付きにして
+    // 単独で固定する（他の列も注記付きにすると上のケースと同じになり、何も切り分けない）
+    const onlyMarker = MARGIN_HEADER.map((h) => (h === MARGIN_HEADER_MARKER ? `${h}（円）` : h));
     expect(parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], onlyMarker))).success).toBe(
       true,
     );
