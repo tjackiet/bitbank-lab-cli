@@ -138,6 +138,13 @@ export const taxSchemas: Record<string, SchemaDef> = {
         enum: ["total-average", "moving-average"],
         default: "total-average",
       }),
+      taxation: p(
+        "string",
+        "Confirm the taxation regime for the year (derived from --year; mismatch is an error)",
+        {
+          enum: ["comprehensive", "separate"],
+        },
+      ),
       carryover: p("string", 'Path to carryover JSON, or "zero" for a first year'),
       attest: p(
         "boolean",
@@ -151,6 +158,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
       properties: {
         year_jst: n,
         method: s,
+        taxation: { type: "object", properties: { mode: s, certainty: s, basis: s } },
         attested: b,
         source: {
           type: "object",

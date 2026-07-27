@@ -79,6 +79,7 @@ function build(attested: boolean) {
   return buildReport({
     year: 2026,
     method: "total-average",
+    taxation: { mode: "comprehensive", certainty: "settled", basis: "2026 年分は総合課税" },
     attested,
     collected,
     ledger,

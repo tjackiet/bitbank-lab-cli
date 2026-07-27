@@ -11,11 +11,13 @@ import { ledgerFromEvents } from "../ledger/from-events.js";
 import { type Market, runReconcile } from "../reconcile/run.js";
 import type { Method } from "../schema/method.js";
 import type { TaxReport } from "../schema/report.js";
+import type { Taxation } from "../schema/taxation.js";
 import { buildReport } from "./build.js";
 
 export type PnlArgs = {
   year: number;
   method: Method;
+  taxation: Taxation;
   attested: boolean;
   /** 明示された前年繰越。`allZero` のときは当年を初年度として全銘柄ゼロ確定にする */
   opening?: OpeningBalances;
@@ -57,6 +59,7 @@ export async function runPnlReport(
   const report = buildReport({
     year: args.year,
     method: args.method,
+    taxation: args.taxation,
     attested: args.attested,
     // ガードは当年のイベントだけを見る（過年度の未解決入庫まで当年をブロックしない）
     collected: { ...collected, events: yearEvents },

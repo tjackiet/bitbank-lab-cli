@@ -171,6 +171,14 @@ bitbank tax pnl --year=2026 --method=total-average --carryover=./carryover.json 
 ユーザーの申告。勝手に付けない。ユーザーに確認してから付ける。
 外部に保有がある銘柄では平均法が成立しないため、参考損益は出せない。
 
+**`--taxation` は指定しない**。課税方式は `--year` から決まるもので、このフラグは
+「ユーザーの認識と一致しているか」を確認したいときだけ使う確認用。付けても値は変わらず、
+食い違えばエラーになるだけ。出力の `taxation.mode` / `taxation.certainty` を読んで伝える。
+
+- `certainty: "settled"` → その年の課税方式は確定している
+- `certainty: "projected"` → 見込み。`taxation.basis` の理由をそのまま伝える
+- 方式が決まらない年（2028 年分以降）はコマンドがエラーになる。**推測で数値を出さない**
+
 ### Step 7: 伝え方
 
 - `currencies[].summary`（取引集計）は常に提示してよい
