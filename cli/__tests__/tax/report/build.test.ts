@@ -122,6 +122,10 @@ describe("buildReport", () => {
     const r = build(true);
     expect(r.disclaimers.length).toBeGreaterThan(0);
     expect(r.disclaimers[0]).toContain("税計算用参考データ");
+    expect(r.disclaimers[0]).toContain("税務上の所得金額ではありません");
+    // 「単一取引所だから計算できない」とは言い切らない。限界は口座外に同一銘柄が
+    // あるときの話で、そこを条件付きで述べているか
+    expect(r.disclaimers[0]).toContain("bitbank 口座だけで完結している");
     expect(r.disclaimers.join()).toContain("20万円以下であっても");
   });
 });
