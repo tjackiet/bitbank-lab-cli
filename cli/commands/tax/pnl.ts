@@ -1,5 +1,5 @@
 // `bitbank tax pnl` — 取引集計 + （ガード成立時のみ）参考損益。
-// 出力は「税務上の所得金額」ではなく**参考データ**（v2 §1.1）。免責はレポートに常時付く。
+// 出力は「税務上の所得金額」ではなく**税計算用参考データ**（v2 §1.1）。免責はレポートに常時付く。
 import { EXIT } from "../../exit-codes.js";
 import type { PrivateHttpOptions } from "../../http-private.js";
 import { CARRYOVER_ZERO, loadCarryover } from "../../tax/carryover.js";
