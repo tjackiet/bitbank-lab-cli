@@ -24,6 +24,25 @@ export type ReportSpec<T> = {
 
 const err = (error: string): Result<never> => ({ success: false, error, exitCode: EXIT.PARAM });
 
+/**
+ * 見出し末尾の単位注記（「支払手数料**（円）**」等）を落とす。信用の社内資料は
+ * 「出力項目」リストが注記なし・「CSVラベル名」表が注記ありで**食い違っていた**ため、
+ * どちらの様式でも読めるようにする。注記付きを弾くと、正しいファイルに対して
+ * 「様式が違う」と出る（しかも目印の列なのでファイル全体が読めない）。
+ */
+function stripUnitNote(name: string): string {
+  return name.replace(/[（(][^（）()]*[）)]$/, "").trim();
+}
+
+/**
+ * 厳密一致を先に試し、注記を落とした形が**宣言済みの列名と完全一致するときだけ**採用する。
+ * 部分一致では拾わないので別の列に化けることはない。「（税抜）/（税込）」のように
+ * 落とすと衝突する様式は、下の重複検出が人に判断を返す。
+ */
+function fieldFor(name: string, columns: Record<string, string>): string | undefined {
+  return columns[name] ?? columns[stripUnitNote(name)];
+}
+
 function locateColumns(
   header: readonly string[],
   columns: Record<string, string>,
@@ -34,7 +53,7 @@ function locateColumns(
   header.forEach((cell, i) => {
     const name = cell.trim();
     if (name === "") return;
-    const field = columns[name];
+    const field = fieldFor(name, columns);
     if (field === undefined) unknown.push(name);
     // 同じ既知列が 2 本あると後勝ちで上書きされ、**編集済み CSV から誤った値を
     // 黙って採用する**。どちらが正しいかは人にしか決められないので拒否する
@@ -48,7 +67,12 @@ export function parseReportTable<T>(
   table: readonly (readonly string[])[],
   spec: ReportSpec<T>,
 ): Result<ParsedReport<T>> {
-  const h = table.findIndex((row) => row.some((cell) => cell.trim() === spec.marker));
+  const h = table.findIndex((row) =>
+    row.some((cell) => {
+      const name = cell.trim();
+      return name === spec.marker || stripUnitNote(name) === spec.marker;
+    }),
+  );
   if (h === -1) return err(`${spec.label} header not found (no "${spec.marker}" column)`);
 
   const { at, unknown, duplicated } = locateColumns(table[h], spec.columns);
