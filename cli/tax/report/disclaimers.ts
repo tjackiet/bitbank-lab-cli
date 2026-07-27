@@ -25,12 +25,23 @@ export const OUT_OF_SCOPE = [
   "確定申告書の作成",
 ] as const;
 
-/** v2 §9【方針】の固定注記（そのまま転記）。 */
-export const AGGREGATION_NOTE =
+/** v2 §9【方針】の固定注記（本文はそのまま転記。末尾の括弧だけ対象年を埋める）。 */
+const AGGREGATION_BODY =
   "本金額は当社（bitbank）における暗号資産取引の参考損益であり、所得区分が雑所得" +
   "（その他雑所得）となる場合、他の取引所・ウォレットの損益、暗号資産以外の雑所得と" +
   "合算した上で雑所得の金額が計算されます。雑所得の損失は給与所得等と通算できず、" +
-  "翌年へ繰り越せません（2026年分・現行制度）。";
+  "翌年へ繰り越せません";
+
+/**
+ * `futureRegime` と同じ理由で対象年を埋める。v2 §9 の転記は末尾が「（2026年分・現行制度）」
+ * 固定で、`--year=2027` だと**別の年の制度を対象年の説明として出す**ことになる。
+ * `projected` の年は現行制度と言い切れないので、計算の前提だと分かる書き方にする
+ * （`futureRegime` の「総合課税を前提に計算しています」と揃える）。
+ */
+export function aggregationNote(taxation: Taxation, year: number): string {
+  const premise = taxation.certainty === "settled" ? "現行制度" : "総合課税を前提";
+  return `${AGGREGATION_BODY}（${year}年分・${premise}）。`;
+}
 
 /** v2 §10【方針】の免責文言テンプレート（そのまま転記）。 */
 export const TWENTY_MAN_RULE =
@@ -79,7 +90,7 @@ export function disclaimers(taxation: Taxation, year: number): string[] {
   return [
     POSITIONING,
     `スコープ外: ${OUT_OF_SCOPE.join(" / ")}`,
-    AGGREGATION_NOTE,
+    aggregationNote(taxation, year),
     TWENTY_MAN_RULE,
     futureRegime(taxation, year),
     ROUNDING_NOTE,

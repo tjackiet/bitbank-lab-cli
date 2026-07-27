@@ -3,7 +3,7 @@
 // 総合課税の前提で計算した数値に分離課税のラベルが付くと、損益通算の範囲・損失の繰越・
 // 税率がすべて変わるため、ラベルの取り違えは数値の誤りと同じ重さになる。
 import { describe, expect, it } from "vitest";
-import { disclaimers, futureRegime } from "../../tax/report/disclaimers.js";
+import { aggregationNote, disclaimers, futureRegime } from "../../tax/report/disclaimers.js";
 import type { Taxation } from "../../tax/schema/taxation.js";
 import { resolveTaxation, taxationFor } from "../../tax/taxation.js";
 
@@ -79,5 +79,17 @@ describe("免責の年埋め", () => {
 
   it("対象年がそのまま免責に載る（旧実装は 2026 固定で他の年に嘘をついていた）", () => {
     expect(disclaimers(of(2027), 2027).join()).not.toContain("2026年分には適用されません");
+  });
+
+  it("雑所得の合算注記も対象年を埋める（同じ 2026 固定が別の注記にも残っていた）", () => {
+    expect(aggregationNote(of(2026), 2026)).toContain("（2026年分・現行制度）");
+    expect(aggregationNote(of(2027), 2027)).toContain("（2027年分・総合課税を前提）");
+  });
+
+  it("2027 年分の免責一式に 2026 年分の制度説明が混ざらない", () => {
+    const all = disclaimers(of(2027), 2027).join();
+    expect(all).not.toContain("2026年分");
+    // 「2026年7月時点」は調査時点であって対象年ではないので残ってよい
+    expect(all).toContain("2026年7月時点");
   });
 });

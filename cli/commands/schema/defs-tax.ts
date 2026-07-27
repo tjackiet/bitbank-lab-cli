@@ -1,5 +1,7 @@
 // 100行超: tax コマンドの output（agents カタログの単一ソース）を宣言的に集約。
 // レポートのフィールドを 1 つずつ列挙するため、出力項目数に比例して伸びる。
+import { Method } from "../../tax/schema/method.js";
+import { TaxationMode } from "../../tax/schema/taxation.js";
 import { p, type SchemaDef } from "./types.js";
 
 const s = { type: "string" };
@@ -135,14 +137,14 @@ export const taxSchemas: Record<string, SchemaDef> = {
     params: {
       year,
       method: p("string", "Valuation method", {
-        enum: ["total-average", "moving-average"],
+        enum: Method.options,
         default: "total-average",
       }),
       taxation: p(
         "string",
         "Confirm the taxation regime for the year (derived from --year; mismatch is an error)",
         {
-          enum: ["comprehensive", "separate"],
+          enum: TaxationMode.options,
         },
       ),
       carryover: p("string", 'Path to carryover JSON, or "zero" for a first year'),

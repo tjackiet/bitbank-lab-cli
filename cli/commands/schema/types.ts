@@ -20,12 +20,13 @@ export type SchemaDef = z.infer<typeof SchemaDefSchema>;
 export function p(
   type: string,
   description: string,
-  extra?: { enum?: string[]; default?: unknown },
+  // Zod の `.options` は readonly タプル。ここは読むだけなので readonly で受ける
+  extra?: { enum?: readonly string[]; default?: unknown },
 ): ParamProp {
   return {
     type,
     description,
-    ...(extra?.enum ? { enum: extra.enum } : {}),
+    ...(extra?.enum ? { enum: [...extra.enum] } : {}),
     ...(extra?.default !== undefined ? { default: extra.default } : {}),
   };
 }
