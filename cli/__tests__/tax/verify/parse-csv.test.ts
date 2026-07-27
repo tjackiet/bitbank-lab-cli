@@ -2,8 +2,9 @@
 // 列の挿入・並べ替えで壊れないことと、欠けたら黙って進まないことを固定する。
 import { describe, expect, it } from "vitest";
 import { parseAnnualReport } from "../../../tax/import-csv/annual-report.js";
+import { parseMarginReport } from "../../../tax/import-csv/margin-report.js";
 import { parseCsv } from "../../../tax/import-csv/parse-csv.js";
-import { buildCsv, HEADER } from "./synthetic-report.js";
+import { buildCsv, buildMarginCsv, HEADER, MARGIN_HEADER } from "./synthetic-report.js";
 
 const table = (csv: string) => parseCsv(csv);
 
@@ -77,5 +78,45 @@ describe("parseAnnualReport", () => {
 
   it("末尾の空行は行にしない", () => {
     expect(ok(`${buildCsv([{ 通貨名: "btc" }])}\r\n,,,,,,,,,,,,,,,,`).rows).toHaveLength(1);
+  });
+});
+
+// 信用の社内資料は「出力項目」リストが注記なし・「CSVラベル名」表が `（円）` 付きで
+// **食い違っていた**。注記付きを弾くと、正しいファイルに「様式が違う」と出る
+// （しかも目印の列なのでファイル全体が読めない）。
+describe("見出しの単位注記", () => {
+  const withYen = MARGIN_HEADER.map((h) =>
+    h === "年中信用取引損益" || h === "支払手数料" ? `${h}（円）` : h,
+  );
+
+  it("「（円）」付きの見出しでも読める", () => {
+    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], withYen)));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.unknownColumns).toEqual([]);
+  });
+
+  it("目印の列も注記付きで見つかる（見つからないとファイル全体が読めない）", () => {
+    const onlyMarker = withYen.map((h) => (h === "通貨名" ? "通貨名" : h));
+    expect(parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], onlyMarker))).success).toBe(
+      true,
+    );
+  });
+
+  it("注記なしの見出しも従来どおり読める", () => {
+    expect(parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }]))).success).toBe(true);
+  });
+
+  it("注記の有無で同じ列が 2 本あればエラー（どちらが正かは人が決める）", () => {
+    const dup = [...MARGIN_HEADER, "支払手数料（円）"];
+    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], dup)));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("duplicate columns");
+  });
+
+  it("注記を落としても未知の列は未知のまま（部分一致で別の列に化けない）", () => {
+    const extra = [...MARGIN_HEADER, "翌年繰越（円）"];
+    const r = parseMarginReport(table(buildMarginCsv([{ 通貨名: "btc" }], extra)));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data.unknownColumns).toEqual(["翌年繰越（円）"]);
   });
 });
