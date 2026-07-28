@@ -15,9 +15,14 @@
 //   総額はどちらでも同じで、**年をまたぐ建玉があるときだけ計上年が変わる**
 // - 年末建玉は法人向け（みなし決済損益額）。個人の申告には不要
 //
-// **CSV の見出しに「（円）」が付く様式がある**（バッチ仕様の「CSVラベル名」表は
-// `年中信用取引損益（円）` / `支払手数料（円）`、要件定義の出力項目リストは注記なしで
-// 食い違う）。どちらでも読めるよう `parse-report.ts` が単位注記を落として照合する。
+// **実物の様式は実機確認 #10 で確定**（2025 年分・実口座）。現物と揃っていない点が多い:
+// - 見出しは `年中信用取引損益（円）` / `支払手数料（円）` と**単位注記付き**
+//   （バッチ仕様の「CSVラベル名」表どおり。要件定義の出力項目リストは注記なしで食い違う。
+//   `parse-report.ts` が注記を落として照合するので、どちらの様式でも読める）
+// - **買建玉が先、売建玉が後**（現物の並びから類推すると逆になる）
+// - **BOM なし・LF・末尾改行なし**（現物は BOM 付き・CRLF）
+// - メタ行のタイトルが「年間取引報告書（信用取引）」（現物は「年間取引報告書」）
+// - 桁は小数 8 桁固定。損益は負値を取り得る（`decStr` に正値制約を付けない理由）
 import { z } from "zod";
 import { decStr } from "../../schema-helpers.js";
 import type { UnsupportedField } from "../schema/verify.js";
@@ -31,10 +36,11 @@ export const MarginReportRow = z.object({
 });
 export type MarginReportRow = z.infer<typeof MarginReportRow>;
 
+/** 並びは実物の見出し順（実機確認 #10）。照合は列名なので順序に依存しない。 */
 export const MARGIN_COLUMNS = {
   通貨名: "currency",
-  年末保有中売建玉: "end_short_position",
   年末保有中買建玉: "end_long_position",
+  年末保有中売建玉: "end_short_position",
   年中信用取引損益: "margin_pnl",
   支払手数料: "margin_fee",
 } as const satisfies Record<string, keyof MarginReportRow>;
