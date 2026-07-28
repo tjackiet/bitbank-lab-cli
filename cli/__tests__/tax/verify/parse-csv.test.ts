@@ -1,10 +1,14 @@
 // CSV パーサと年間取引報告書の読み取り。**列名で引く**ことが本体の性質なので、
 // 列の挿入・並べ替えで壊れないことと、欠けたら黙って進まないことを固定する。
-import { describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { EXIT } from "../../../exit-codes.js";
 import { parseAnnualReport } from "../../../tax/import-csv/annual-report.js";
 import { parseMarginReport } from "../../../tax/import-csv/margin-report.js";
 import { MARGIN_HEADER_MARKER } from "../../../tax/import-csv/margin-report-columns.js";
-import { parseCsv } from "../../../tax/import-csv/parse-csv.js";
+import { parseCsv, readCsvFile } from "../../../tax/import-csv/parse-csv.js";
 import { buildCsv, buildMarginCsv, HEADER, MARGIN_HEADER } from "./synthetic-report.js";
 
 const table = (csv: string) => parseCsv(csv);
@@ -28,6 +32,75 @@ describe("parseCsv", () => {
 
   it("末尾の改行で空行を作らない", () => {
     expect(parseCsv("a,b\n")).toEqual([["a", "b"]]);
+  });
+});
+
+// ファイル読みは **throw を外へ出さない**（Result パターン）ことが要。巨大ファイルでは
+// decode が RangeError を投げるので、読む前にサイズで閉じる。巨大 fixture は置かず、
+// 上限を小さく注入して境界だけを固定する。
+describe("readCsvFile", () => {
+  let dir: string;
+  const write = (name: string, body: string | Uint8Array): string => {
+    const path = join(dir, name);
+    writeFileSync(path, body);
+    return path;
+  };
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "tax-csv-"));
+  });
+  afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("BOM 付き UTF-8 を読める（bitbank の書き出し形式）", () => {
+    const r = readCsvFile(write("utf8.csv", "﻿通貨名,年始数量\nbtc,1\n"));
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(r.data).toEqual([
+        ["通貨名", "年始数量"],
+        ["btc", "1"],
+      ]);
+    }
+  });
+
+  it("Shift_JIS（Excel 経由）を読み直せる", () => {
+    // "通貨名,1"。先頭が 0x92 で UTF-8 としては不正なので Shift_JIS へ落ちる経路
+    const sjis = new Uint8Array([0x92, 0xca, 0x89, 0xdd, 0x96, 0xbc, 0x2c, 0x31]);
+    const r = readCsvFile(write("sjis.csv", sjis));
+    expect(r.success).toBe(true);
+    if (r.success) expect(r.data).toEqual([["通貨名", "1"]]);
+  });
+
+  it("どちらの符号化でも読めないバイト列は Result のエラー", () => {
+    const r = readCsvFile(write("broken.csv", new Uint8Array([0x81, 0xff])));
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain("neither UTF-8 nor Shift_JIS");
+      expect(r.exitCode).toBe(EXIT.PARAM);
+    }
+  });
+
+  it("上限を超えるファイルは読まずに Result のエラー（Fatal へ抜けさせない）", () => {
+    const r = readCsvFile(write("big.csv", "a,b\n".repeat(64)), 128);
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain("too large");
+      expect(r.exitCode).toBe(EXIT.PARAM);
+    }
+  });
+
+  it("上限ちょうどは通し、1 バイト超で落とす（境界を off-by-one で緩めない）", () => {
+    const path = write("edge.csv", "a,b\n"); // 4 バイト
+    expect(readCsvFile(path, 4).success).toBe(true);
+    expect(readCsvFile(path, 3).success).toBe(false);
+  });
+
+  it("存在しないファイルは Result のエラー（statSync の throw を漏らさない）", () => {
+    const r = readCsvFile(join(dir, "missing.csv"));
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.error).toContain("Cannot read CSV file");
+      expect(r.exitCode).toBe(EXIT.PARAM);
+    }
   });
 });
 
