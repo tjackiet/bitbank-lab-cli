@@ -24,11 +24,18 @@ export const MARGIN_FIELDS = [
 ] as const satisfies readonly VerifyField[];
 export type MarginField = (typeof MARGIN_FIELDS)[number];
 
-export type MarginFigures = Record<MarginField, Ratio> & { closes: number };
+// 件数は 2 本持つ。丸めが起きる回数が精算と発生で違うため（許容幅の算出は
+// margin-report.ts の `toleranceOf` が単一ソース。理由もそこに書いてある）
+export type MarginFigures = Record<MarginField, Ratio> & {
+  /** 決済レコード数（精算ベースはここでしか丸めが起きない） */
+  closes: number;
+  /** 発生手数料を持つレコード数。建てと決済で別々に丸められるので両方数える */
+  feeOccurredCount: number;
+};
 export type MarginAggregated = { byCurrency: Map<string, MarginFigures>; warnings: string[] };
 
 function zero(): MarginFigures {
-  const f = { closes: 0 } as MarginFigures;
+  const f = { closes: 0, feeOccurredCount: 0 } as MarginFigures;
   for (const k of MARGIN_FIELDS) f[k] = ZERO;
   return f;
 }
@@ -64,6 +71,7 @@ export function aggregateMarginForReport(events: readonly TaxEvent[]): MarginAgg
     const chargedStr = e.margin?.fee_charged;
     const charged = num(chargedStr, "margin.fee_charged", e.event_id);
     f.margin_fee = add(f.margin_fee, charged);
+    if (e.margin?.fee_occurred !== undefined) f.feeOccurredCount++;
     f.margin_fee_occurred = add(
       f.margin_fee_occurred,
       num(e.margin?.fee_occurred, "margin.fee_occurred", e.event_id),

@@ -6,15 +6,37 @@ import type { Result } from "../../types.js";
 import type { ParsedMarginReport } from "../import-csv/margin-report.js";
 import type { MarginReportRow } from "../import-csv/margin-report-columns.js";
 import { POSITION_FIELDS } from "../import-csv/margin-report-columns.js";
-import { isZero, ZERO } from "../ratio.js";
+import { isZero, type Ratio, ZERO } from "../ratio.js";
 import type { VerifyRow } from "../schema/verify.js";
 import type { Unsupported } from "./annual-report.js";
 import { indexByCurrency, readField } from "./index-rows.js";
-import { MARGIN_FIELDS, type MarginAggregated } from "./margin-aggregate.js";
+import {
+  MARGIN_FIELDS,
+  type MarginAggregated,
+  type MarginField,
+  type MarginFigures,
+} from "./margin-aggregate.js";
 import { marginHint } from "./margin-hints.js";
-import { buildRow, DUST_TOLERANCE, feeTolerance } from "./rows.js";
+import { buildRow, feeTolerance } from "./rows.js";
 
 export type MarginOutcome = { rows: VerifyRow[]; unsupported: Unsupported[]; warnings: string[] };
+
+/**
+ * 3 項目とも許容幅は**件数 × 半 ulp**。ダスト固定にしてはいけない。
+ *
+ * `margin_pnl` は `profit_loss`（原精度）に **4 桁丸めの手数料を足し戻して**作る値なので、
+ * 手数料の丸め誤差をそのまま継承する。実データで
+ * **「損益の差 == 手数料の差」が厳密に成立**することを確認した（実機確認 #11）。
+ * ダスト固定にすると、件数が増えたぶんの丸めを「FIFO の対応付けのズレ」と誤診する。
+ *
+ * `margin_fee_occurred` だけ件数が違う。精算は決済レコードで 1 回丸めるのに対し、
+ * 発生は建てと決済で別々に丸められるため、建玉の件数も効く。
+ */
+function toleranceOf(field: MarginField, api: MarginFigures | undefined): Ratio {
+  return field === "margin_fee_occurred"
+    ? feeTolerance(api?.feeOccurredCount ?? 0)
+    : feeTolerance(api?.closes ?? 0);
+}
 
 /** 年末建玉は全履歴が要る（前年以前に建てた玉が残る）。年ウィンドウでは復元できない。 */
 function positionsOf(rows: readonly MarginReportRow[]): Unsupported[] {
@@ -59,7 +81,7 @@ export function compareMarginReport(
         field,
         report: reported === undefined ? ZERO : readField(reported, column),
         api: api?.[field] ?? ZERO,
-        tolerance: field === "margin_pnl" ? DUST_TOLERANCE : feeTolerance(api?.closes ?? 0),
+        tolerance: toleranceOf(field, api),
         hint: marginHint(field),
       });
       if (row !== null) rows.push(row);
