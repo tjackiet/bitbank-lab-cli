@@ -13,7 +13,9 @@ const ASSET_ALIAS: Record<string, string> = {
 /** 資産キーを正規化する。未知のシンボルは小文字化のみ（勝手に潰さない）。 */
 export function canonicalAsset(asset: string): string {
   const lower = asset.toLowerCase();
-  return ASSET_ALIAS[lower] ?? lower;
+  // 素の Record 参照だと "__proto__" / "constructor" 等で継承プロパティ（関数）が返る。
+  // 資産キーは CSV / API 由来なので、carryover.ts と同じく hasOwn で見る
+  return Object.hasOwn(ASSET_ALIAS, lower) ? (ASSET_ALIAS[lower] ?? lower) : lower;
 }
 
 /** `btc_jpy` → `["btc", "jpy"]`（正規化後）。形式が違えば null。 */

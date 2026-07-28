@@ -5,13 +5,20 @@
 // 気づかないまま全列ずれる）ので、復号の段でだけ処理する。
 // Excel を経由して Shift_JIS になったファイルも来得るため、UTF-8 として
 // 復号できないバイトがあれば復号し直す。
-import { readFileSync } from "node:fs";
+import { readFileSync, statSync } from "node:fs";
 import { EXIT } from "../../exit-codes.js";
 import type { Result } from "../../types.js";
 
 const BOM = "﻿";
 /** 復号失敗のシグナル。UTF-8 として不正なバイト列はここに落ちる */
 const REPLACEMENT = "�";
+
+/**
+ * 読み込み上限。年間取引報告書・売買履歴は実測で数百 KiB なので十分すぎる余裕がある。
+ * V8 の最大文字列長（約 0.5 GiB）を超えるファイルは `TextDecoder.decode` が RangeError を
+ * 投げ、Result の外へ throw が漏れる。読む前のサイズ判定で手前から閉じる。
+ */
+export const MAX_CSV_BYTES = 64 * 1024 * 1024;
 
 /**
  * RFC 4180 相当。引用符内のカンマ・改行・`""` エスケープを扱う。
@@ -53,31 +60,40 @@ export function parseCsv(text: string): string[][] {
   return rows;
 }
 
-function decode(buf: Uint8Array): string | null {
-  const text = new TextDecoder("utf-8").decode(buf);
-  if (!text.includes(REPLACEMENT)) return text;
+/** UTF-8 側の decode も try で包む。サイズ上限をすり抜けても throw を外へ出さないため。 */
+function decode(buf: Uint8Array, path: string): Result<string> {
+  const fail = (error: string): Result<string> => ({ success: false, error, exitCode: EXIT.PARAM });
+  let text: string;
   try {
-    return new TextDecoder("shift_jis", { fatal: true }).decode(buf);
+    text = new TextDecoder("utf-8").decode(buf);
   } catch {
-    return null;
+    return fail(`Cannot decode CSV file: ${path}`);
+  }
+  if (!text.includes(REPLACEMENT)) return { success: true, data: text };
+  try {
+    return { success: true, data: new TextDecoder("shift_jis", { fatal: true }).decode(buf) };
+  } catch {
+    return fail(`CSV is neither UTF-8 nor Shift_JIS: ${path}`);
   }
 }
 
-/** ファイルから読む。読めない・復号できないは Result のエラーにする（throw しない）。 */
-export function readCsvFile(path: string): Result<string[][]> {
+/** ファイルから読む。読めない・大きすぎる・復号できないは Result のエラーにする（throw しない）。 */
+export function readCsvFile(path: string, maxBytes: number = MAX_CSV_BYTES): Result<string[][]> {
   let buf: Uint8Array;
   try {
+    const { size } = statSync(path);
+    if (size > maxBytes) {
+      return {
+        success: false,
+        error: `CSV file is too large: ${size} bytes exceeds the ${maxBytes} byte limit: ${path}`,
+        exitCode: EXIT.PARAM,
+      };
+    }
     buf = readFileSync(path);
   } catch {
     return { success: false, error: `Cannot read CSV file: ${path}`, exitCode: EXIT.PARAM };
   }
-  const text = decode(buf);
-  if (text === null) {
-    return {
-      success: false,
-      error: `CSV is neither UTF-8 nor Shift_JIS: ${path}`,
-      exitCode: EXIT.PARAM,
-    };
-  }
-  return { success: true, data: parseCsv(text) };
+  const decoded = decode(buf, path);
+  if (!decoded.success) return decoded;
+  return { success: true, data: parseCsv(decoded.data) };
 }

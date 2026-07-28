@@ -17,7 +17,11 @@ const DUST_BY_CURRENCY: Record<string, string> = { jpy: "1" };
 
 /** 資産に適用するダスト閾値。呼び出し側の上書き > 通貨別既定 > 全体既定。 */
 export function dustFor(currency: string, override: Record<string, string> = {}): string {
-  return override[currency] ?? DUST_BY_CURRENCY[currency] ?? DUST_THRESHOLD;
+  // 通貨キーは CSV / API 由来。素の Record 参照だと "__proto__" 等で継承プロパティが
+  // 返るので hasOwn で見る（carryover.ts と同じ防御）
+  const own = (r: Record<string, string>): string | undefined =>
+    Object.hasOwn(r, currency) ? r[currency] : undefined;
+  return own(override) ?? own(DUST_BY_CURRENCY) ?? DUST_THRESHOLD;
 }
 
 // 診断の値は schema/report.ts の Zod enum が単一ソース（出力バリデーションと型がずれないように）
