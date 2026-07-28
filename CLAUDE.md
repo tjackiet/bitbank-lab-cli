@@ -60,3 +60,5 @@ npx tsx cli/index.ts    # CLI 実行
 - リリース手順 → [`docs/dev/release.md`](docs/dev/release.md)（tag push で release.yml が
   version 注入・plugin manifest 同期・npm publish・GitHub Release を実行）
 - Skill 追加 → `.claude/rules/skills.md`
+- ADR 追加 → `.claude/rules/adr.md`（採番は最大番号 + 1。chaos `x21` が
+  番号重複・構成を検査する）
