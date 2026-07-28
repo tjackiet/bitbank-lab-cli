@@ -170,6 +170,31 @@ describe("buildReport", () => {
     });
   });
 
+  // 出力側は同じ分岐で両方付けているが、**契約としても**片方だけを許さない。
+  // ガードが止めた銘柄に互換値だけ出ると「本体は出せないがこちらは出せる」と読める
+  describe("reference と nta_compat は同時に出るか同時に出ないか", () => {
+    it("ガード成立時は両方出る", () => {
+      const c = build(true).currencies[0];
+      expect(c.reference).toBeDefined();
+      expect(c.nta_compat?.mode).toBe("NTA_SHEET_2025_12");
+    });
+
+    it("ガード不成立なら両方出ない", () => {
+      const c = build(false).currencies[0];
+      expect(c.reference).toBeUndefined();
+      expect(c.nta_compat).toBeUndefined();
+    });
+
+    it("片方だけの出力はスキーマが弾く", () => {
+      const r = build(true);
+      const broken = {
+        ...r,
+        currencies: [{ ...r.currencies[0], nta_compat: undefined }],
+      };
+      expect(TaxReport.safeParse(broken).success).toBe(false);
+    });
+  });
+
   it("適用した【方針】ID をレポートに露出する", () => {
     expect(build(true).currencies[0].policy_ids).toEqual(["P-16"]);
   });

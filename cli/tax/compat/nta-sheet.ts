@@ -11,19 +11,7 @@ import type { AverageOutcome, Book } from "../engine/types.js";
 import { add, cmp, div, eq, isZero, mul, type Ratio, sub, ZERO } from "../ratio.js";
 import { fromDecimalString, toDecimalString, toYen } from "../ratio-decimal.js";
 import type { LedgerEntry } from "../schema/ledger.js";
-
-export const NTA_SHEET_MODE = "NTA_SHEET_2025_12";
-
-export type NtaCompat = {
-  mode: string;
-  cogs_jpy: string;
-  closing_cost_jpy: string;
-  income_total_jpy: string;
-  expense_total_jpy: string;
-  income_jpy: string;
-  /** 翌年の (B) 欄へ転記する年末残高金額。DISPLAY 精度（表示書式 `#,##0` = 四捨五入） */
-  carryover_cost_jpy: string;
-};
+import { NTA_SHEET_MODE, type NtaCompat } from "../schema/nta.js";
 
 const num = (s: string | undefined): Ratio => (s ? (fromDecimalString(s) ?? ZERO) : ZERO);
 const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>

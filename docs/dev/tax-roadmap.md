@@ -548,7 +548,7 @@ ADR-004 が「入口パラメータとして最初から持たせる。分離課
 | Week 4 | ヒアリング結果を反映し、正規化ロジック（段階 2）の仕様確定・実装。**Cryptact/Gtax 直接出力 vs 汎用フォーマットを決定**。API 外課税イベントの扱いも確定 | 仕様: [tax-requirements.md](tax-requirements.md) / [tax-p0-design.md](tax-p0-design.md)。実装: `cli/tax/import/`・`ledger/`（P0-1） | **完了**（出力形式は**汎用フォーマット**を採用。SaaS 個別フォーマットは検証アンカー 3 の参考降格に合わせて P2） |
 | Week 5 | 正規化を CLI Skill としてリリース、A 層向け先行公開。CLAUDE.md / commands.md へ tax カテゴリ・例外条項追記 | `skills/tax-report/`（SKILL.md + 年間取引報告書ガイド）/ CLAUDE.md・commands.md の tax 節 | **完了** |
 | Week 6 | 損益計算（段階 3）実装: 総平均法/移動平均法・手数料原価算入・信用（金利/建玉管理料）・端数処理・課税方式パラメータ | 数値基盤 [ADR-005](../adr/005-tax-exact-rational-arithmetic.md) / `cli/tax/ratio.ts` / `ratio-decimal.ts`。エンジン `cli/tax/engine/`（総平均法・移動平均法・不変条件 I1〜I4・処分上限）+ `cli/tax/guard/reference-pnl.ts`（表示ガード a〜d）+ `golden-nta.test.ts`（FAQ 設例）+ `cli/tax/taxation.ts`（課税年度 → 課税方式） | **完了** |
-| Week 7 | 損益計算を CLI Skill に統合、B 層（VIP/MM 含む）先行公開。**検証アンカーとの突合開始** | `bitbank tax verify-report`（アンカー 1 の自動突合）/ `skills/tax-report` Step 3〜4 | **アンカー 1 完了**（実口座で検証済み・下記「実データ検証」）。アンカー 2 の互換モードは未着手 |
+| Week 7 | 損益計算を CLI Skill に統合、B 層（VIP/MM 含む）先行公開。**検証アンカーとの突合開始** | `bitbank tax verify-report`（アンカー 1 の自動突合）/ `skills/tax-report` Step 3〜4 / `cli/tax/compat/nta-sheet.ts`（アンカー 2 の互換モード） | **完了**（アンカー 1 は実口座で検証済み・下記「実データ検証」。アンカー 2 は下記「検証アンカー 2 の達成」） |
 
 ### スコープ外へ移した週（2026-07-28・製品判断）
 

@@ -1,6 +1,7 @@
 // 100行超: tax コマンドの output（agents カタログの単一ソース）を宣言的に集約。
 // レポートのフィールドを 1 つずつ列挙するため、出力項目数に比例して伸びる。
 import { Method } from "../../tax/schema/method.js";
+import { NTA_SHEET_MODE } from "../../tax/schema/nta.js";
 import { TaxationMode } from "../../tax/schema/taxation.js";
 import { p, type SchemaDef } from "./types.js";
 
@@ -36,7 +37,8 @@ const referenceProps = {
 };
 
 const ntaCompatProps = {
-  mode: s,
+  // 任意文字列にすると未知のモードが有効な出力として通る（schema/nta.ts が単一ソース）
+  mode: { type: "string", enum: [NTA_SHEET_MODE] },
   cogs_jpy: s,
   closing_cost_jpy: s,
   income_total_jpy: s,
