@@ -28,17 +28,19 @@ function step(
   }
   if (e.kind !== "DISPOSE") return { book, unit, cogs: ZERO };
 
-  // 数量ゼロの処分では簿価も単価も動かさない。下の P-03 判定は qty と book.qty が
-  // 両方ゼロでも真になるため、数量ゼロの調整仕訳で残った簿価が丸ごと cogs へ流れ、
-  // 売却代金ゼロの参考損失になってしまう。簿価は期末に残し I2 違反として検知させる
-  if (isZero(qty)) return { book, unit, cogs: ZERO };
-
+  // 数量超過の検証は数量ゼロの早期 return より**先**に置く。保有が負の異常状態では
+  // cmp(0, 負) > 0 が真になり、ここが唯一の検知点になる（後続の取得で数量が正へ
+  // 戻ると期末には現れず、I1 も I2 も通ってしまう）
   if (cmp(qty, book.qty) > 0) {
     violations.push(
       `${e.event_id}#${e.seq}: 処分数量が保有数量を超えています（取込漏れか前年繰越の未入力）`,
     );
     return { book, unit, cogs: ZERO };
   }
+  // 数量ゼロの処分では簿価も単価も動かさない。下の P-03 判定は qty と book.qty が
+  // 両方ゼロでも真になるため、数量ゼロの調整仕訳で残った簿価が丸ごと cogs へ流れ、
+  // 売却代金ゼロの参考損失になってしまう。簿価は期末に残し I2 違反として検知させる
+  if (isZero(qty)) return { book, unit, cogs: ZERO };
   // P-03: 全量処分では簿価残を全額原価へ掃き出す（端数を残さない）
   const cogs = eq(qty, book.qty) ? book.cost : mul(div(book.cost, book.qty), qty);
   return { book: { qty: sub(book.qty, qty), cost: sub(book.cost, cogs) }, unit, cogs };

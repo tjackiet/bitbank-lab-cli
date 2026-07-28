@@ -112,6 +112,19 @@ describe("移動平均法の境界", () => {
     expect(checkI2(o)).not.toEqual([]); // 年末に I2 違反として拾われ、ガードが閉じる
   });
 
+  it("保有が負なら数量ゼロの処分でも違反として報告する（早期 return で検証を迂回しない）", () => {
+    // 繰越 qty は decStr（`-?\d+`）なので負値が入り得る。数量ゼロ判定を数量超過の
+    // 検証より先に置くと、cmp(0, 負) > 0 の唯一の検知点が消える。後続の取得で数量が
+    // 正へ戻ると期末には痕跡が残らず、下の I1 / I2 が両方とも通ってしまう
+    const opening = bookFromDecimal("-5", "0");
+    expect(opening).not.toBeNull();
+    const entries = [dispose(1, "0", "0"), acquire(2, "10", "100")];
+    const o = movingAverage("btc", entries, opening as never);
+    expect(o.violations.join()).toContain("処分数量が保有数量を超えています");
+    expect(checkI1(o)).toEqual([]); // 期末だけを見ても異常は残らない
+    expect(checkI2(o)).toEqual([]);
+  });
+
   it("時系列が入れ替わっていても sort_key で安定に並べ直す", () => {
     const entries = [acquire(3, "1", "400"), acquire(1, "2", "200"), dispose(2, "1", "500")];
     const o = movingAverage("btc", entries, ZERO_BOOK);
