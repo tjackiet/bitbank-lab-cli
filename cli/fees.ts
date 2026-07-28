@@ -1,6 +1,6 @@
-// 100行超: 手数料の解決(resolveFeeRate/feeRole/makerRateResolver)と
+// 手数料の解決(resolveFeeRate/feeRole/makerRateResolver)と
 // dry-run 見積り(estimateOrderFee/resolveDryRunFee)、約定の手数料・残高計算
-// (computeFill)を1モジュールに集約するため。
+// (computeFill)を1モジュールに集約している。
 // CLI 共通の手数料リゾルバ。手数料データは public の /spot/pairs 由来
 // （CachedPair の maker/taker fee_rate_quote）。paper と実 trade dry-run の
 // 両方で同じ解決ロジックを共有するため、paper 専用ではなく CLI 共通モジュールに置く。

@@ -1,4 +1,4 @@
-// 100行超: tax コマンドの出力契約を 1 箇所に集約している（reconcile / pnl）。
+// tax コマンドの出力契約を 1 箇所に集約している（reconcile / pnl）。
 // 契約どうしは部品を共有する（ReconciliationRow / PendingRow）ので、分けると
 // どちらが単一ソースか分からなくなる。
 //

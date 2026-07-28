@@ -1,4 +1,4 @@
-// 100行超: 入力検証 + body 組立に加え、dry-run の手数料見積り解決経路を含むため
+// 入力検証 + body 組立に加え、dry-run の手数料見積り解決経路を含む
 // （見積り計算自体は cli/fees.ts に委譲。ここはオーケストレーションのみ）。
 import { z } from "zod";
 import { EXIT } from "../../exit-codes.js";

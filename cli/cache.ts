@@ -1,4 +1,4 @@
-// 100行超: パストラバーサル防止・symlink 防御・temp+rename atomic write を一箇所に集約
+// パストラバーサル防止・symlink 防御・temp+rename atomic write を一箇所に集約
 import { randomBytes } from "node:crypto";
 import {
   existsSync,
