@@ -185,6 +185,12 @@ bitbank tax pnl --year=2026 --method=total-average --carryover=./carryover.json 
 ### Step 7: 伝え方
 
 - `currencies[].summary`（取引集計）は常に提示してよい
+- `currencies[].nta_compat` は**国税庁「暗号資産の計算書」に手で書き込んだ場合と同じ値**。
+  計算書へ転記する人にはこちらを案内する（`reference` とは丸めの位置が違うため
+  1 円ずれることがある。どちらかが誤りなのではなく、**丸める場所が違う**）。
+  - `income_total_jpy` / `expense_total_jpy` が計算書の【参考】収入金額計・必要経費計にあたる
+  - `carryover_cost_jpy` は**翌年へ繰り越す取得価額**
+  - **どの欄へどう書くかまでは案内しない**（項目が何にあたるかを示すところまで）
 - `currencies[].reference`（参考損益）は**存在する銘柄だけ**提示する。
   無い銘柄は `blocked_by` の理由を列挙する（欄が無いことに意味がある。
   0 と書かない）

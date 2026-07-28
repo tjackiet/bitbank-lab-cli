@@ -1,6 +1,7 @@
 // 銘柄 1 件分のレポート組み立て。
 // 参考損益（`reference`）が付くのはガード(a)〜(d) がすべて成立したときだけで、
 // 不成立なら**欄そのものを出さない**（0 や null にすると「損益ゼロ」と読めてしまう）。
+import { ntaCompat } from "../compat/nta-sheet.js";
 import type { CurrencyResult } from "../engine/run.js";
 import { evaluateGuard, type GuardInput } from "../guard/reference-pnl.js";
 import type { LedgerResult } from "../ledger/from-events.js";
@@ -51,6 +52,11 @@ export function currencyReport(
             // 負値のまま出す（v2 §9: max(0,·) に丸めると内部通算の余地が消える）
             reference_pnl_jpy: yen(sub(revenue, expense)),
           },
+          // 計算書と同値の欄。既定（非丸め）と丸め位置が違うので値がずれ得る
+          nta_compat: ntaCompat(
+            o,
+            ledger.entries.filter((e) => e.currency === currency),
+          ),
         }
       : {}),
     blocked_by: verdict.blockedBy,

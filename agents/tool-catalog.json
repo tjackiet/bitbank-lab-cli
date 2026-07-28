@@ -2329,6 +2329,35 @@
                     }
                   }
                 },
+                "nta_compat": {
+                  "type": "object",
+                  "properties": {
+                    "mode": {
+                      "type": "string",
+                      "enum": [
+                        "NTA_SHEET_2025_12"
+                      ]
+                    },
+                    "cogs_jpy": {
+                      "type": "string"
+                    },
+                    "closing_cost_jpy": {
+                      "type": "string"
+                    },
+                    "income_total_jpy": {
+                      "type": "string"
+                    },
+                    "expense_total_jpy": {
+                      "type": "string"
+                    },
+                    "income_jpy": {
+                      "type": "string"
+                    },
+                    "carryover_cost_jpy": {
+                      "type": "string"
+                    }
+                  }
+                },
                 "blocked_by": {
                   "type": "array",
                   "items": {

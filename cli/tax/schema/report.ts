@@ -7,6 +7,7 @@
 // 0 や null を入れると「損益ゼロ」と読めてしまうため、欄を出さないことで区別する。
 import { z } from "zod";
 import { Method } from "./method.js";
+import { NtaCompat } from "./nta.js";
 import { decStr } from "./primitives.js";
 import { Taxation } from "./taxation.js";
 
@@ -31,15 +32,28 @@ export const ReferencePnl = z.object({
   reference_pnl_jpy: decStr, // 負値のまま出す（max(0,·) に丸めない。v2 §9）
 });
 
-export const CurrencyReport = z.object({
-  currency: z.string(),
-  method: Method,
-  summary: CurrencySummary,
-  reference: ReferencePnl.optional(),
-  blocked_by: z.array(z.string()),
-  warnings: z.array(z.string()),
-  policy_ids: z.array(z.string()),
-});
+export const CurrencyReport = z
+  .object({
+    currency: z.string(),
+    method: Method,
+    summary: CurrencySummary,
+    reference: ReferencePnl.optional(),
+    /** 国税庁計算書と同値の出力（付録D.6）。`reference` と同条件でだけ付く */
+    nta_compat: NtaCompat.optional(),
+    blocked_by: z.array(z.string()),
+    warnings: z.array(z.string()),
+    policy_ids: z.array(z.string()),
+  })
+  // ガードが止めた銘柄に互換値だけ出ると「本体は出せないがこちらは出せる」と読める。
+  // 出力側は同じ分岐で両方付けているので、契約としても片方だけを許さない
+  .superRefine((v, ctx) => {
+    if ((v.reference === undefined) !== (v.nta_compat === undefined)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "reference と nta_compat は同時に出すか、同時に出さないかのどちらか",
+      });
+    }
+  });
 
 /** 突合の診断（付録E.4）。`compare-parts.ts` の Diagnosis はこの enum から導出する。 */
 export const Diagnosis = z.enum([
