@@ -7,6 +7,7 @@ import { describe, expect, it } from "vitest";
 import type { RawAsset } from "../../../tax/import/fetch-assets.js";
 import { fromDecimalString, toExactDecimalString } from "../../../tax/ratio-decimal.js";
 import { compareBalances } from "../../../tax/reconcile/compare.js";
+import { DUST_THRESHOLD, dustFor } from "../../../tax/reconcile/compare-parts.js";
 import { rebuildBalances } from "../../../tax/reconcile/rebuild.js";
 import type { TaxEvent } from "../../../tax/schema/event.js";
 import type { EventFlag } from "../../../tax/schema/primitives.js";
@@ -201,5 +202,21 @@ describe("通貨別のダスト閾値", () => {
     const r = compare("btc", "1.0002", "1");
     expect(r.dust).toBe("0.0001");
     expect(r.withinDust).toBe(false);
+  });
+});
+
+describe("dustFor: 通貨キーの防御", () => {
+  it("上書き > 通貨別既定 > 全体既定 の順で引く", () => {
+    expect(dustFor("btc", { btc: "0.01" })).toBe("0.01");
+    expect(dustFor("jpy")).toBe("1");
+    expect(dustFor("eth")).toBe(DUST_THRESHOLD);
+  });
+
+  it("プロトタイプ由来のキーでも閾値の文字列を返す（継承プロパティを拾わない）", () => {
+    // 素の Record 参照だと Object.prototype 側の関数が返り、閾値が数値として
+    // 読めなくなる。上書き側・既定側のどちらの参照も hasOwn で閉じる
+    expect(dustFor("constructor")).toBe(DUST_THRESHOLD);
+    expect(dustFor("__proto__")).toBe(DUST_THRESHOLD);
+    expect(dustFor("toString", { jpy: "1" })).toBe(DUST_THRESHOLD);
   });
 });
