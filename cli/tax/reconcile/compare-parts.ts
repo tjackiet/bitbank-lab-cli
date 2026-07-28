@@ -1,7 +1,7 @@
 // compare.ts の部品（突合結果の型・診断文言・行の組み立て）。
 import type { RawAsset } from "../import/fetch-assets.js";
 import { canonicalAsset } from "../import/symbol-alias.js";
-import { add, isNegative, type Ratio, sub, ZERO } from "../ratio.js";
+import { add, type Ratio, ZERO } from "../ratio.js";
 import { fromDecimalString, toExactDecimalString } from "../ratio-decimal.js";
 import type { Diagnosis as ReportDiagnosis } from "../schema/report.js";
 
@@ -68,10 +68,6 @@ export function actualByCurrency(assets: readonly RawAsset[]): Map<string, Ratio
     out.set(key, add(prev ?? ZERO, add(onhand, withdrawing)));
   }
   return out;
-}
-
-export function abs(r: Ratio): Ratio {
-  return isNegative(r) ? sub(ZERO, r) : r;
 }
 
 export function row(

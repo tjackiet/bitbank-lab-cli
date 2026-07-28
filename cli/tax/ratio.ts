@@ -58,6 +58,11 @@ export function neg(a: Ratio): Ratio {
   return { n: -a.n, d: a.d };
 }
 
+/** 絶対値。残高突合・報告書突合が差の大きさを閾値と比べるのに使う（丸めは伴わない）。 */
+export function abs(a: Ratio): Ratio {
+  return isNegative(a) ? sub(ZERO, a) : a;
+}
+
 export function cmp(a: Ratio, b: Ratio): -1 | 0 | 1 {
   const l = a.n * b.d;
   const r = b.n * a.d;
