@@ -99,24 +99,36 @@ describe("信用の報告書突合", () => {
   // 手数料の丸め誤差をそのまま継承する。ダスト固定の許容幅だと件数が増えたぶんを
   // 「FIFO の対応付けのズレ」と誤診する（実際に btc で誤診した）
   describe("損益は手数料の丸め誤差を継承する（実機確認 #11）", () => {
-    /** 決済 n 件。報告書側だけ丸め前の値を持たせ、API 側は 4 桁丸めを模す。 */
-    const withRounding = (closes: number) => {
-      const events = Array.from({ length: closes }, () =>
-        margin("CLOSE", { net: "900", charged: "100.0001", occurred: "100.0001" }),
+    /**
+     * 決済 9 件。API 側は 4 桁丸め済みの値を、報告書側は丸め前合計を持つ。
+     * **期待値は十進のまま手計算して固定する**。丸め境界を見るテストで浮動小数点の
+     * 乗算や `toFixed` を使うと、フィクスチャ自体が二進誤差でずれ得る（ADR-005）。
+     *
+     *   API    手数料 = 100.0001     × 9 = 900.0009
+     *          損益   = (900 + 100.0001) × 9 = 9000.0009
+     *   報告書 手数料 = 100.00012345 × 9 = 900.00111105
+     *          損益   = (900 + 100.00012345) × 9 = 9000.00111105
+     *   差     どちらも 0.00021105（許容幅 9 × 半 ulp = 0.00045 の内側）
+     */
+    const CLOSES = 9;
+    const withRounding = () =>
+      ok(
+        [{ 通貨名: "btc", 年中信用取引損益: "9000.00111105", 支払手数料: "900.00111105" }],
+        Array.from({ length: CLOSES }, () =>
+          margin("CLOSE", { net: "900", charged: "100.0001", occurred: "100.0001" }),
+        ),
       );
-      // 丸め前合計は 100.00012345 × n。報告書はこれを持ち、API は 100.0001 × n
-      const exact = (100.00012345 * closes).toFixed(8);
-      const pnl = (1000.00012345 * closes).toFixed(8);
-      return ok([{ 通貨名: "btc", 年中信用取引損益: pnl, 支払手数料: exact }], events);
-    };
 
     it("損益の差と手数料の差が一致する（両者が同じ丸めから来ている証拠）", () => {
-      const rows = withRounding(9).rows;
-      expect(find(rows, "btc", "margin_pnl")?.diff).toBe(find(rows, "btc", "margin_fee")?.diff);
+      const rows = withRounding().rows;
+      const pnl = find(rows, "btc", "margin_pnl");
+      expect(pnl?.diff).toBe(find(rows, "btc", "margin_fee")?.diff);
+      // 値そのものも固定する。一致するだけなら両方 0 でも通ってしまう
+      expect(pnl?.diff).toBe("0.00021105");
     });
 
     it("丸めで説明できる損益差は FEE_ROUNDING（REPORT_EXCESS にしない）", () => {
-      const row = find(withRounding(9).rows, "btc", "margin_pnl");
+      const row = find(withRounding().rows, "btc", "margin_pnl");
       expect(row?.diagnosis).toBe("FEE_ROUNDING");
       // 許容幅は件数比例。ダスト固定（0.0001）のままなら 9 件で外れる
       expect(row?.tolerance).toBe("0.00045");
