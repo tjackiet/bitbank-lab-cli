@@ -31,11 +31,27 @@ export const ReferencePnl = z.object({
   reference_pnl_jpy: decStr, // 負値のまま出す（max(0,·) に丸めない。v2 §9）
 });
 
+/**
+ * 国税庁計算書（`NTA_SHEET_2025_12`）と同値の出力（v2 付録D.6）。
+ * `reference` と同じ条件でだけ付ける — ガードが止めた銘柄に互換値だけ出すと、
+ * 「本体は出せないがこちらは出せる」と読めてしまう。
+ */
+export const NtaCompat = z.object({
+  mode: z.string(),
+  cogs_jpy: decStr,
+  closing_cost_jpy: decStr,
+  income_total_jpy: decStr,
+  expense_total_jpy: decStr,
+  income_jpy: decStr,
+  carryover_cost_jpy: decStr,
+});
+
 export const CurrencyReport = z.object({
   currency: z.string(),
   method: Method,
   summary: CurrencySummary,
   reference: ReferencePnl.optional(),
+  nta_compat: NtaCompat.optional(),
   blocked_by: z.array(z.string()),
   warnings: z.array(z.string()),
   policy_ids: z.array(z.string()),
@@ -112,6 +128,7 @@ export const TaxReport = z.object({
 export type Diagnosis = z.infer<typeof Diagnosis>;
 export type CurrencySummary = z.infer<typeof CurrencySummary>;
 export type ReferencePnl = z.infer<typeof ReferencePnl>;
+export type NtaCompat = z.infer<typeof NtaCompat>;
 export type CurrencyReport = z.infer<typeof CurrencyReport>;
 export type ReconciliationRow = z.infer<typeof ReconciliationRow>;
 export type PendingRow = z.infer<typeof PendingRow>;

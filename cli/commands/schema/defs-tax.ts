@@ -35,6 +35,16 @@ const referenceProps = {
   reference_pnl_jpy: s,
 };
 
+const ntaCompatProps = {
+  mode: s,
+  cogs_jpy: s,
+  closing_cost_jpy: s,
+  income_total_jpy: s,
+  expense_total_jpy: s,
+  income_jpy: s,
+  carryover_cost_jpy: s,
+};
+
 const reconciliationRow = {
   type: "object",
   properties: {
@@ -179,6 +189,7 @@ export const taxSchemas: Record<string, SchemaDef> = {
               method: s,
               summary: { type: "object", properties: summaryProps },
               reference: { type: "object", properties: referenceProps },
+              nta_compat: { type: "object", properties: ntaCompatProps },
               blocked_by: strings,
               warnings: strings,
               policy_ids: strings,
