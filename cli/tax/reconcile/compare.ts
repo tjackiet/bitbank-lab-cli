@@ -3,11 +3,10 @@
 // **判定ではなく検出**（要求仕様 §10-2）。閾値外を失敗として扱わず、残差の量と符号を
 // 報告する。実口座では販売所取引が API に現れないため「全資産で残差ゼロ」は成立しない。
 import type { RawAsset } from "../import/fetch-assets.js";
-import { cmp, isZero, sub, ZERO } from "../ratio.js";
+import { abs, cmp, isZero, sub, ZERO } from "../ratio.js";
 import { fromDecimalString } from "../ratio-decimal.js";
 import {
   type AssetComparison,
-  abs,
   actualByCurrency,
   type Diagnosis,
   dustFor,

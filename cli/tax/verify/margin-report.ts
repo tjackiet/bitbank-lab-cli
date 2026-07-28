@@ -9,6 +9,7 @@ import { POSITION_FIELDS } from "../import-csv/margin-report-columns.js";
 import { isZero, type Ratio, ZERO } from "../ratio.js";
 import type { VerifyRow } from "../schema/verify.js";
 import type { Unsupported } from "./annual-report.js";
+import { marginHint } from "./hints.js";
 import { indexByCurrency, readField } from "./index-rows.js";
 import {
   MARGIN_FIELDS,
@@ -16,7 +17,6 @@ import {
   type MarginField,
   type MarginFigures,
 } from "./margin-aggregate.js";
-import { marginHint } from "./margin-hints.js";
 import { buildRow, feeTolerance } from "./rows.js";
 
 export type MarginOutcome = { rows: VerifyRow[]; unsupported: Unsupported[]; warnings: string[] };

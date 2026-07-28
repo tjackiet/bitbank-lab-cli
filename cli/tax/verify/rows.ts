@@ -1,7 +1,8 @@
-// 突合行の組み立て（許容幅・診断・ヒント）。現物 / 信用の突合が共有する。
-import { cmp, fromBigint, isZero, mul, type Ratio, ratio, sub, ZERO } from "../ratio.js";
+// 突合行の組み立て（許容幅・診断）。現物 / 信用の突合が共有する。
+// ヒント文言は現物 / 信用とも hints.ts が持つ（ここは両者に共通する部品だけ）。
+import { abs, cmp, fromBigint, isZero, mul, type Ratio, ratio, sub, ZERO } from "../ratio.js";
 import { fromDecimalString, toDecimalString, toExactDecimalString } from "../ratio-decimal.js";
-import { abs, DUST_THRESHOLD } from "../reconcile/compare-parts.js";
+import { DUST_THRESHOLD } from "../reconcile/compare-parts.js";
 import type { VerifyDiagnosis, VerifyField, VerifyRow } from "../schema/verify.js";
 import type { ComparedField } from "./aggregate.js";
 
@@ -66,25 +67,5 @@ export function buildRow(args: RowArgs): VerifyRow | null {
     within_tolerance: cmp(magnitude, args.tolerance) <= 0,
     diagnosis,
     hint: args.hint(diagnosis),
-  };
-}
-
-const TRADE_FIELDS = new Set<ComparedField>(["buy_qty", "buy_jpy", "sell_qty", "sell_jpy"]);
-
-/** 現物のヒント。差の向きごとに「次に何を疑うか」を書く。 */
-export function spotHint(field: ComparedField): (d: VerifyDiagnosis) => string {
-  return (diagnosis) => {
-    if (diagnosis === "MATCH") return "許容幅内で一致";
-    if (diagnosis === "FEE_ROUNDING") {
-      return "API 手数料の 4 桁丸めで説明できる範囲の差（P-16。件数 × 半 ulp 以内）";
-    }
-    if (diagnosis === "REPORT_EXCESS") {
-      return TRADE_FIELDS.has(field)
-        ? "報告書が多い: 報告書の対象年と --year の取り違え、または販売所（即時売買。API に現れないので --brokerage-csv が要る）"
-        : "報告書が多い: 報告書の対象年と --year の取り違え、取込の打ち切り（--max-pages）、API に現れない移転";
-    }
-    return TRADE_FIELDS.has(field)
-      ? "API が多い: 報告書の対象年と --year の取り違え、報告書の対象外（信用は別様式）、年分判定・重複排除のズレ"
-      : "API が多い: 報告書の対象年と --year の取り違え、年分判定（JST）のズレ、報告書の対象外の移転";
   };
 }
