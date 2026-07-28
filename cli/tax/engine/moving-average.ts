@@ -28,6 +28,11 @@ function step(
   }
   if (e.kind !== "DISPOSE") return { book, unit, cogs: ZERO };
 
+  // 数量ゼロの処分では簿価も単価も動かさない。下の P-03 判定は qty と book.qty が
+  // 両方ゼロでも真になるため、数量ゼロの調整仕訳で残った簿価が丸ごと cogs へ流れ、
+  // 売却代金ゼロの参考損失になってしまう。簿価は期末に残し I2 違反として検知させる
+  if (isZero(qty)) return { book, unit, cogs: ZERO };
+
   if (cmp(qty, book.qty) > 0) {
     violations.push(
       `${e.event_id}#${e.seq}: 処分数量が保有数量を超えています（取込漏れか前年繰越の未入力）`,

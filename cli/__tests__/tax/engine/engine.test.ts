@@ -99,6 +99,19 @@ describe("移動平均法の境界", () => {
     expect(exact(o.closing.qty)).toBe("1");
   });
 
+  it("数量ゼロの処分では簿価を掃き出さない（全量処分の分岐に吸い込ませない）", () => {
+    // 数量ゼロの ACQUIRE（調整仕訳）で簿価だけ残った状態。P-03 の eq(qty, book.qty) は
+    // **両方ゼロでも真**になるので、防御しないと残簿価が丸ごと cogs へ流れ、売却代金
+    // ゼロの参考損失が立つ。しかも I1 は成立するのでそちらでは検知できない
+    const entries = [acquire(1, "0", "1000"), dispose(2, "0", "0")];
+    const o = movingAverage("btc", entries, ZERO_BOOK);
+    expect(exact(o.cogs)).toBe("0");
+    expect(exact(o.closing.cost)).toBe("1000"); // 簿価は期末に残す
+    expect(o.unit).toBeNull(); // 数量ゼロでは単価を引けないので据置き
+    expect(checkI1(o)).toEqual([]);
+    expect(checkI2(o)).not.toEqual([]); // 年末に I2 違反として拾われ、ガードが閉じる
+  });
+
   it("時系列が入れ替わっていても sort_key で安定に並べ直す", () => {
     const entries = [acquire(3, "1", "400"), acquire(1, "2", "200"), dispose(2, "1", "500")];
     const o = movingAverage("btc", entries, ZERO_BOOK);
