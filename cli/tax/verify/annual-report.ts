@@ -10,8 +10,9 @@ import { isZero, ZERO } from "../ratio.js";
 import type { ReportCheck, UnsupportedField, VerifyRow } from "../schema/verify.js";
 import { type Aggregated, COMPARED_FIELDS, zeroFigures } from "./aggregate.js";
 import { reportChecks } from "./checks.js";
+import { spotHint } from "./hints.js";
 import { indexByCurrency, readField } from "./index-rows.js";
-import { buildRow, spotHint, toleranceFor } from "./rows.js";
+import { buildRow, toleranceFor } from "./rows.js";
 
 export type Unsupported = { currency: string; field: UnsupportedField; value: string };
 
