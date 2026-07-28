@@ -84,6 +84,8 @@ Accepted（YYYY-MM-DD）
 
 - ADR は**判断の記録**であって仕様書ではない。手順は `.claude/rules/` に、
   実装計画は `docs/dev/` に書く
-- 既存 ADR の内容・番号・ファイル名は変更しない（ステータス更新と例外の追記は除く）
+- **main に既に入った ADR** の内容・番号・ファイル名は変更しない（ステータス更新と
+  例外の追記は除く）。採番衝突の解消でリネームしてよいのは、まだマージされていない
+  後発ブランチ側の ADR だけ
 - ADR を足したら `npx vitest run cli/__tests__/chaos/conventions/x21-adr-consistency.test.ts`
   で採番・構成を確認する

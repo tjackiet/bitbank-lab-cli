@@ -23,7 +23,12 @@ const ADR_DIR = resolve(import.meta.dirname, "../../../../docs/adr");
 const NON_ADR_FILES = ["README.md"];
 
 const FILENAME_RE = /^(\d{3})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
-const TITLE_RE = /^#\s*ADR-(\d{3}):\s*\S/m;
+/** 検査対象は**先頭行の H1 だけ**。本文中の任意行を探すと、先頭タイトルの番号が
+ * ファイル名とズレていても、後続に正しい `# ADR-NNN:` が 1 行あれば通ってしまう
+ * （リネーム時に本文の参照だけ直してタイトルを直し忘れる、が実際に起きる形）。
+ * `#` の後ろとコロンの後ろも 1 個以上の空白に固定し、`.claude/rules/adr.md` が
+ * 定める `# ADR-NNN: <タイトル>` そのものだけを許す */
+const TITLE_RE = /^# ADR-(\d{3}):[ \t]+\S/;
 
 /** 必須は 4 節。「理由」を必須に含めると **ADR-005 が落ちる**（理由が「決定」と
  * 「検討した代替案」に分散していて、独立した「## 理由」節を持たない）。ADR-005 に
@@ -35,9 +40,14 @@ const REQUIRED_SECTIONS = ["ステータス", "コンテキスト", "決定", "�
  * ADR-005 / ADR-006 の `Accepted（2026-07-25）` のような日付付きを両方許すため */
 const KNOWN_STATUSES = ["Proposed", "Accepted", "Superseded", "Deprecated"];
 
+/** `.md` で事前に絞らない。絞ると `007-foo.txt` や `007-foo.MD` が列挙から丸ごと
+ * 消えて、番号重複の検査からも外れる（NON_ADR_FILES の「明示した例外以外は違反」
+ * という契約に反する fail-open）。拡張子の判定は FILENAME_RE に一本化する。
+ * dotfile だけは除く（`.DS_Store` 等の gitignore 済み OS 生成物でローカル実行が
+ * 落ちるのを避ける。ADR が dotfile になることは無い）。 */
 function adrFiles(): string[] {
   return readdirSync(ADR_DIR)
-    .filter((f) => f.endsWith(".md") && !NON_ADR_FILES.includes(f))
+    .filter((f) => !f.startsWith(".") && !NON_ADR_FILES.includes(f))
     .filter((f) => statSync(resolve(ADR_DIR, f)).isFile())
     .sort();
 }
@@ -105,9 +115,10 @@ describe("Chaos X-21: docs/adr/ numbering and structure", () => {
     if (!num) continue; // 形式違反は上の it が報告する
 
     describe(file, () => {
-      it("見出しの ADR-NNN がファイル名の番号と一致する", () => {
-        const m = body(file).match(TITLE_RE);
-        expect(m, `見出しが '# ADR-NNN: <タイトル>' 形式でない`).not.toBeNull();
+      it("先頭行の見出しの ADR-NNN がファイル名の番号と一致する", () => {
+        const firstLine = body(file).trimStart().split(/\r?\n/, 1)[0] ?? "";
+        const m = firstLine.match(TITLE_RE);
+        expect(m, `先頭行が '# ADR-NNN: <タイトル>' 形式でない。実際: ${firstLine}`).not.toBeNull();
         expect(m?.[1], `見出しの番号がファイル名 (${num}) と一致しない`).toBe(num);
       });
 
