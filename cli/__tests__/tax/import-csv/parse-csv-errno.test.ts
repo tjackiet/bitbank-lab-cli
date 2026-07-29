@@ -5,6 +5,9 @@
 //
 // 実 fs では EPERM を再現できない（root で走ると chmod が効かない）のでモックで投げる。
 // 実ファイルを使う readCsvFile のテストは tax/verify/parse-csv.test.ts 側にある。
+//
+// 100行超: 同じ fs モック配線の上で「errno 別の理由 / 理由を足さない経路 / 正常系」を
+// 対で固定する。分割するとモック配線が二重化し、片方だけ直る事故を招く。
 import type { Stats } from "node:fs";
 import { readFileSync, statSync } from "node:fs";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,7 +27,9 @@ const read = vi.mocked(readFileSync);
 const errno = (code: string): Error => Object.assign(new Error(`${code}: mocked`), { code });
 
 /** サイズ判定を通す stat。read 側の errno を見たいときに使う。 */
-const statOk = () => stat.mockReturnValue({ size: 8 } as Stats);
+const statOk = (): void => {
+  stat.mockReturnValue({ size: 8 } as Stats);
+};
 
 const errorOf = (path = "report.csv"): string => {
   const r = readCsvFile(path);
@@ -62,7 +67,7 @@ describe("readCsvFile: 読み取り失敗の理由", () => {
     expect(errorOf()).toBe("Cannot read CSV file: report.csv (permission denied)");
   });
 
-  it("未知の errno は推測で言い換えず現行の文言のまま", () => {
+  it("マップしていない errno は推測で言い換えず現行の文言のまま", () => {
     statOk();
     read.mockImplementation(() => {
       throw errno("EIO");
@@ -91,13 +96,13 @@ describe("readCsvFile: 読み取り失敗の理由", () => {
     }
   });
 
-  it("サイズ上限超過の文言は理由を足さない（別経路として既に理由が出ている）", () => {
+  // 完全一致で見る。部分一致だと「理由が足された」以外の文言変化を取り逃がす
+  it("サイズ上限超過の文言は据え置き（別経路として既に理由が出ている）", () => {
     stat.mockReturnValue({ size: 999 } as Stats);
     const r = readCsvFile("report.csv", 8);
     expect(r.success).toBe(false);
     if (!r.success) {
-      expect(r.error).toContain("CSV file is too large");
-      expect(r.error).not.toContain("(");
+      expect(r.error).toBe("CSV file is too large: 999 bytes exceeds the 8 byte limit: report.csv");
     }
   });
 });

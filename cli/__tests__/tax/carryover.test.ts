@@ -52,7 +52,7 @@ describe("loadCarryover: 読み取り失敗の理由", () => {
     expect(errorOf()).toBe("Cannot read carryover file: carryover.json (permission denied)");
   });
 
-  it("未知の errno は推測で言い換えず現行の文言のまま", () => {
+  it("マップしていない errno は推測で言い換えず現行の文言のまま", () => {
     throws(errno("EISDIR"));
     expect(errorOf()).toBe("Cannot read carryover file: carryover.json");
   });
