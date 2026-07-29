@@ -12,7 +12,7 @@ compatibility: |
   Plugin install alone does NOT bundle the CLI or its dependencies. Node.js 22+.
   Private API commands require API key/secret in .env file.
 metadata:
-  author: bitbank-aiforge
+  author: bitbankinc
   version: "2.0"
   requires:
     bins:
