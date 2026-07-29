@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { EXIT } from "../exit-codes.js";
+import { fsErrorSuffix } from "../fs-error.js";
 import { decStr } from "../schema-helpers.js";
 import type { Result } from "../types.js";
 import type { OpeningBalances } from "./engine/types.js";
@@ -57,8 +58,12 @@ export function loadCarryover(path: string): Result<OpeningBalances> {
   let raw: string;
   try {
     raw = readFileSync(path, "utf-8");
-  } catch {
-    return { success: false, error: `Cannot read carryover file: ${path}`, exitCode: EXIT.PARAM };
+  } catch (e) {
+    return {
+      success: false,
+      error: `Cannot read carryover file: ${path}${fsErrorSuffix(e)}`,
+      exitCode: EXIT.PARAM,
+    };
   }
   let json: unknown;
   try {

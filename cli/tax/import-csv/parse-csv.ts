@@ -7,11 +7,14 @@
 // 復号できないバイトがあれば復号し直す。
 import { readFileSync, statSync } from "node:fs";
 import { EXIT } from "../../exit-codes.js";
+import { fsErrorSuffix } from "../../fs-error.js";
 import type { Result } from "../../types.js";
 
 const BOM = "﻿";
 /** 復号失敗のシグナル。UTF-8 として不正なバイト列はここに落ちる */
 const REPLACEMENT = "�";
+
+const fail = (error: string): Result<never> => ({ success: false, error, exitCode: EXIT.PARAM });
 
 /**
  * 読み込み上限。年間取引報告書・売買履歴は実測で数百 KiB なので十分すぎる余裕がある。
@@ -62,7 +65,6 @@ export function parseCsv(text: string): string[][] {
 
 /** UTF-8 側の decode も try で包む。サイズ上限をすり抜けても throw を外へ出さないため。 */
 function decode(buf: Uint8Array, path: string): Result<string> {
-  const fail = (error: string): Result<string> => ({ success: false, error, exitCode: EXIT.PARAM });
   let text: string;
   try {
     text = new TextDecoder("utf-8").decode(buf);
@@ -83,15 +85,14 @@ export function readCsvFile(path: string, maxBytes: number = MAX_CSV_BYTES): Res
   try {
     const { size } = statSync(path);
     if (size > maxBytes) {
-      return {
-        success: false,
-        error: `CSV file is too large: ${size} bytes exceeds the ${maxBytes} byte limit: ${path}`,
-        exitCode: EXIT.PARAM,
-      };
+      return fail(
+        `CSV file is too large: ${size} bytes exceeds the ${maxBytes} byte limit: ${path}`,
+      );
     }
     buf = readFileSync(path);
-  } catch {
-    return { success: false, error: `Cannot read CSV file: ${path}`, exitCode: EXIT.PARAM };
+  } catch (e) {
+    // stat / read どちらで落ちても errno が理由を持つので try は分けない
+    return fail(`Cannot read CSV file: ${path}${fsErrorSuffix(e)}`);
   }
   const decoded = decode(buf, path);
   if (!decoded.success) return decoded;
