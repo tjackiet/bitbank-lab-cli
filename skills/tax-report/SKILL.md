@@ -13,7 +13,7 @@ compatibility: |
   Private API commands require API key/secret. **read-only キーを使うこと**
   （tax サブコマンドは private GET のみで POST は叩かない）。
 metadata:
-  author: bitbank-aiforge
+  author: bitbankinc
   version: "1.0"
   requires:
     bins:
