@@ -988,13 +988,17 @@ ADR-004 のアーキテクチャ（CLI → MCP Tool → C 層）自体は変え�
 - 提出前ゲートとして**自然言語 E2E 検証**（skill 経由で CLI を動かし、skill の起動・
   規律・安全ガードを実地で確かめる）を置く。手順は
   [nl-verification.md](nl-verification.md)。結果は実機確認 #14 として本書に記録する
-- **CHANGELOG に tax の記載が 1 件も無い**（2026-07-30 確認）。`[Unreleased]` は可視化
-  レイヤー・chart カタログ・chaos `s11`・ADR 採番規約だけで、`cli/tax/` /
-  `cli/commands/tax/` / `skills/tax-report/` / ADR-004〜006 / `verify-report` /
-  国税庁計算書互換モードのいずれも書かれていない。**tax が目玉のリリースで
-  リリースノートに tax が出ない**状態になるので、公開前に起草する
-  （`release.md` 手順 1）。あわせて本フォークの CHANGELOG には **0.3.0 の節も無い**
-  （上流が 2026-07-17 に publish した版）。上流マージ時に履歴を整合させること
+- ~~CHANGELOG に tax の記載が 1 件も無い~~ → **対応済み**（2026-07-30）。`[Unreleased]` に
+  tax 一式（サブコマンド 4 本・ADR-004〜006・厳密有理数・エンジン・表示ガード・
+  報告書突合・販売所 CSV・国税庁互換モード・課税方式・JST 年境界・生データ網羅化・
+  Skill・`files` への `cli/tax/`）を起草した。
+  あわせて**欠けていた `[0.3.0]` の節を復元**した — `[Unreleased]` に積まれていた
+  可視化レイヤー一式は、npm の `bitbank-lab-cli@0.3.0`（2026-07-17 publish）の
+  tarball に `agents/chart-catalog.json` と
+  `skills/_shared/references/visualization-guide.md` が含まれることを実検証して
+  **公開済みと確定**させ、`[0.3.0] - 2026-07-17` へ移した。リリース時に
+  CHANGELOG の `[Unreleased]` → 版数への昇格が漏れていたのが原因（`release.md` 手順 1）。
+  未リリースとして残るのは ADR 採番規約（07-28）と tax 一式のみ
 
 ### 前提（新セッション開始時に確認）
 

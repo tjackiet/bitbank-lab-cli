@@ -14,6 +14,61 @@
 
 ### Added
 
+- **`bitbank tax` サブコマンドを新設**（`events` / `reconcile` / `verify-report` /
+  `pnl`）。bitbank 口座の取引を確定申告向けに整形する。出すのは「税務上の所得金額」
+  ではなく **税計算用参考データ**で、申告要否・税額・所得区分の判定はしない。
+  分析ロジックを CLI に置かない原則（ADR-002）の例外で、根拠は
+  [ADR-004](docs/adr/004-tax-logic-in-cli-exception.md)（税務は「間違えられない」領域で、
+  LLM に計算させられないため計算を CLI に閉じる）。**private GET のみで POST は
+  絶対に叩かない**。ユーザー指定の CSV は読むだけで、書き出しも送信もしない
+- 数値基盤として**厳密有理数**（`cli/tax/ratio.ts` / `ratio-decimal.ts`）を導入し、
+  丸めは境界で 1 回だけに限定した（[ADR-005](docs/adr/005-tax-exact-rational-arithmetic.md)）。
+  浮動小数点を経由しないため、集計順序で値が変わらない
+- 損益計算エンジン（`cli/tax/engine/`）に**総平均法・移動平均法**を実装。
+  既定は総平均法（移動平均法は税務署へ届出済みのユーザー向け）。不変条件 I1〜I4 と
+  処分上限を検査し、国税庁 FAQ の設例（2-4 / 2-8）をゴールデンテストで固定している
+- **参考損益の表示ガード**（`cli/tax/guard/reference-pnl.ts`）。(a) アテステーション
+  （`--attest`）/ (b) 取得価額を未確定にするフラグの不在 / (c) 前年繰越の確定
+  （`--carryover`）/ (d) 残高突合の一致 / 履歴が打ち切られていないこと、を**すべて
+  満たした銘柄だけ**参考損益を数値で出し、満たさない銘柄は欄を出さずに `blocked_by` へ
+  理由を並べる。ガードが守る範囲と唯一の対象外（`verify-report` の信用損益）は
+  [ADR-006](docs/adr/006-reference-pnl-guard-scope.md)
+- **年間取引報告書との突合** `bitbank tax verify-report`。bitbank 公式の CSV を
+  現物（`--csv`）・信用（`--margin-csv`）の 2 様式で受け取り、API 側と項目ごとに
+  突き合わせて `MATCH` / `FEE_ROUNDING` / `REPORT_EXCESS` / `API_EXCESS` に診断する。
+  CLI が API から再現できない列（BTC 建て・貸出・年末建玉）は `unsupported` として
+  分離し、差の解釈に混ぜない
+- **販売所（即時売買）の取込** `--brokerage-csv`。販売所の取引は API に一切現れないため、
+  UI の「売買履歴」CSV が唯一の取込経路になる。`events` / `reconcile` / `pnl` /
+  `verify-report` の 4 本すべてで受け付ける
+- **国税庁「暗号資産の計算書」互換モード**（`NTA_SHEET_2025_12`。
+  `cli/tax/compat/nta-sheet.ts`）。既定の計算（内部非丸め）は変えず、レポートに
+  `nta_compat` 欄を併記する。計算書へ手で書き写した場合と同じ値になるよう、
+  総平均法は収入計を切捨て・必要経費計を切上げ、移動平均法は売却の都度
+  残高価額を切上げる（既定とは**丸める場所が違う**ため 1 円ずれることがある）
+- **課税方式パラメータ**（`cli/tax/taxation.ts`）。課税年度から課税方式を決め、
+  `taxation.mode` / `certainty` / `basis` を出力する。方式が決まらない年は
+  推測で数値を出さずエラーにする
+- 税務の年分判定に使う **JST 年境界ヘルパー**（`cli/date-utils.ts` の `jstYear` /
+  `jstYearRangeMs` / `jstIso`）。「JST は表示用のみ」規約の明示的な例外
+- 生データ取得の網羅化: `trade-history` に `--all-pairs` / `--year`、
+  `deposit-history` に `--all` / `--year`、`withdrawal-history` に `--all` /
+  `--all-assets` / `--year` を追加。全ペア・全 asset を横断して年分を漏れなく集める
+- **`tax-report` Skill**（`skills/tax-report/`）。CLI が計算した確定値だけを提示し、
+  Skill 側では一切計算しない。免責（`disclaimers`）は要約せず全文を提示する
+- npm 公開物に `cli/tax/` を含めた（`package.json` の `files`）。**この 1 行が無いと
+  `npm pack` も CI も緑のまま公開物から tax が丸ごと欠け**、`bitbank tax` が実行時に
+  `ERR_MODULE_NOT_FOUND` で落ちる
+- ADR の採番手順 `.claude/rules/adr.md` を新設し、chaos `x21` で
+  `docs/adr/` の不変条件（番号重複なし・ファイル名と見出しの番号一致・
+  必須 4 節・ステータス語彙）を機械検証する。狙いは並行ブランチでの採番衝突で、
+  同じ番号の ADR が別ファイル名で作られると git は競合を出さないため、
+  main への push 時の CI が唯一の検出点になる（欠番は無害なので検査しない）
+
+## [0.3.0] - 2026-07-17
+
+### Added
+
 - 分析系 Skill に可視化（グラフ出力）レイヤーを追加。共有規約
   `skills/_shared/references/visualization-guide.md`（opt-in トリガー・
   matplotlib 解決手順・出力先/ファイル名（UTC 統一）・スタイル・来歴フッター・
@@ -28,11 +83,6 @@
   （手書き禁止、chaos `x17` が drift を検査）
 - chaos `s11` を新設: 可視化節を持つ skill の共有ガイド参照、チャート ID の
   prefix 一致・グローバル一意性を検査する
-- ADR の採番手順 `.claude/rules/adr.md` を新設し、chaos `x21` で
-  `docs/adr/` の不変条件（番号重複なし・ファイル名と見出しの番号一致・
-  必須 4 節・ステータス語彙）を機械検証する。狙いは並行ブランチでの採番衝突で、
-  同じ番号の ADR が別ファイル名で作られると git は競合を出さないため、
-  main への push 時の CI が唯一の検出点になる（欠番は無害なので検査しない）
 
 ### Changed
 
