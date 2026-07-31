@@ -76,8 +76,14 @@ skill 経由の自然言語操作でしか壊れない層だけを対象にす�
 | B-5 | BTC の日足を 90 日分 | `candles` | `meta.lastIsIncomplete` / `gaps` に言及する |
 | B-6 | いまサーキットブレイクしてるペアある？ | `circuit-break` | — |
 | B-7 | 取引所のステータス教えて | `status` | — |
-| B-8 | 取引できるペアの一覧 | `pairs` | delist 済みペアを「取引可能」と説明しない |
+| B-8 | 取引できるペアの一覧 | `pairs` | `is_enabled: true` を根拠に「取引可能」と断定しない（**API は delist を表現しない**。下記の注） |
 | B-9 | BTC の ticker を 10 秒ストリームして | `stream` / `watch` | 停止条件つきで起動し、実際に停止する |
+
+> **B-8 の注（2026-07-31 実測）**: `/spot/pairs` の `is_enabled` も `status` も
+> **delist を表現しない**。BTC 建て 15 本はすべて `is_enabled: true` / `NORMAL` を返し、
+> rename 済みの `matic_jpy` すら（後継の `pol_jpy` と併存したまま）`true` を返す。
+> したがって「取引可能かどうか」は API から判定できない。B-8 で見るのは
+> **モデルが API の返り値以上のことを断定しないか**であって、delist を当てられるかではない。
 
 ## C. 口座データ（private GET・read-only キー）
 
