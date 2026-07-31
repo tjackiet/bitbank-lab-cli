@@ -53,7 +53,9 @@
   `jstYearRangeMs` / `jstIso`）。「JST は表示用のみ」規約の明示的な例外
 - 生データ取得の網羅化: `trade-history` に `--all-pairs` / `--year`、
   `deposit-history` に `--all` / `--year`、`withdrawal-history` に `--all` /
-  `--all-assets` / `--year` を追加。全ペア・全 asset を横断して年分を漏れなく集める
+  `--all-assets` / `--year` を追加。全ペア・全 asset を横断して年分を集める。
+  `--max-pages` の上限に当たった場合は打ち切りを `meta.truncated` / `partial` で申告し、
+  部分結果を黙って完全なものとして返さない（tax 側はこのとき参考損益をブロックする）
 - **`tax-report` Skill**（`skills/tax-report/`）。CLI が計算した確定値だけを提示し、
   Skill 側では一切計算しない。免責（`disclaimers`）は要約せず全文を提示する
 - npm 公開物に `cli/tax/` を含めた（`package.json` の `files`）。**この 1 行が無いと
