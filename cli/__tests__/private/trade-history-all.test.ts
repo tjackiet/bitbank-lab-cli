@@ -24,7 +24,9 @@ function pagedFetch(pages: ReturnType<typeof makeTrade>[][]): {
   let call = 0;
   const fetch: typeof globalThis.fetch = async (input) => {
     urls.push(typeof input === "string" ? input : input.toString());
-    const trades = pages[call++] ?? [];
+    const trades = pages[call++];
+    // 余分なページを空で返すと「止まるべきところで止まらない」実装も通ってしまう
+    if (trades === undefined) throw new Error(`unexpected request #${call}`);
     return new Response(JSON.stringify({ success: 1, data: { trades } }));
   };
   return { fetch, urls };
@@ -142,7 +144,7 @@ describe("tradeHistoryAll", () => {
 
   it("stops on an empty page after an exactly-full page (not partial)", async () => {
     const page1 = Array.from({ length: 1000 }, (_, i) => makeTrade(i + 1, 1000 + i));
-    const { fetch } = pagedFetch([page1, []]);
+    const { fetch, urls } = pagedFetch([page1, []]);
 
     const result = await tradeHistoryAll(
       { pair: "btc_jpy" },
@@ -150,6 +152,8 @@ describe("tradeHistoryAll", () => {
     );
 
     expect(result.success).toBe(true);
+    // ちょうど上限なら「次が空」を確かめるまで完了と言えない（1 回で止まったら不足）
+    expect(urls).toHaveLength(2);
     if (result.success) {
       expect(result.data).toHaveLength(1000);
       // 上限到達ではないので打ち切り扱いにしない
