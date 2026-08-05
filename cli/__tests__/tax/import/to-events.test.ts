@@ -112,6 +112,18 @@ describe("信用約定の正規化", () => {
     const r = run([open] as RawTrade[]);
     expect(r.warnings.join()).toContain("未決済建玉");
   });
+
+  it("前年に建てた玉の決済だけが入ると、取込漏れの疑いを警告に出す（年またぎ建玉）", () => {
+    // verify-report は年ウィンドウでしか取得しない（`tax/verify/run.ts` は year_jst で
+    // 絞る前に年範囲で collect する）ため、年をまたぐ建玉は「OPEN の無い CLOSE」として
+    // 現れる。tracker の anomaly が **warnings まで届く**ことがここでの検出手段になる。
+    // 年末建玉（`unsupported` 行き）とは経路が違うので分けて固定する。
+    const r = run([close] as RawTrade[]);
+    expect(r.warnings.join()).toContain("建玉残");
+    expect(r.warnings.join()).toContain("過年度");
+    // ADR-006: 信用損益はガード対象外なので、警告は出しても数値は止めない
+    expect(r.events).toHaveLength(1);
+  });
 });
 
 describe("入出庫の正規化", () => {
