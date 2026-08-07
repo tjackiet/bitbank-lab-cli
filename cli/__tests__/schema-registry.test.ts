@@ -3,6 +3,7 @@
 // 衝突し「型エラーも出ず静かに後勝ちで消える」構造だった。ここでその穴を固定する。
 import { describe, expect, it } from "vitest";
 import {
+  COMMANDS,
   PAPER_COMMANDS,
   PROFILE_COMMANDS,
   TAX_COMMANDS,
@@ -54,6 +55,16 @@ describe("ALL_SCHEMAS のキー合成", () => {
 });
 
 describe("カタログのコマンド網羅", () => {
+  // CLAUDE.md は「LLM は CLI を実行せず repo を読むだけで全コマンドを把握できる」と
+  // 宣言している。1 つでも欠けるとモデルが呼び出し方を推測し、実在しないコマンドを
+  // 案内する（実機確認 #14 の paper / profile、および schema 未登録だった watch）。
+  // 未登録だと `--help` も引けないので index.ts の help 経路も道連れになる。
+  it("フラットな COMMANDS が全て素の名前で載る", () => {
+    for (const name of Object.keys(COMMANDS)) {
+      expect(ALL_SCHEMAS[name], `${name} が ALL_SCHEMAS に無い`).toBeDefined();
+    }
+  });
+
   it("登録済みサブコマンドが全て `<group> <name>` キーで載る", () => {
     for (const [group, commands] of Object.entries(GROUPS)) {
       for (const name of Object.keys(commands)) {

@@ -19,8 +19,10 @@ export type ParamProp = z.infer<typeof ParamPropSchema>;
 export type SchemaDef = z.infer<typeof SchemaDefSchema>;
 
 /** サブコマンド形式で呼ぶカテゴリ（`bitbank <group> <name>`）。router.ts の
- *  GROUP_REGISTRY と対。グループ名はカテゴリ名と一致させる。 */
-export const SUBCOMMAND_GROUPS = new Set<SchemaDef["category"]>([
+ *  GROUP_REGISTRY と対。グループ名はカテゴリ名と一致させる。
+ *  構築時は category リテラルで検査し、公開型は `ReadonlySet<string>` にする
+ *  （呼び出し側はユーザー入力の文字列を渡すので、category へのキャストを強いない）。 */
+export const SUBCOMMAND_GROUPS: ReadonlySet<string> = new Set<SchemaDef["category"]>([
   "trade",
   "tax",
   "paper",

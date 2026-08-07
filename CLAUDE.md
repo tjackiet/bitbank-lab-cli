@@ -18,8 +18,9 @@ npx tsx cli/index.ts    # CLI 実行
 - CLI の責務は API データの取得と整形のみ。
   **例外: `paper` サブコマンド** はライブ価格 × 仮想資金のシミュレーション
   のため、ローカル状態（`~/.bitbank/paper-state.json`）を読み書きする。
-  これは public ticker のみを叩く読み取り専用の sim であり、
-  private/trade エンドポイントは絶対に叩かない
+  これは **public エンドポイントのみ**を叩く読み取り専用の sim であり、
+  private/trade エンドポイントは絶対に叩かない。実際に使うのは ticker・
+  candlestick（指値約定の判定）・pairs（発注量の検証）の 3 つ
 - **例外: `tax` サブコマンド**（[ADR-004](docs/adr/004-tax-logic-in-cli-exception.md)）は
   税務・会計データ整形のため CLI 内で損益計算を行う。税務は「間違えられない」領域で、
   LLM に計算させられないための例外。**private GET のみで POST は絶対に叩かない**。

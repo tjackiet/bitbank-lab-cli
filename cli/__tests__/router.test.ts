@@ -1,6 +1,7 @@
 // 100行超: コマンドルーティングの分岐を網羅
 import { describe, expect, it, vi } from "vitest";
 import { COMMANDS, PROFILE_COMMANDS, TRADE_COMMANDS } from "../commands/registry.js";
+import { EXIT } from "../exit-codes.js";
 import { handleSpecialCommand, resolveCommand, runCommandHelp } from "../router.js";
 
 describe("resolveCommand", () => {
@@ -122,17 +123,33 @@ describe("handleSpecialCommand", () => {
 });
 
 describe("runCommandHelp", () => {
-  it("既知コマンドは true を返しヘルプを出力する", async () => {
+  it("既知コマンドは成功を返しヘルプを出力する", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const handled = await runCommandHelp("ticker", "Get ticker for a pair");
+    const r = await runCommandHelp("ticker", "Get ticker for a pair");
     logSpy.mockRestore();
-    expect(handled).toBe(true);
+    expect(r.success).toBe(true);
   });
 
-  it("未登録コマンドは false を返す", async () => {
+  it("group 付きは `<group> <name>` キーで引く", async () => {
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
-    const handled = await runCommandHelp("nonexistent-xyz", "desc");
+    const r = await runCommandHelp("assets", "Show paper balances", "paper");
+    const printed = String(logSpy.mock.calls[0]?.[0] ?? "");
     logSpy.mockRestore();
-    expect(handled).toBe(false);
+    expect(r.success).toBe(true);
+    // group を渡さないと private の assets を引いてしまう（キーは呼び出しパス）。
+    expect(printed).toContain("Usage: bitbank paper assets");
+  });
+
+  // false を返すだけだと index.ts が本体実行へ落ちる。`--help` が実行に化けないよう
+  // 失敗として返し、PARAM で終わらせる。
+  it("未登録コマンドは EXIT.PARAM の失敗を返す", async () => {
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const r = await runCommandHelp("nonexistent-xyz", "desc");
+    logSpy.mockRestore();
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.exitCode).toBe(EXIT.PARAM);
+      expect(r.error).toContain("No help available");
+    }
   });
 });

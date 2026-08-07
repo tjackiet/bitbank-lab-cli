@@ -3,7 +3,7 @@
   "cli_version": "0.2.0",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 46,
+  "command_count": 47,
   "dangerous_count": 5,
   "commands": [
     {
@@ -1848,6 +1848,102 @@
       "output": {
         "type": "object",
         "description": "Real-time event data (varies by channel)"
+      }
+    },
+    {
+      "command": "watch",
+      "category": "stream",
+      "auth_required": false,
+      "description": "Watch a real-time public channel (ticker only)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "channel": {
+            "type": "string",
+            "description": "Required. Channel to subscribe",
+            "enum": [
+              "ticker"
+            ],
+            "positional": true
+          },
+          "pair": {
+            "type": "string",
+            "description": "Required. Trading pair (e.g. btc_jpy)",
+            "positional": true
+          },
+          "duration": {
+            "type": "string",
+            "description": "Stop after N seconds (default: run until interrupted)"
+          },
+          "count": {
+            "type": "string",
+            "description": "Stop after N events (default: run until interrupted)"
+          },
+          "idle-timeout": {
+            "type": "string",
+            "description": "Reconnect when no event arrives for N seconds",
+            "default": "30"
+          },
+          "max-retries": {
+            "type": "string",
+            "description": "Max reconnect attempts, or \"infinite\" to opt in",
+            "default": "100"
+          },
+          "backoff-cap": {
+            "type": "string",
+            "description": "Reconnect backoff cap in seconds",
+            "default": "32"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "ts": {
+            "type": "string"
+          },
+          "pair": {
+            "type": "string"
+          },
+          "last": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "bid": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "ask": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "high": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "low": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "vol": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
       }
     },
     {

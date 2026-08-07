@@ -25,8 +25,13 @@ export function buildHelp(command: string, description: string): string | null {
   if (!schema) return null;
 
   const invocation = command;
+  // 位置引数は Usage 行にも出す（Examples だけだと必須の引数を見落とす）。
+  const positionals = Object.entries(schema.params)
+    .filter(([, def]) => def.positional)
+    .map(([name]) => ` <${name}>`)
+    .join("");
   const lines: string[] = [];
-  lines.push(`Usage: bitbank ${invocation} [options]\n`);
+  lines.push(`Usage: bitbank ${invocation}${positionals} [options]\n`);
   lines.push(`${description}\n`);
   lines.push(`Category: ${schema.category}\n`);
 
@@ -52,7 +57,8 @@ function exampleArgs(_command: string, schema: SchemaDef): string {
   const parts: string[] = [];
   for (const [name, def] of Object.entries(schema.params)) {
     if (def.positional) {
-      parts.push(`<${name}>`);
+      // 位置引数も具体値が引けるならそれを出す（例をそのまま実行できる形にする）。
+      parts.push(exampleValue(name, def) ?? `<${name}>`);
       continue;
     }
     if (def.default !== undefined) continue;
