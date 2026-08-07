@@ -25,7 +25,7 @@ describe("tax コマンドの登録", () => {
 
   it("schema カタログに tax カテゴリで載る", () => {
     for (const name of ["events", "reconcile", "pnl", "verify-report"]) {
-      expect(ALL_SCHEMAS[name]?.category).toBe("tax");
+      expect(ALL_SCHEMAS[`tax ${name}`]?.category).toBe("tax");
     }
   });
 

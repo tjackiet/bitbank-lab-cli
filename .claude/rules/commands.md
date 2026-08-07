@@ -40,9 +40,31 @@ events / reconcile / pnl / verify-report の 4 本すべてに付く。これも
 4. `--format=json|table|csv` オプションをサポート（デフォルト json）
 5. `cli/commands/<category>/index.ts` にエクスポートを追加しない（自動検出）
 6. ハンドラ登録: public/private は `cli/commands/registry.ts` の `COMMANDS`、trade は `TRADE_COMMANDS`、paper は `PAPER_COMMANDS`、profile は `PROFILE_COMMANDS`、tax は `TAX_COMMANDS` に入る
-7. `cli/__tests__/` にテストを追加
-8. 1 ファイル 100 行を目安。超えたら分割を検討。分割が不自然な場合は
-   ファイル冒頭にコメントで理由を明記すれば許容（CLAUDE.md 参照）
+7. schema 登録: `cli/commands/schema/defs-<category>.ts` に params / output を足し、
+   `cli/commands/schema/registry.ts` の `DEFS` に並べる（下記「schema カタログの登録」）
+8. `npx tsx scripts/gen-agents-catalog.ts` で `agents/` を再生成してコミット
+9. `cli/__tests__/` にテストを追加
+10. 1 ファイル 100 行を目安。超えたら分割を検討。分割が不自然な場合は
+    ファイル冒頭にコメントで理由を明記すれば許容（CLAUDE.md 参照）
+
+## schema カタログの登録
+
+`ALL_SCHEMAS`（`cli/commands/schema/registry.ts`）は **呼び出しパスをキーにする**。
+サブコマンドは `cli/commands/schema/types.ts` の `schemaKey()` が `category` から
+`"paper assets"` のように名前空間を付ける。defs ファイル側は素の名前で書けばよく、
+prefix を手で付けない。
+
+- `SUBCOMMAND_GROUPS`（types.ts）は router.ts の `GROUP_REGISTRY` と対。
+  グループ名は category 名と一致させる
+- キーが衝突した定義は捨てられ、`SCHEMA_KEY_COLLISIONS` に記録される。
+  `cli/__tests__/schema-registry.test.ts` が「衝突ゼロ」「キー数 = 各 defs の合計」
+  「登録済みサブコマンドが全てカタログに載る」を検査する
+- 位置引数（`bitbank profile show <name>`）は `p("string", "...", { positional: true })`
+  で宣言する。`--name=` と誤解される表示を避けるための印
+- `dangerous` は **trade 専用**。単一ソースは `cli/commands/trade/confirm-guard.ts` の
+  `CONFIRM_PHRASES`（`--execute` + 固定フレーズの二段ロック）。paper reset /
+  profile remove の `--confirm` は真偽フラグ 1 つで性質が違うので
+  `CONFIRM_PHRASES` に足さない。必須である旨は params の description に書く
 
 ## HTTP ヘルパー
 

@@ -44,17 +44,13 @@ npx tsx cli/index.ts    # CLI 実行
 - MCP サーバー（`bitbank-lab-mcp`）は別リポ。直接 import しない
 - コマンド追加 → `.claude/rules/commands.md`
 - 取引安全設計 → `.claude/rules/trading-safety.md`
-- 機械可読カタログ → [`agents/`](agents/)。`tool-catalog.json`（コマンド・
-  params(JSON Schema)・output・`dangerous`/`confirm` フラグ。
-  **暫定: paper / profile の 2 カテゴリは未収録** — `cli/commands/schema/` に
-  defs-paper / defs-profile が無く生成対象外のため。収録の実装 PR が入り次第、
-  この注記を外して「全コマンド」表記へ戻す）、`error-catalog.json`
+- 機械可読カタログ → [`agents/`](agents/)。`tool-catalog.json`（全コマンド・
+  params(JSON Schema)・output・`dangerous`/`confirm` フラグ）、`error-catalog.json`
   （エラーコード→カテゴリ + retry 指針）、`chart-catalog.json`（skill 標準チャートの
   ID・仕様。描画規約は `skills/_shared/references/visualization-guide.md`）を
   `scripts/gen-agents-catalog.ts` が単一ソースから生成する。**手書き禁止**
   （chaos `x17` が regenerate との差分ゼロを検査）。
-  LLM は CLI を実行せず repo を読むだけでカタログ収録コマンドと安全フラグを把握できる
-  （paper / profile は当面 `--help` / `bitbank paper` / `bitbank profile` の列挙が正）
+  LLM は CLI を実行せず repo を読むだけで全コマンドと安全フラグを把握できる
 
 ## リポジトリルール
 

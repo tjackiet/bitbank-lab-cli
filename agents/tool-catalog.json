@@ -2,8 +2,8 @@
   "schema_version": "1.0",
   "cli_version": "0.2.0",
   "generator": "scripts/gen-agents-catalog.ts",
-  "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 32,
+  "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
+  "command_count": 46,
   "dangerous_count": 5,
   "commands": [
     {
@@ -2433,6 +2433,716 @@
             "items": {
               "type": "string"
             }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper init",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Initialize a paper trading account (virtual JPY balance)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "jpy": {
+            "type": "string",
+            "description": "Required. Initial virtual JPY balance (e.g. 1000000)"
+          },
+          "force": {
+            "type": "boolean",
+            "description": "Overwrite an existing paper state instead of failing"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "number"
+          },
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "initialJpy": {
+            "type": "number"
+          },
+          "balances": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "number"
+            }
+          },
+          "history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pair": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "fillPrice": {
+                  "type": "number"
+                },
+                "feeQuote": {
+                  "type": "number"
+                },
+                "filledAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "lastTickAt": {
+            "type": "string"
+          },
+          "openOrders": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pair": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "price": {
+                  "type": "number"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "createdAt": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper assets",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show paper trading balances (available / locked / total)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "asset": {
+              "type": "string"
+            },
+            "total": {
+              "type": "number"
+            },
+            "locked": {
+              "type": "number"
+            },
+            "available": {
+              "type": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper create-order",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Place a paper order (market or limit)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "description": "Trading pair (e.g. btc_jpy)"
+          },
+          "side": {
+            "type": "string",
+            "description": "Order side",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Order type",
+            "enum": [
+              "market",
+              "limit"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "description": "Order amount"
+          },
+          "price": {
+            "type": "string",
+            "description": "Limit price (required for limit orders)"
+          },
+          "refresh-pairs": {
+            "type": "boolean",
+            "description": "Bypass the pairs cache before validating order size"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "pair": {
+                "type": "string"
+              },
+              "side": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "fillPrice": {
+                "type": "number"
+              },
+              "feeQuote": {
+                "type": "number"
+              },
+              "filledAt": {
+                "type": "string"
+              },
+              "balances": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "placed": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "pair": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "command": "paper active-orders",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show paper open (limit) orders",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "pair": {
+              "type": "string"
+            },
+            "side": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "price": {
+              "type": "number"
+            },
+            "amount": {
+              "type": "number"
+            },
+            "createdAt": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper cancel-order",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Cancel a paper limit order by id",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Required. Open order id to cancel"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "canceled": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "pair": {
+                "type": "string"
+              },
+              "side": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "price": {
+                "type": "number"
+              },
+              "amount": {
+                "type": "number"
+              },
+              "createdAt": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper tick",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Resolve paper limit fills against recent 1m candles",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "description": "Resolve fills for this pair only (default: every pair with open orders)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "filled": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pair": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "fillPrice": {
+                  "type": "number"
+                },
+                "feeQuote": {
+                  "type": "number"
+                },
+                "filledAt": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastTickAt": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "command": "paper trade-history",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show paper trading execution history",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "pair": {
+              "type": "string"
+            },
+            "side": {
+              "type": "string"
+            },
+            "type": {
+              "type": "string"
+            },
+            "amount": {
+              "type": "number"
+            },
+            "fillPrice": {
+              "type": "number"
+            },
+            "feeQuote": {
+              "type": "number"
+            },
+            "filledAt": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "paper reset",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Reset paper trading state (requires --confirm)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "boolean",
+            "description": "Required. Deletes the local paper state; the command refuses to run without it"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "command": "paper pnl",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show paper trading P&L (realized + unrealized, per pair + total)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "description": "Report a single JPY pair (default: every JPY pair traded)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "perPair": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "pair": {
+                  "type": "string"
+                },
+                "position": {
+                  "type": "number"
+                },
+                "avgCost": {
+                  "type": "number"
+                },
+                "currentPrice": {
+                  "type": "number"
+                },
+                "realizedPnl": {
+                  "type": "number"
+                },
+                "unrealizedPnl": {
+                  "type": "number"
+                },
+                "totalPnl": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "total": {
+            "type": "object",
+            "properties": {
+              "realizedPnl": {
+                "type": "number"
+              },
+              "unrealizedPnl": {
+                "type": "number"
+              },
+              "totalPnl": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "profile add",
+      "category": "profile",
+      "auth_required": false,
+      "description": "Add a new credential profile (key/secret prompted; secret hidden)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Profile name",
+            "positional": true
+          },
+          "description": {
+            "type": "string",
+            "description": "Free-form note stored alongside the profile"
+          },
+          "default": {
+            "type": "boolean",
+            "description": "Also make this the default profile"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "command": "profile list",
+      "category": "profile",
+      "auth_required": false,
+      "description": "List configured profiles (no secrets)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "output": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "default": {
+              "type": "boolean"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "profile show",
+      "category": "profile",
+      "auth_required": false,
+      "description": "Show a profile (secret always masked)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Profile name",
+            "positional": true
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "default": {
+            "type": "boolean"
+          },
+          "keyMasked": {
+            "type": "string"
+          },
+          "secretMasked": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "command": "profile remove",
+      "category": "profile",
+      "auth_required": false,
+      "description": "Remove a profile (requires --confirm)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Profile name",
+            "positional": true
+          },
+          "confirm": {
+            "type": "boolean",
+            "description": "Required. Deletes the profile from profiles.json; the command refuses to run without it"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "removed": {
+            "type": "string"
+          },
+          "defaultCleared": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    {
+      "command": "profile set-default",
+      "category": "profile",
+      "auth_required": false,
+      "description": "Set the default profile",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Profile name",
+            "positional": true
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "default": {
+            "type": "string"
           }
         }
       }

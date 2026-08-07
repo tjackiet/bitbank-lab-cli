@@ -71,7 +71,7 @@ async function main(): Promise<void> {
       );
       return;
     }
-    if (values.help && (await runCommandHelp(command, entry.description))) return;
+    if (values.help && (await runCommandHelp(command, entry.description, group))) return;
     const [, , ...subArgs] = positionals;
     const opts = values as Record<string, string | boolean | undefined>;
     await entry.handler(subArgs, opts, format, ctx);

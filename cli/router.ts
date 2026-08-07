@@ -62,7 +62,13 @@ export async function handleSpecialCommand(
   return false;
 }
 
-export async function runCommandHelp(command: string, description: string): Promise<boolean> {
+/** `group` 付きで呼ぶと `<group> <name>` キーで schema を引く（ALL_SCHEMAS の
+ *  キーは呼び出しパス。素の名前は private の assets と paper assets のように衝突する）。 */
+export async function runCommandHelp(
+  command: string,
+  description: string,
+  group?: SubcommandGroup,
+): Promise<boolean> {
   const { showCommandHelp } = await import("./commands/schema/help.js");
-  return showCommandHelp(command, description);
+  return showCommandHelp(group ? `${group} ${command}` : command, description);
 }

@@ -10,6 +10,7 @@ import { buildChartCatalog } from "./chart-catalog.js";
 import { commandDescriptions } from "../cli/commands/registry.js";
 import { commandDetail } from "../cli/commands/schema/handler.js";
 import { ALL_SCHEMAS } from "../cli/commands/schema/registry.js";
+import { schemaKey } from "../cli/commands/schema/types.js";
 import { CONFIRM_PHRASES } from "../cli/commands/trade/confirm-guard.js";
 import { ERROR_CODES, apiErrorExitCode, classifyHttpError } from "../cli/error-codes.js";
 import { EXIT } from "../cli/exit-codes.js";
@@ -34,12 +35,17 @@ export function serialize(value: unknown): string {
 
 export function buildToolCatalog() {
   const descriptions = commandDescriptions();
-  const phrases: Record<string, string> = { ...CONFIRM_PHRASES };
+  // CONFIRM_PHRASES は trade の素のコマンド名がキー。ALL_SCHEMAS 側は呼び出しパスなので
+  // `trade <name>` へ寄せてから照合する（paper reset / profile remove の --confirm は
+  // 固定フレーズを持たない別物なので、ここには載らない = dangerous にならない）。
+  const phrases: Record<string, string> = Object.fromEntries(
+    Object.entries(CONFIRM_PHRASES).map(([name, phrase]) => [schemaKey(name, "trade"), phrase]),
+  );
   const commands = Object.keys(ALL_SCHEMAS)
     .map((name) => {
       const d = commandDetail(name, descriptions);
       if (!d) return null;
-      // dangerous の単一ソースは confirm-guard の CONFIRM_PHRASES（schema 名で照合）。
+      // dangerous の単一ソースは confirm-guard の CONFIRM_PHRASES。
       const dangerous = name in phrases;
       return {
         command: d.command,
@@ -60,7 +66,7 @@ export function buildToolCatalog() {
     cli_version: cliVersion(),
     generator: GENERATOR,
     description:
-      "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
+      "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
     command_count: commands.length,
     dangerous_count: commands.filter((c) => c.dangerous).length,
     commands,
