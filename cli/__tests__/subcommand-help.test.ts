@@ -78,7 +78,8 @@ describe("subcommand help", () => {
 
   it("profile の name は位置引数として表示する（--name ではない）", () => {
     const text = buildHelp("profile show", "Show a profile") ?? "";
-    expect(text).toContain("<name>");
+    // Usage 行にも出す。Examples だけだと必須の位置引数を見落とす。
+    expect(text).toContain("Usage: bitbank profile show <name> [options]");
     expect(text).not.toContain("--name");
     expect(text).toContain("bitbank profile show <name>");
   });

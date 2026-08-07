@@ -1,5 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PAPER_COMMANDS } from "../commands/registry.js";
 import { buildSchemaHandler } from "../commands/schema/handler.js";
+import { EXIT } from "../exit-codes.js";
 import { captureStdout } from "./test-helpers.js";
 
 const DESC: Record<string, string> = {
@@ -150,6 +152,48 @@ describe("schema detail", () => {
       expect(data.params.properties.name.positional).toBe(true);
     } finally {
       c.restore();
+    }
+  });
+
+  it("グループ名だけ渡すとグループ内の一覧を返す", async () => {
+    const c = captureStdout();
+    try {
+      await buildSchemaHandler(DESC)(["paper"], {}, "json");
+      const { success, data } = JSON.parse(c.read());
+      expect(success).toBe(true);
+      expect(data).toHaveLength(Object.keys(PAPER_COMMANDS).length);
+      expect(data.every((d: { category: string }) => d.category === "paper")).toBe(true);
+      expect(data.map((d: { command: string }) => d.command)).toContain("paper create-order");
+    } finally {
+      c.restore();
+    }
+  });
+});
+
+describe("schema の解決エラー", () => {
+  beforeEach(() => {
+    process.exitCode = undefined;
+  });
+  afterEach(() => {
+    process.exitCode = undefined;
+  });
+
+  // exitCode を省くと output.ts の `?? 1` で GENERAL(1) に落ち、bot が
+  // 入力ミスを内部エラーと誤認してリトライする（chaos x16 と同じ趣旨）。
+  it.each([
+    ["未知のコマンド", ["nonexistent"], "Unknown command"],
+    ["曖昧なコマンド", ["create-order"], "Ambiguous command"],
+    ["グループ内の未知（実在しない paper buy）", ["paper", "buy"], 'Unknown command: "paper buy"'],
+  ])("%s は EXIT.PARAM で落ちる", async (_label, args, expected) => {
+    const c = captureStdout();
+    const e = captureStderr();
+    try {
+      await buildSchemaHandler(DESC)(args, {}, "json");
+      expect(e.read()).toContain(expected);
+      expect(process.exitCode).toBe(EXIT.PARAM);
+    } finally {
+      c.restore();
+      e.restore();
     }
   });
 });

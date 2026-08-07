@@ -7,7 +7,8 @@ import {
   TAX_COMMANDS,
   TRADE_COMMANDS,
 } from "./commands/registry.js";
-import type { Format } from "./types.js";
+import { EXIT } from "./exit-codes.js";
+import type { Format, Result } from "./types.js";
 
 /** サブコマンド形式で呼ぶグループ（`bitbank <group> <name>`）。
  *  フラット一覧での誤爆を減らすためのもので、実行ガードではない（commands.md）。 */
@@ -63,12 +64,16 @@ export async function handleSpecialCommand(
 }
 
 /** `group` 付きで呼ぶと `<group> <name>` キーで schema を引く（ALL_SCHEMAS の
- *  キーは呼び出しパス。素の名前は private の assets と paper assets のように衝突する）。 */
+ *  キーは呼び出しパス。素の名前は private の assets と paper assets のように衝突する）。
+ *  schema 未登録で help を出せない場合も失敗を返す。呼び出し側がコマンド本体へ
+ *  落ちると、`--help` のつもりの呼び出しがそのまま実行に化けるため。 */
 export async function runCommandHelp(
   command: string,
   description: string,
   group?: SubcommandGroup,
-): Promise<boolean> {
+): Promise<Result<void>> {
   const { showCommandHelp } = await import("./commands/schema/help.js");
-  return showCommandHelp(group ? `${group} ${command}` : command, description);
+  const path = group ? `${group} ${command}` : command;
+  if (showCommandHelp(path, description)) return { success: true, data: undefined };
+  return { success: false, error: `No help available for "${path}".`, exitCode: EXIT.PARAM };
 }
