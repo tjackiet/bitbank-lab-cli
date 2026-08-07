@@ -1,3 +1,6 @@
+// 100行超: `schema <cmd>` の契約を 1 本にまとめる。detail の中身・キー解決
+// （グループ形式 / 素の名前 / 曖昧 / 未知）・exit code は同じ解決ロジックの
+// 表裏なので、分割すると片方だけ直して壊す事故が起きる。
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PAPER_COMMANDS } from "../commands/registry.js";
 import { buildSchemaHandler } from "../commands/schema/handler.js";

@@ -1,7 +1,7 @@
 #!/usr/bin/env tsx
-// 100行超: CLI エントリポイント。引数解析 → 認証解決 → format 検証 → group 振り分け
-// → special command → help → handler という起動順そのものが仕様なので、途中で
-// 分割すると順序の担保が読めなくなる。個々の処理は各モジュールへ委譲済み。
+// 100行超: CLI エントリポイント。引数解析 → help → 未知フラグ → 認証解決 → format 検証
+// → group 振り分け → special command → handler という起動順そのものが仕様なので、
+// 途中で分割すると順序の担保が読めなくなる。個々の処理は各モジュールへ委譲済み。
 import { parseArgs } from "node:util";
 import type { RuntimeContext } from "./commands/handler-types.js";
 import { COMMON_OPTIONS } from "./common-options.js";
@@ -47,6 +47,11 @@ async function main(): Promise<void> {
     tokens: true,
   });
   const machine = values.machine === true;
+  // `--help` は未知フラグ・認証・format 検証より先に返す。help は「正しい呼び出し方を
+  // 知る」ための経路なので、他の入力が不正なときこそ読めないと困る。entry が無い
+  // ケース（group 単体・special command・未知コマンド）は従来どおり後段が扱う。
+  if (values.help && entry && command)
+    return helpDone(await runCommandHelp(command, entry.description, group), machine);
   const unknown = unknownLongFlags(tokens, merged);
   if (unknown.length > 0) {
     const msg = `Unknown option(s): ${unknown.join(", ")}. Run with --help for usage.`;
@@ -79,8 +84,6 @@ async function main(): Promise<void> {
       );
       return;
     }
-    if (values.help)
-      return helpDone(await runCommandHelp(command, entry.description, group), machine);
     const [, , ...subArgs] = positionals;
     const opts = values as Record<string, string | boolean | undefined>;
     await entry.handler(subArgs, opts, format, ctx);
@@ -94,8 +97,6 @@ async function main(): Promise<void> {
     fail(machine, `Unknown command "${command}". Run with --help for usage.`, EXIT.PARAM);
     return;
   }
-  if (values.help && command)
-    return helpDone(await runCommandHelp(command, entry.description), machine);
   await entry.handler(args, opts, format, ctx);
 }
 
