@@ -83,4 +83,12 @@ describe("subcommand help", () => {
     expect(text).not.toContain("--name");
     expect(text).toContain("bitbank profile show <name>");
   });
+  it("watch は 2 つの位置引数を Usage に並べ、例は具体値で出す", () => {
+    const text = buildHelp("watch", "Watch a real-time public channel") ?? "";
+    expect(text).toContain("Usage: bitbank watch <channel> <pair> [options]");
+    expect(text).toContain("Category: stream");
+    expect(text).toContain("--duration");
+    // 位置引数に具体値が引けるなら例はそのまま実行できる形にする。
+    expect(text).toContain("bitbank watch ticker btc_jpy");
+  });
 });
