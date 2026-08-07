@@ -250,7 +250,7 @@ describe("output contract", () => {
     });
 
     it("trade コマンドの help は Category: trade と --execute を含む", () => {
-      const text = buildHelp("create-order", "Create a spot order") ?? "";
+      const text = buildHelp("trade create-order", "Create a spot order") ?? "";
       expect(text).toContain("Usage: bitbank trade create-order");
       expect(text).toContain("Category: trade");
       expect(text).toContain("--execute");

@@ -3,7 +3,7 @@ import type { ParamProp, SchemaDef } from "./types.js";
 
 function formatParam(name: string, def: ParamProp): string {
   const parts: string[] = [];
-  parts.push(`  --${name}`);
+  parts.push(def.positional ? `  <${name}>` : `  --${name}`);
   parts.push(`  Type: ${def.type}`);
   parts.push(`  ${def.description}`);
   if (def.enum) parts.push(`  Values: ${def.enum.join(", ")}`);
@@ -19,11 +19,12 @@ export function showCommandHelp(command: string, description: string): boolean {
   return true;
 }
 
+/** `command` は ALL_SCHEMAS のキー = 呼び出しパス（`ticker` / `trade create-order`）。 */
 export function buildHelp(command: string, description: string): string | null {
   const schema = ALL_SCHEMAS[command];
   if (!schema) return null;
 
-  const invocation = schema.category === "trade" ? `trade ${command}` : command;
+  const invocation = command;
   const lines: string[] = [];
   lines.push(`Usage: bitbank ${invocation} [options]\n`);
   lines.push(`${description}\n`);
@@ -50,8 +51,18 @@ export function buildHelp(command: string, description: string): string | null {
 function exampleArgs(_command: string, schema: SchemaDef): string {
   const parts: string[] = [];
   for (const [name, def] of Object.entries(schema.params)) {
+    if (def.positional) {
+      parts.push(`<${name}>`);
+      continue;
+    }
     if (def.default !== undefined) continue;
-    if (name === "execute" || name === "confirm") continue;
+    if (name === "execute") continue;
+    if (name === "confirm") {
+      // trade は固定フレーズなので例に出さない（trading-safety.md）。paper / profile は
+      // 単なる必須の真偽フラグなので、付けないと動かない事実を例にも出す。
+      if (def.type === "boolean") parts.push("--confirm");
+      continue;
+    }
     const val = exampleValue(name, def);
     if (val !== null) parts.push(`--${name}=${val}`);
   }
