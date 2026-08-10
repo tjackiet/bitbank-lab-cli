@@ -67,23 +67,37 @@ function ohlcv(rows: [number, string][]): unknown {
   };
 }
 
-const PAIRS = ["btc_jpy", "xrp_jpy"].map((name) => ({
-  name,
-  base_asset: name.slice(0, -4),
-  quote_asset: "jpy",
-  maker_fee_rate_base: "0",
-  taker_fee_rate_base: "0",
-  maker_fee_rate_quote: "0",
-  taker_fee_rate_quote: "0.0012",
-  unit_amount: "0.0001",
-  limit_max_amount: "1000",
-  market_max_amount: "100",
-  price_digits: 0,
-  amount_digits: 4,
-  is_enabled: true,
-  stop_order: false,
-  stop_order_and_cancel: false,
-}));
+function pairRow(
+  name: string,
+  base: string,
+  quote: string,
+  enabled = true,
+): Record<string, unknown> {
+  return {
+    name,
+    base_asset: base,
+    quote_asset: quote,
+    maker_fee_rate_base: "0",
+    taker_fee_rate_base: "0",
+    maker_fee_rate_quote: "0",
+    taker_fee_rate_quote: "0.0012",
+    unit_amount: "0.0001",
+    limit_max_amount: "1000",
+    market_max_amount: "100",
+    price_digits: 0,
+    amount_digits: 4,
+    is_enabled: enabled,
+    stop_order: false,
+    stop_order_and_cancel: false,
+  };
+}
+
+// delist 済み BTC 建て（xrp_btc）を含める。取得スコープが JPY だけだと死にガードになる。
+const PAIRS = [
+  pairRow("btc_jpy", "btc", "jpy"),
+  pairRow("xrp_jpy", "xrp", "jpy"),
+  pairRow("xrp_btc", "xrp", "btc", false),
+];
 
 /** URL で分岐する mockFetch。1 経路につき最初の 1 回だけ行を返し、以降は空
  *  （paginate の停止条件「新規行ゼロ」に素直に当てる）。 */

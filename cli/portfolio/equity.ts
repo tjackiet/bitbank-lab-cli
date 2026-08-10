@@ -7,7 +7,12 @@
 import type { Trade } from "../commands/private/trade-history.js";
 import { ymdUtc } from "../date-utils.js";
 import { type DailyOpens, newPriceOrigin, resolvePrices } from "./price-map.js";
-import { type Holdings, reconstructHoldingsAtDate, type Transfers } from "./reconstruct.js";
+import {
+  type Holdings,
+  type PairAssets,
+  reconstructHoldingsAtDate,
+  type Transfers,
+} from "./reconstruct.js";
 // 出力 DTO の型ソースは Zod（schema.ts）。ここで別定義を持つと契約が分岐する
 import type { EquityPoint } from "./schema.js";
 
@@ -38,6 +43,8 @@ export type EquityInput = {
   dailyOpens: DailyOpens;
   /** 現在 ticker 価格。candle 欠落時のフォールバック兼、最終点の評価に使う */
   currentPrices: ReadonlyMap<string, number>;
+  /** pairs マスタの base/quote。巻き戻しでペア名分割をしないための辞書 */
+  pairAssets: PairAssets;
 };
 
 /** 系列と、価格の由来（フォールバックに頼った資産・価格が一切無い資産）を返す。
@@ -56,6 +63,7 @@ export function buildEquitySeries(input: EquityInput): {
       input.trades,
       timestamp,
       input.transfers,
+      input.pairAssets,
     );
     const ymd = ymdUtc(timestamp);
     const prices = resolvePrices(holdings, ymd, input.dailyOpens, input.currentPrices, origin);

@@ -4,7 +4,7 @@
 import { describe, expect, it } from "vitest";
 import { currentPoint, priceQuality } from "../../portfolio/assemble.js";
 import { buildEquitySeries } from "../../portfolio/equity.js";
-import { NO_TRANSFERS, trade } from "./factories.js";
+import { NO_TRANSFERS, PAIR_ASSETS, trade } from "./factories.js";
 
 const DAY1 = Date.UTC(2026, 0, 1);
 const DAY2 = Date.UTC(2026, 0, 2);
@@ -19,6 +19,7 @@ function series(dailyOpens: Map<string, Map<string, number>>) {
     transfers: NO_TRANSFERS,
     dailyOpens,
     currentPrices: CURRENT_PRICES,
+    pairAssets: PAIR_ASSETS,
   });
 }
 
@@ -72,6 +73,7 @@ describe("buildEquitySeries", () => {
         ],
       ]),
       currentPrices: CURRENT_PRICES,
+      pairAssets: PAIR_ASSETS,
     });
     // 巻き戻しで BTC は 2 → 1、支払った 12,000,000 JPY が戻る
     expect(points[0].value_jpy).toBe(1 * 10_000_000 + 12_000_000);
@@ -87,6 +89,7 @@ describe("buildEquitySeries", () => {
       transfers: NO_TRANSFERS,
       dailyOpens: new Map(),
       currentPrices: CURRENT_PRICES,
+      pairAssets: PAIR_ASSETS,
     });
     expect(points[0].value_jpy).toBe(500_000);
     expect(fallbackAssets).toEqual([]);

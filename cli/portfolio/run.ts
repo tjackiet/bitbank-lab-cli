@@ -16,7 +16,7 @@ import { fetchCurrentPrices, fetchDailyOpens } from "./fetch-prices.js";
 import { buildGrid, candleLimitFor, type Granularity } from "./grid.js";
 import { calcPeriodNetFlow } from "./net-flow.js";
 import type { BalanceHistory } from "./schema.js";
-import { candlePairsFor, currentHoldings, marketScope } from "./scope.js";
+import { candlePairsFor, currentHoldings, marketScope, pairAssetsOf } from "./scope.js";
 import { buildWarnings } from "./warnings.js";
 
 export type RunArgs = {
@@ -36,12 +36,14 @@ export async function runBalanceHistory(
 
   const market = await pairs(opts);
   if (!market.success) return market;
-  const { jpyPairs, allAssets } = marketScope(market.data);
+  const { allPairs, jpyPairs, allAssets } = marketScope(market.data);
+  const pairAssets = pairAssetsOf(market.data);
 
   const holdings = await currentHoldings(opts);
   if (!holdings.success) return holdings;
 
-  const history = await fetchHistory(jpyPairs, allAssets, {
+  // 約定は全ペア（delist 込み）。JPY だけに絞ると BTC 建て履歴が取得されず巻き戻しが欠ける。
+  const history = await fetchHistory(allPairs, allAssets, {
     since: String(grid.data.startMs),
     maxPages: args.maxPages,
     opts,
@@ -52,10 +54,12 @@ export async function runBalanceHistory(
   const prices = await fetchCurrentPrices(opts);
   if (!prices.success) return prices;
 
-  const candlePairs = candlePairsFor(jpyPairs, holdings.data, {
-    trades: history.data.trades,
-    ...transfers,
-  });
+  const candlePairs = candlePairsFor(
+    jpyPairs,
+    holdings.data,
+    { trades: history.data.trades, ...transfers },
+    pairAssets,
+  );
   const dailyOpens = await fetchDailyOpens(
     candlePairs,
     candleLimitFor(grid.data, args.nowMs),
@@ -63,28 +67,22 @@ export async function runBalanceHistory(
     opts,
   );
 
-  // 巻き戻せない約定を 2 種類だけ除外する。どちらも黙って無視すると数量がずれるので、
-  // 除外したことを warning に出す。
-  //
-  // (1) 信用約定（`position_side` あり）。現物残高を建玉数量ぶん動かさないので、現物と
-  //     同じ式で巻き戻すと base も JPY も狂う。tax 経路も `position_side` の有無で
-  //     spot / margin を分けている（cli/tax/import/to-events.ts）。移植元 MCP の
-  //     `paginateTrades` も `position_side == null` で現物に絞っており、そこに揃える。
-  // (2) 非 JPY クォート（実測では全ペア JPY 建てだが仕様変更への保険）。
+  // 信用約定（`position_side` あり）だけ除外する。現物残高を建玉数量ぶん動かさないので、
+  // 現物と同じ式で巻き戻すと base も quote も狂う。tax 経路も `position_side` の有無で
+  // spot / margin を分けている（cli/tax/import/to-events.ts）。移植元 MCP の
+  // `paginateTrades` も `position_side == null` で現物に絞っており、そこに揃える。
+  // 非 JPY クォートの現物は数量ベースで巻き戻せる（quote は pairs マスタから取る）。
   const marginFills = history.data.trades.filter((t) => t.position_side !== undefined);
   const spotTrades = history.data.trades.filter((t) => t.position_side === undefined);
-  const jpyTrades = spotTrades.filter((t) => t.pair.endsWith("_jpy"));
-  const nonJpyPairs = [
-    ...new Set(spotTrades.filter((t) => !t.pair.endsWith("_jpy")).map((t) => t.pair)),
-  ].sort();
 
   const series = buildEquitySeries({
     grid: grid.data.points,
     current: holdings.data,
-    trades: jpyTrades,
+    trades: spotTrades,
     transfers,
     dailyOpens,
     currentPrices: prices.data,
+    pairAssets,
   });
   const { flow, unpricedAssets } = calcPeriodNetFlow(transfers, grid.data.startMs, prices.data);
 
@@ -122,7 +120,6 @@ export async function runBalanceHistory(
     warnings: buildWarnings({
       historyTruncated,
       gridTruncated: grid.data.truncated,
-      nonJpyPairs,
       marginPairs: [...new Set(marginFills.map((t) => t.pair))].sort(),
       unpricedAssets: [...new Set([...unpricedAssets, ...series.unpricedAssets])].sort(),
     }),

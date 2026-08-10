@@ -259,6 +259,49 @@ describe("runBalanceHistory", () => {
     expect(r.data.warnings.some((w) => w.includes("信用約定"))).toBe(true);
   });
 
+  it("非 JPY クォート約定も取得し、数量ベースで巻き戻す（死にガードの修正）", async () => {
+    // 修正前は jpyPairs だけ fetch していたため xrp_btc が history に入らず、
+    // run.ts の endsWith("_jpy") フィルタも warning も永遠に発火しなかった。
+    // 修正後は全ペア取得 + quote=btc で巻き戻し、D1 の評価に反映される。
+    const { fetch, urls } = mockMarket({
+      assets: { xrp: "1000", btc: "0.5", jpy: "0" },
+      prices: { btc: "13000000", xrp: "100" },
+      candles: {
+        btc: BTC_CANDLES,
+        xrp: [
+          [D1, "80"],
+          [D2, "90"],
+          [D3, "100"],
+        ],
+      },
+      trades: {
+        xrp_btc: [
+          rawTrade({
+            trade_id: 11,
+            pair: "xrp_btc",
+            side: "buy",
+            amount: "1000",
+            price: "0.00002",
+            fee_amount_base: "0",
+            fee_amount_quote: "0.000001",
+            executed_at: D2 + 3_600_000,
+          }),
+        ],
+      },
+    });
+    const r = await runBalanceHistory(ARGS, { fetch, ...OPTS });
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+
+    expect(urls.some((u) => u.includes("trade_history") && u.includes("pair=xrp_btc"))).toBe(true);
+    // D1: xrp なし、btc = 0.5 + 0.02 + 0.000001 = 0.520001 → × 10,000,000
+    expect(r.data.points[0].value_jpy).toBe(Math.round(0.520001 * 10_000_000));
+    // D3: 現在保有 xrp 1000 × 100 + btc 0.5 × 12,000,000
+    expect(r.data.points[2].value_jpy).toBe(1000 * 100 + Math.round(0.5 * 12_000_000));
+    expect(r.data.warnings.some((w) => w.includes("非 JPY"))).toBe(false);
+    expect(r.data.assumptions.some((a) => a.includes("非 JPY"))).toBe(true);
+  });
+
   it("月次グリッドでは UTC 月初だけを評価する", async () => {
     const { fetch } = mockMarket({
       assets: { jpy: "1000" },
