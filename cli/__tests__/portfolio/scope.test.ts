@@ -31,4 +31,26 @@ describe("candlePairsFor", () => {
     );
     expect(pairs).toEqual(["btc_jpy", "xrp_jpy"]);
   });
+
+  it("ペア名と base_asset が一致しなくてもマスタの base で選ぶ", () => {
+    // 名前を `_jpy` 除去すると "wrapped_btc" になるが、マスタの base は "btc"
+    const master = [{ name: "wrapped_btc_jpy", base_asset: "btc", quote_asset: "jpy" }];
+    const pairs = candlePairsFor(
+      ["wrapped_btc_jpy"],
+      [{ asset: "btc", amount: 1 }],
+      { trades: [], deposits: [], withdrawals: [] },
+      pairAssetsOf(master),
+    );
+    expect(pairs).toEqual(["wrapped_btc_jpy"]);
+  });
+
+  it("pairAssets に無い JPY ペア名は candle 対象にしない", () => {
+    const pairs = candlePairsFor(
+      ["btc_jpy", "ghost_jpy"],
+      [{ asset: "btc", amount: 1 }],
+      { trades: [], deposits: [], withdrawals: [] },
+      pairAssetsOf(MASTER),
+    );
+    expect(pairs).toEqual(["btc_jpy"]);
+  });
 });

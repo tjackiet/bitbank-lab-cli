@@ -67,8 +67,7 @@ export async function currentHoldings(opts?: PrivateHttpOptions): Promise<Result
  *
  * 現在の保有だけで引くと、**期間中に全量売却した銘柄**が過去の点で現在価格に落ちる
  * （復元では当時保有していたことになるのに、その日の始値が無い）。
- * 約定の base / quote は pairs マスタから取る（`xrp_btc` を文字列置換すると
- * `xrp_btc` 自体が touched に入り、jpyPairs フィルタで無害だが意図が読めない）。
+ * base / quote はすべて pairs マスタから取る（ペア名の `_jpy` 除去で base を推定しない）。
  */
 export function candlePairsFor(
   jpyPairs: readonly string[],
@@ -85,5 +84,8 @@ export function candlePairsFor(
   }
   for (const d of history.deposits) touched.add(d.asset);
   for (const w of history.withdrawals) touched.add(w.asset);
-  return jpyPairs.filter((p) => touched.has(p.slice(0, -"_jpy".length)));
+  return jpyPairs.filter((p) => {
+    const a = pairAssets.get(p);
+    return a?.quote === "jpy" && touched.has(a.base);
+  });
 }
