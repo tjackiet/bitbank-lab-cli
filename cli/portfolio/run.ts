@@ -63,11 +63,19 @@ export async function runBalanceHistory(
     opts,
   );
 
-  // 非 JPY クォートの約定は JPY 建てで巻き戻せない。黙って無視すると数量がずれるので、
-  // 除外したことを warning に出す（実測では全ペア JPY 建てだが仕様変更への保険）。
-  const jpyTrades = history.data.trades.filter((t) => t.pair.endsWith("_jpy"));
+  // 巻き戻せない約定を 2 種類だけ除外する。どちらも黙って無視すると数量がずれるので、
+  // 除外したことを warning に出す。
+  //
+  // (1) 信用約定（`position_side` あり）。現物残高を建玉数量ぶん動かさないので、現物と
+  //     同じ式で巻き戻すと base も JPY も狂う。tax 経路も `position_side` の有無で
+  //     spot / margin を分けている（cli/tax/import/to-events.ts）。移植元 MCP の
+  //     `paginateTrades` も `position_side == null` で現物に絞っており、そこに揃える。
+  // (2) 非 JPY クォート（実測では全ペア JPY 建てだが仕様変更への保険）。
+  const marginFills = history.data.trades.filter((t) => t.position_side !== undefined);
+  const spotTrades = history.data.trades.filter((t) => t.position_side === undefined);
+  const jpyTrades = spotTrades.filter((t) => t.pair.endsWith("_jpy"));
   const nonJpyPairs = [
-    ...new Set(history.data.trades.filter((t) => !t.pair.endsWith("_jpy")).map((t) => t.pair)),
+    ...new Set(spotTrades.filter((t) => !t.pair.endsWith("_jpy")).map((t) => t.pair)),
   ].sort();
 
   const series = buildEquitySeries({
@@ -115,6 +123,7 @@ export async function runBalanceHistory(
       historyTruncated,
       gridTruncated: grid.data.truncated,
       nonJpyPairs,
+      marginPairs: [...new Set(marginFills.map((t) => t.pair))].sort(),
       unpricedAssets: [...new Set([...unpricedAssets, ...series.unpricedAssets])].sort(),
     }),
   });

@@ -134,6 +134,27 @@ describe("reconstructHoldingsAtDate — 入出金の巻き戻し", () => {
     expect(holdings.get("jpy")).toBe(20_000);
   });
 
+  it("巻き戻しの途中で負になっても消さない（相の順序に依存しない）", () => {
+    // 2 BTC 買い → 1 BTC 出庫 → 現在 1 BTC。期初は 0。約定相の中間値 (1 - 2 = -1) を
+    // 削除してしまうと、出庫相が 0 から積み直して 1 BTC になる（過大計上）
+    const holdings = reconstructHoldingsAtDate(
+      [{ asset: "btc", amount: 1 }],
+      [trade({ side: "buy", amount: 2, price: 1_000_000 })],
+      SINCE,
+      { deposits: [], withdrawals: [withdrawal({ asset: "btc", amount: 1, fee: 0 })] },
+    );
+    expect(holdings.has("btc")).toBe(false);
+  });
+
+  it("入庫の巻き戻しが負に振れても、後続の出庫が正しく打ち消す", () => {
+    // 1 BTC 入庫 → 0.4 BTC 出庫 → 現在 0.6 BTC。期初は 0
+    const holdings = reconstructHoldingsAtDate([{ asset: "btc", amount: 0.6 }], [], SINCE, {
+      deposits: [deposit({ asset: "btc", amount: 1 })],
+      withdrawals: [withdrawal({ asset: "btc", amount: 0.4, fee: 0 })],
+    });
+    expect(holdings.has("btc")).toBe(false);
+  });
+
   it("since より前の入出金は巻き戻さない", () => {
     const holdings = reconstructHoldingsAtDate([{ asset: "jpy", amount: 30_000 }], [], SINCE, {
       deposits: [deposit({ asset: "jpy", amount: 10_000, confirmed_at: SINCE - 1 })],

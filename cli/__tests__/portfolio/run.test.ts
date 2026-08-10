@@ -231,6 +231,34 @@ describe("runBalanceHistory", () => {
     expect(r.data.flow.net_flow_jpy).toBe(0.5 * 13_000_000);
   });
 
+  it("信用約定は復元から除外し、warning で申告する", async () => {
+    // 信用約定は現物残高を建玉数量ぶん動かさない。現物と同じ式で巻き戻すと base も
+    // JPY も狂うので、除外したうえで「値がずれ得る」ことを出力に残す
+    const { fetch } = mockMarket({
+      assets: { btc: "2", jpy: "1000000" },
+      prices: { btc: "13000000" },
+      candles: { btc: BTC_CANDLES },
+      trades: {
+        btc_jpy: [
+          rawTrade({
+            trade_id: 9,
+            side: "buy",
+            amount: "1",
+            price: "11000000",
+            position_side: "long",
+            executed_at: D2 + 3_600_000,
+          }),
+        ],
+      },
+    });
+    const r = await runBalanceHistory(ARGS, { fetch, ...OPTS });
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+    // 巻き戻していないので、どの点も現在の 2 BTC + 100 万円のまま
+    expect(r.data.points[0].value_jpy).toBe(2 * 10_000_000 + 1_000_000);
+    expect(r.data.warnings.some((w) => w.includes("信用約定"))).toBe(true);
+  });
+
   it("月次グリッドでは UTC 月初だけを評価する", async () => {
     const { fetch } = mockMarket({
       assets: { jpy: "1000" },

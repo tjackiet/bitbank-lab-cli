@@ -50,9 +50,20 @@ export function buildGrid(sinceMs: number, nowMs: number, granularity: Granulari
     return { success: false, error: "--since must not be in the future", exitCode: EXIT.PARAM };
   }
   const align = granularity === "day" ? utcDayStart : utcMonthStart;
+  // JS Date の表現範囲（±8.64e15 ms）を超えると getUTC* が NaN を返し、境界の切り下げが
+  // NaN になる。ループが 0 周して「1 点だけの完全な系列」を静かに返してしまうので弾く
+  // （--days は正整数なら何桁でも通るため、約 1.001e8 日でこの範囲に入る）。
+  const startAligned = align(sinceMs);
+  if (!Number.isFinite(startAligned)) {
+    return {
+      success: false,
+      error: "--since/--days is out of the representable date range",
+      exitCode: EXIT.PARAM,
+    };
+  }
   const last = align(nowMs);
   const points: number[] = [];
-  for (let ms = align(sinceMs); ms <= last; ms = nextPoint(ms, granularity)) {
+  for (let ms = startAligned; ms <= last; ms = nextPoint(ms, granularity)) {
     points.push(ms);
   }
   // 起点が現在の期間より後（= 今日の途中を --since に指定）でも 1 点は返す

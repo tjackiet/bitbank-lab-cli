@@ -29,9 +29,18 @@ function depositAt(d: Deposit): number {
   return d.confirmed_at ?? d.found_at;
 }
 
-function bump(holdings: Holdings, asset: string, next: number): void {
-  if (next < DUST) holdings.delete(asset);
-  else holdings.set(asset, next);
+/**
+ * 差分を加算する。**途中経過が負でも消さない**のが要点。
+ *
+ * 巻き戻しは「約定 → 入庫 → 出庫」の 3 相に分かれるが、各相は同じ時点の状態に対する
+ * 独立した加算なので、本来は順序に依存しない。ところが途中でゼロ以下を削除すると
+ * **負の繰り越しが失われて順序依存になり、保有量が過大に出る**。
+ * 例: 2 BTC 買い → 1 BTC 出庫 → 現在 1 BTC。正しくは期初 0 だが、約定相で
+ * `1 - 2 = -1` を削除してしまうと出庫相が `0 + 1 = 1` を積んで 1 BTC になる。
+ * 実質ゼロの掃除は全相を終えてから 1 回だけ行う（`reconstructHoldingsAtDate` 末尾）。
+ */
+function add(holdings: Holdings, asset: string, delta: number): void {
+  holdings.set(asset, (holdings.get(asset) ?? 0) + delta);
 }
 
 /**
@@ -58,15 +67,12 @@ function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
   const feeBase = t.fee_amount_base || 0;
   if (!Number.isFinite(qty) || !Number.isFinite(price)) return;
 
-  const current = holdings.get(asset) ?? 0;
-  const currentJpy = holdings.get("jpy") ?? 0;
-
   if (t.side === "buy") {
-    bump(holdings, asset, current - (qty - feeBase));
-    holdings.set("jpy", currentJpy + qty * price + feeQuote);
+    add(holdings, asset, -(qty - feeBase));
+    add(holdings, "jpy", qty * price + feeQuote);
   } else {
-    bump(holdings, asset, current + qty + feeBase);
-    holdings.set("jpy", currentJpy - qty * price + feeQuote);
+    add(holdings, asset, qty + feeBase);
+    add(holdings, "jpy", -(qty * price) + feeQuote);
   }
 }
 
@@ -95,13 +101,15 @@ export function reconstructHoldingsAtDate(
 
   for (const d of transfers.deposits) {
     if (d.status !== "DONE" || depositAt(d) < sinceMs) continue;
-    bump(holdings, d.asset, (holdings.get(d.asset) ?? 0) - d.amount);
+    add(holdings, d.asset, -d.amount);
   }
   for (const w of transfers.withdrawals) {
     if (w.status !== "DONE" || w.requested_at < sinceMs) continue;
-    holdings.set(w.asset, (holdings.get(w.asset) ?? 0) + w.amount + (w.fee || 0));
+    add(holdings, w.asset, w.amount + (w.fee || 0));
   }
 
+  // 実質ゼロの掃除はここ 1 回だけ（上の add のコメント参照）。負値は履歴の欠落を意味するが、
+  // 移植元と同じく保有なし扱いにする（欠落自体は completeness / warnings が別途申告する）。
   for (const [asset, amount] of holdings) {
     if (amount < DUST) holdings.delete(asset);
   }

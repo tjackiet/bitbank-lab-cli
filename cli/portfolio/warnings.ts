@@ -19,6 +19,8 @@ export type WarningInput = {
   gridTruncated: boolean;
   /** 復元から除外した非 JPY クォートのペア */
   nonJpyPairs: readonly string[];
+  /** 復元から除外した信用約定のペア。実現損益は JPY 残高を動かすので値は不正確になる */
+  marginPairs: readonly string[];
   /** 価格が一切引けず評価・純入出金から落ちた資産（0 円で積んだのと同じ） */
   unpricedAssets: readonly string[];
 };
@@ -33,6 +35,12 @@ export function buildWarnings(i: WarningInput): string[] {
   }
   if (i.nonJpyPairs.length > 0) {
     warnings.push(`非 JPY クォートの約定を復元から除外しました: ${i.nonJpyPairs.join(", ")}`);
+  }
+  if (i.marginPairs.length > 0) {
+    warnings.push(
+      `信用約定を復元から除外しました（現物残高を動かさないため）: ${i.marginPairs.join(", ")}。` +
+        "実現損益は JPY 残高を動かすので、期間内に信用決済があると過去の点がずれます",
+    );
   }
   if (i.unpricedAssets.length > 0) {
     warnings.push(

@@ -1,6 +1,6 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
-import { join } from "node:path";
+import { join, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 /** package.json の `files` は**ディレクトリを 1 つずつ列挙**している（`cli/*.ts` は
@@ -26,11 +26,13 @@ function packedPaths(): string[] {
   return parsed[0].files.map((f) => f.path);
 }
 
-/** 配布対象になるべき cli/ 配下の .ts（テストと fixtures は除く）。 */
+/** 配布対象になるべき cli/ 配下の .ts（テストと fixtures は除く）。
+ *  `npm pack --json` は常に POSIX 区切りで返すので、join() の結果も揃える
+ *  （Windows では `\` になり、揃えないと全件が「未同梱」に化ける）。 */
 function shippableSources(): string[] {
   return readdirSync("cli", { withFileTypes: true, recursive: true })
     .filter((e) => e.isFile() && e.name.endsWith(".ts"))
-    .map((e) => join(e.parentPath, e.name))
+    .map((e) => join(e.parentPath, e.name).split(sep).join("/"))
     .filter((f) => !f.includes("__tests__"));
 }
 

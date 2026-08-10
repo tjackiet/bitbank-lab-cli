@@ -45,6 +45,14 @@ describe("buildGrid", () => {
     expect(g.data.points.at(-1)).toBe(Date.UTC(2026, 0, 3));
   });
 
+  it("JS Date の表現範囲を超える since は PARAM エラー（静かに 1 点を返さない）", () => {
+    // --days は正整数なら何桁でも通る。約 1.001e8 日遡ると getUTC* が NaN になり、
+    // 境界の切り下げが NaN → ループ 0 周 → 「1 点だけの完全な系列」が返っていた
+    const g = buildGrid(JAN3_NOON - 1.001e8 * DAY, JAN3_NOON, "day");
+    expect(g.success).toBe(false);
+    if (!g.success) expect(g.exitCode).toBe(EXIT.PARAM);
+  });
+
   it("未来の since は PARAM エラー", () => {
     const g = buildGrid(JAN3_NOON + DAY, JAN3_NOON, "day");
     expect(g.success).toBe(false);
