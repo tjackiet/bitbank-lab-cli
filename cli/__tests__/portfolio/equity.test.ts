@@ -1,3 +1,6 @@
+// 100行超: 価格解決の分岐（足あり / 足なし / 一部欠落 / JPY のみ）と、そこから決まる
+// 価格品質の 4 段階を 1 ケース 1 事実で固定するため。分岐を間引くと、どの経路で
+// フォールバックへ落ちたかが検証されなくなる。
 import { describe, expect, it } from "vitest";
 import { currentPoint, priceQuality } from "../../portfolio/assemble.js";
 import { buildEquitySeries } from "../../portfolio/equity.js";

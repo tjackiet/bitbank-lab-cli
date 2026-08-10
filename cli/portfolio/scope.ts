@@ -3,15 +3,20 @@ import { assets } from "../commands/private/assets.js";
 import type { Deposit } from "../commands/private/deposit-history.js";
 import type { Trade } from "../commands/private/trade-history.js";
 import type { Withdrawal } from "../commands/private/withdrawal-history.js";
+import type { Pair } from "../commands/public/pairs.js";
 import type { PrivateHttpOptions } from "../http-private.js";
 import type { Result } from "../types.js";
 
 export type Holding = { asset: string; amount: number };
 
+/** pairs マスタから巡回対象を決めるのに要るフィールドだけ。型ソースは
+ *  `cli/commands/public/pairs.ts` の Zod（`PairSchema` → `z.infer`）。 */
+export type PairScope = Pick<Pair, "name" | "base_asset" | "quote_asset">;
+
 /** 出庫は asset 必須・約定は pair 必須なので、pairs マスタ（delist 込み）から巡回対象を
  *  作る。取引の無いペア／資産でも 1 リクエストで空が返るだけ。delist 済みでも履歴は
  *  残るため `is_enabled` では絞らない（trade-history --all-pairs と同じ判断）。 */
-export function marketScope(list: { name: string; base_asset: string; quote_asset: string }[]): {
+export function marketScope(list: readonly PairScope[]): {
   jpyPairs: string[];
   allAssets: string[];
 } {

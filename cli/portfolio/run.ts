@@ -1,6 +1,11 @@
 // 100行超: 「現在の残高 → 履歴 → 価格 → 復元 → 組み立て」を通す 1 本のパイプライン。
 // 各段の実装は scope / fetch-* / equity / net-flow / assemble に分けてあり、ここに残るのは
 // 順序と受け渡しだけ。途中で切ると「どの順で何を渡すか」が 2 ファイルに割れて読めなくなる。
+//
+// **移植元**: `bitbankinc/bitbank-lab-mcp` の
+// `src/handlers/analyzeMyPortfolioHandler.ts`（§6.6〜6.7 の資産推移構築、`ecf05ae` 時点）。
+// 取得層は同リポの `src/handlers/portfolio/fetch.ts` に対応する。CLI 側は private GET の
+// 呼び出しを既存コマンド（assets / trade-history / *-history）へ寄せているため 1 対 1 ではない。
 import { pairs } from "../commands/public/pairs.js";
 import type { PrivateHttpOptions } from "../http-private.js";
 import type { Result } from "../types.js";
@@ -79,6 +84,10 @@ export async function runBalanceHistory(
     history.data.truncatedPairs.length > 0 ||
     history.data.truncatedAssets.length > 0 ||
     history.data.depositsTruncated;
+  // 履歴の欠落とグリッドの間引きは原因が違うが、どちらも「求められた範囲を返せていない」。
+  // partial / meta.truncated / completeness / warnings の 4 経路すべてに同じ判断を載せる
+  // （1 経路でも漏らすと、その経路だけ読む呼び出し側が完全なデータと誤認する）。
+  const truncated = historyTruncated || grid.data.truncated;
 
   const data = assemble({
     grid: grid.data,
@@ -96,7 +105,7 @@ export async function runBalanceHistory(
       series.fallbackAssets,
     ),
     completeness: {
-      complete: !historyTruncated,
+      complete: !truncated,
       truncated_pairs: history.data.truncatedPairs,
       truncated_assets: history.data.truncatedAssets,
       deposits_truncated: history.data.depositsTruncated,
@@ -110,12 +119,17 @@ export async function runBalanceHistory(
     }),
   });
 
-  if (historyTruncated) {
+  if (truncated) {
     return {
       success: true,
       data,
       partial: true,
-      meta: { truncated: true, reason: "MAX_PAGES", returnedRows: data.points.length },
+      meta: {
+        truncated: true,
+        // 履歴欠落を優先して報告する（グリッド間引きより回復手段が重い）
+        reason: historyTruncated ? "MAX_PAGES" : "MAX_POINTS",
+        returnedRows: data.points.length,
+      },
     };
   }
   return { success: true, data };

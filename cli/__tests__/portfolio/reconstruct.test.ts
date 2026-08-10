@@ -45,6 +45,19 @@ describe("reconstructHoldingsAtDate — 約定の巻き戻し", () => {
     expect(holdings.get("jpy")).toBe(1_200);
   });
 
+  it("売りでも feeBase を戻す（base 建て手数料はどちら向きでも base から引かれる）", () => {
+    // 移植元（MCP）は売りで qty しか戻さない。cli/tax/reconcile/rebuild.ts は買い・売りの
+    // 両方で base 手数料を base から引いており、そちらに揃えてある
+    const holdings = reconstructHoldingsAtDate(
+      [],
+      [trade({ side: "sell", amount: 1, price: 1_000_000, fee_amount_base: 0.002 })],
+      SINCE,
+      NO_TRANSFERS,
+    );
+    expect(holdings.get("btc")).toBeCloseTo(1.002, 12);
+    expect(holdings.get("btc")).not.toBe(1);
+  });
+
   it("since より前の約定は巻き戻さない", () => {
     const holdings = reconstructHoldingsAtDate(
       [{ asset: "btc", amount: 1 }],

@@ -45,6 +45,7 @@ function fetchLeg(
     nextCursor: (rows) => String(Math.min(...rows.map((d) => d.found_at))),
     maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
     initialCursor: args.end,
+    pageSize: PAGE_SIZE,
   });
 }
 

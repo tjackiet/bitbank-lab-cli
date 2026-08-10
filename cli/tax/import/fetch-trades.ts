@@ -58,6 +58,7 @@ export async function fetchTrades(
       // 昇順取得なので最終行の executed_at が次ページの since になる
       nextCursor: (rows) => String(rows[rows.length - 1].executed_at),
       maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) {
       return { success: false, error: `${pair}: ${paged.error}`, exitCode: paged.exitCode };

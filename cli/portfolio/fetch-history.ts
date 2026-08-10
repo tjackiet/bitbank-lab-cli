@@ -14,7 +14,7 @@ import { paginate } from "../paginate.js";
 import type { Result } from "../types.js";
 import { fetchDeposits, fetchWithdrawals } from "./fetch-transfers.js";
 
-const PAGE_SIZE = "1000";
+const PAGE_SIZE = 1000;
 
 export type HistoryArgs = { since: string; maxPages: number; opts?: PrivateHttpOptions };
 
@@ -36,10 +36,14 @@ async function fetchTrades(
   for (const pair of pairs) {
     const paged = await paginate<Trade>({
       fetchPage: (cursor) =>
-        tradeHistory({ pair, count: PAGE_SIZE, order: "asc", since: cursor ?? a.since }, a.opts),
+        tradeHistory(
+          { pair, count: String(PAGE_SIZE), order: "asc", since: cursor ?? a.since },
+          a.opts,
+        ),
       keyOf: (t) => `${t.pair}:${t.trade_id}`,
       nextCursor: (rows) => String(rows[rows.length - 1].executed_at),
       maxPages: a.maxPages,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) return { success: false, error: `${pair}: ${paged.error}` };
     trades.push(...paged.data.rows);

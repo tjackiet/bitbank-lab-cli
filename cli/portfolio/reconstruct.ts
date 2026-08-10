@@ -1,3 +1,7 @@
+// 100行超: 巻き戻しの符号・手数料の建て・時刻の取り方は、間違えても系列が滑らかなままで
+// 読み手に気づかれない。実装は 50 行弱で、残りは「なぜその式なのか」と移植元との差分の根拠。
+// これを削ると次に触る人が同じ罠を踏むため、行数のために短くしない。
+//
 // 現在の保有から約定・入出金を逆順に巻き戻し、指定日時の保有を復元する。
 //
 // **移植元**: 姉妹リポ `bitbankinc/bitbank-lab-mcp` の
@@ -30,9 +34,23 @@ function bump(holdings: Holdings, asset: string, next: number): void {
   else holdings.set(asset, next);
 }
 
-/** 約定 1 件を巻き戻す。**買いで実際に増えた base 量は `qty - feeBase`**（手数料は
- *  base 建てで引かれる）。素朴に `qty` を戻すと手数料ぶんずれる。JPY 側は
- *  買い = `qty × price + feeQuote` を戻し、売り = 受取（`qty × price - feeQuote`）を除く。 */
+/**
+ * 約定 1 件を巻き戻す。
+ *
+ * base 残高の増減は **買い = `+qty - feeBase` / 売り = `-qty - feeBase`**
+ * （base 建て手数料はどちら向きでも base から引かれる）。巻き戻しはその逆符号なので、
+ * 買いは `qty - feeBase` を引き、**売りは `qty + feeBase` を戻す**。素朴に `qty` だけを
+ * 動かすと手数料ぶんずれる。
+ *
+ * 売り側に `feeBase` を足す点は**移植元との差分**。移植元（MCP `calc.ts`）は売りで
+ * `current + qty` にしており base 手数料を戻していない。本 CLI の理論残高再構築
+ * （`cli/tax/reconcile/rebuild.ts#applyTrade`、独立実装との突合で残差一致を確認済み）は
+ * 買い・売りの両方で base 手数料を base から引いており、そちらに揃えた。
+ * 実口座では `fee_amount_base` が全行ゼロ（`docs/dev/tax-evidence/ANSWERS.md` §1）なので
+ * 現状の出力は変わらないが、非ゼロが来たときに静かにずれない側へ倒す。
+ *
+ * JPY 側は 買い = `qty × price + feeQuote` を戻し、売り = 受取（`qty × price - feeQuote`）を除く。
+ */
 function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
   const qty = t.amount;
   const price = t.price;
@@ -47,7 +65,7 @@ function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
     bump(holdings, asset, current - (qty - feeBase));
     holdings.set("jpy", currentJpy + qty * price + feeQuote);
   } else {
-    holdings.set(asset, current + qty);
+    bump(holdings, asset, current + qty + feeBase);
     holdings.set("jpy", currentJpy - qty * price + feeQuote);
   }
 }

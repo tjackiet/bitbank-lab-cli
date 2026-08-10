@@ -1,3 +1,7 @@
+// 100行超: balance-history が辿る 7 エンドポイント（pairs / assets / 約定 / 入庫 2 系統 /
+// 出庫 / tickers / 1day 足）のレスポンス形状を 1 箇所に集約するため。分割すると
+// 「どの順で何が返るか」が読めなくなり、モックの取り違えを誘発する。
+//
 // balance-history の e2e 用モック。**実 API のエンドポイント構成をそのまま辿る**
 // （pairs → assets → 約定 → 入庫 2 系統 → 出庫/資産 → tickers → 1day 足）ので、
 // 呼び出し順や停止条件の回帰もここで拾える。
@@ -15,7 +19,9 @@ const BASE_WITHDRAWAL = withdrawalHistoryFixture.withdrawals[0];
 export type RawRows = {
   /** pair → 約定行 */
   trades?: Record<string, Record<string, unknown>[]>;
-  deposits?: Record<string, unknown>[];
+  /** 入庫の系統（`crypto` = asset 省略 / `jpy` = asset=jpy）→ 入庫行。
+   *  2 系統は実 API でも排他なので、モックでも系統ごとに分けて置く */
+  deposits?: Record<"crypto" | "jpy", Record<string, unknown>[] | undefined>;
   /** asset → 出庫行 */
   withdrawals?: Record<string, Record<string, unknown>[]>;
   /** asset → 現在残高。`[onhand, withdrawing]` で出金申請中を分けて置ける */
@@ -132,7 +138,7 @@ export function mockMarket(rows: RawRows): { fetch: typeof globalThis.fetch; url
           ],
         });
       }
-      return json({ deposits: once(`d:${leg}`, leg === "jpy" ? (rows.deposits ?? []) : []) });
+      return json({ deposits: once(`d:${leg}`, rows.deposits?.[leg as "crypto" | "jpy"] ?? []) });
     }
     if (url.includes("/user/withdrawal_history")) {
       const asset = new URL(url).searchParams.get("asset") ?? "";

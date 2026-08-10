@@ -9,7 +9,12 @@ const RateLimitSchema = z.object({
 
 export type RateLimitInfo = z.infer<typeof RateLimitSchema>;
 
-export type TruncationReason = "MAX_RANGE_FETCHES" | "HARD_MAX_SEGMENTS" | "MAX_PAGES";
+export type TruncationReason =
+  | "MAX_RANGE_FETCHES"
+  | "HARD_MAX_SEGMENTS"
+  | "MAX_PAGES"
+  // balance-history の評価時点が上限（MAX_POINTS）に達し、古い側の点を落とした
+  | "MAX_POINTS";
 
 export type Gap = { from: number; to: number; missing: number };
 

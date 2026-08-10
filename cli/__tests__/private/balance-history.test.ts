@@ -1,7 +1,7 @@
 // コマンド層（引数の解決と検証）のテスト。復元そのものの検証は
 // cli/__tests__/portfolio/ に置いてある。
 import { describe, expect, it } from "vitest";
-import { balanceHistory } from "../../commands/private/balance-history.js";
+import { type BalanceHistoryArgs, balanceHistory } from "../../commands/private/balance-history.js";
 import { EXIT } from "../../exit-codes.js";
 import { mockMarket } from "../portfolio/mock-market.js";
 import { TEST_CREDS } from "../test-helpers.js";
@@ -43,11 +43,14 @@ describe("balanceHistory の引数検証", () => {
   });
 
   it("未知の --granularity は候補を添えて PARAM エラー", async () => {
-    const r = await balanceHistory({ granularity: "week" }, { fetch: failingFetch(), ...OPTS });
+    // CLI フラグは生文字列で入ってくる（handler の extract は Record<string, unknown>）。
+    // 型で弾けない入力を Zod が受け止めることを、キャストして実行時に確かめる
+    const args = { granularity: "week" } as unknown as BalanceHistoryArgs;
+    const r = await balanceHistory(args, { fetch: failingFetch(), ...OPTS });
     expect(r.success).toBe(false);
     if (!r.success) {
       expect(r.exitCode).toBe(EXIT.PARAM);
-      expect(r.error).toContain("day, month");
+      expect(r.error).toContain("'day' | 'month'");
     }
   });
 

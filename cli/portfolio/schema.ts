@@ -2,11 +2,19 @@
 import { z } from "zod";
 import { GRANULARITIES } from "./grid.js";
 
-const EquityPointSchema = z.object({
+export const EquityPointSchema = z.object({
   /** UTC 日付（`YYYY-MM-DD`） */
   date: z.string(),
   timestamp: z.number(),
   value_jpy: z.number(),
+});
+
+/** 期間中の資金移動。**元本（net_flow）と出金手数料（withdrawal_fee）は混ぜない**。 */
+export const NetFlowSchema = z.object({
+  /** 純入出金額（元本移動のみ。出金手数料を含まない）。正 = 入金超、負 = 出金超 */
+  net_flow_jpy: z.number(),
+  /** 期間中の出金手数料合計（JPY）。調整後増減にコストとして残る */
+  withdrawal_fee_jpy: z.number(),
 });
 
 /** 価格品質。過去点がどれだけ現在価格の代替に依存しているか。 */
@@ -21,6 +29,8 @@ const PriceQualitySchema = z.object({
  * 打ち切りは必ずここに出す（Result 側でも `partial` / `meta.truncated` を立てる）。
  */
 const CompletenessSchema = z.object({
+  /** 申告すべき打ち切りが 1 つも無いか（履歴欠落・グリッド間引きの両方を含む）。
+   *  false のとき Result 側にも `partial` / `meta.truncated` が立つ */
   complete: z.boolean(),
   truncated_pairs: z.array(z.string()),
   truncated_assets: z.array(z.string()),
@@ -37,10 +47,7 @@ export const BalanceHistorySchema = z.object({
   points: z.array(EquityPointSchema),
   /** 最終点。復元値ではなく現在の実測評価額 */
   current: EquityPointSchema,
-  flow: z.object({
-    net_flow_jpy: z.number(),
-    withdrawal_fee_jpy: z.number(),
-  }),
+  flow: NetFlowSchema,
   change: z.object({
     start_value_jpy: z.number(),
     change_jpy: z.number(),
@@ -58,3 +65,5 @@ export const BalanceHistorySchema = z.object({
 
 export type BalanceHistory = z.infer<typeof BalanceHistorySchema>;
 export type PriceQuality = z.infer<typeof PriceQualitySchema>;
+export type EquityPoint = z.infer<typeof EquityPointSchema>;
+export type NetFlow = z.infer<typeof NetFlowSchema>;

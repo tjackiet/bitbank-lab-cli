@@ -2,6 +2,7 @@
 // こと」「candle 欠落でスケールが崩れないこと」を 1 本の実行経路で押さえるため、
 // セットアップ（保有・価格・足）を共有したケース群になる。
 import { describe, expect, it } from "vitest";
+import { MAX_POINTS } from "../../portfolio/grid.js";
 import { runBalanceHistory } from "../../portfolio/run.js";
 import { BalanceHistorySchema } from "../../portfolio/schema.js";
 import { TRUNCATED_WARNING } from "../../portfolio/warnings.js";
@@ -70,15 +71,18 @@ describe("runBalanceHistory", () => {
       assets: { jpy: "1500000" },
       prices: { btc: "13000000" },
       candles: { btc: BTC_CANDLES },
-      deposits: [
-        rawDeposit({
-          uuid: "dep-1",
-          asset: "jpy",
-          amount: "500000",
-          found_at: D2,
-          confirmed_at: D2,
-        }),
-      ],
+      deposits: {
+        crypto: undefined,
+        jpy: [
+          rawDeposit({
+            uuid: "dep-1",
+            asset: "jpy",
+            amount: "500000",
+            found_at: D2,
+            confirmed_at: D2,
+          }),
+        ],
+      },
       withdrawals: {
         jpy: [
           rawWithdrawal({
@@ -180,6 +184,51 @@ describe("runBalanceHistory", () => {
     expect(r.success).toBe(true);
     if (!r.success) return;
     expect(r.data.warnings.some((w) => w.includes("btc"))).toBe(true);
+  });
+
+  it("グリッド間引きも 4 経路（partial / meta / completeness / warnings）で申告する", async () => {
+    const { fetch } = mockMarket({ assets: { jpy: "1000" }, prices: {}, candles: {} });
+    const r = await runBalanceHistory(
+      { ...ARGS, sinceMs: NOW - (MAX_POINTS + 50) * DAY },
+      { fetch, ...OPTS },
+    );
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+    expect(r.data.points).toHaveLength(MAX_POINTS);
+    expect(r.partial).toBe(true);
+    // 履歴は完全なのでページ上限とは区別して報告する
+    expect(r.meta).toMatchObject({ truncated: true, reason: "MAX_POINTS" });
+    expect(r.data.completeness).toMatchObject({ complete: false, grid_truncated: true });
+    expect(r.data.warnings.some((w) => w.includes("評価時点"))).toBe(true);
+  });
+
+  it("暗号資産の入庫（asset 省略の系統）も巻き戻す", async () => {
+    // 入庫は crypto / jpy の 2 系統に分かれる。crypto 側だけの入金が落ちないことを見る
+    const { fetch } = mockMarket({
+      assets: { btc: "2" },
+      prices: { btc: "13000000" },
+      candles: { btc: BTC_CANDLES },
+      deposits: {
+        jpy: undefined,
+        crypto: [
+          rawDeposit({
+            uuid: "dep-btc",
+            asset: "btc",
+            amount: "0.5",
+            found_at: D2,
+            confirmed_at: D2,
+          }),
+        ],
+      },
+    });
+    const r = await runBalanceHistory(ARGS, { fetch, ...OPTS });
+    expect(r.success).toBe(true);
+    if (!r.success) return;
+    // D1 時点は入庫前なので 1.5 BTC
+    expect(r.data.points[0].value_jpy).toBe(1.5 * 10_000_000);
+    expect(r.data.points[2].value_jpy).toBe(2 * 12_000_000);
+    // 暗号資産の入庫は現在価格で仮評価される
+    expect(r.data.flow.net_flow_jpy).toBe(0.5 * 13_000_000);
   });
 
   it("月次グリッドでは UTC 月初だけを評価する", async () => {

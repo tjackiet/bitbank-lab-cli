@@ -1,4 +1,10 @@
 // 復元結果を出力契約（schema.ts）へ組み立てる。数値の丸めはここ（境界）で 1 回だけ。
+//
+// **移植元**: `bitbankinc/bitbank-lab-mcp` の
+// `src/handlers/portfolio/calc.ts#buildPeriodPerformance`（`ecf05ae` 時点）。増減・調整後増減と
+// パーセントの丸め（`Math.round(x * 10000) / 100`）はそこから持ってきている。
+// 出力フィールドの構成（`points` / `completeness` / `price_quality` 等）は CLI 側の契約で、
+// 移植元に対応物は無い。
 import { ymdUtc } from "../date-utils.js";
 import type { EquityPoint } from "./equity.js";
 import { calcPortfolioValue } from "./equity.js";

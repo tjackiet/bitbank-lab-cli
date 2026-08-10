@@ -7,7 +7,7 @@ import { paginate } from "../paginate.js";
 import type { Result } from "../types.js";
 import type { HistoryArgs } from "./fetch-history.js";
 
-const PAGE_SIZE = "1000";
+const PAGE_SIZE = 1000;
 
 /** 入庫は 2 系統必須（asset 省略 = crypto / asset=jpy = fiat。両者は排他）。
  *  片方だけだと円入金が丸ごと落ち、再構築の JPY 残高が静かにずれる。 */
@@ -21,11 +21,12 @@ export async function fetchDeposits(
   for (const asset of [undefined, "jpy"] as const) {
     const paged = await paginate<Deposit>({
       fetchPage: (cursor) =>
-        depositHistory({ asset, count: PAGE_SIZE, since: a.since, end: cursor }, a.opts),
+        depositHistory({ asset, count: String(PAGE_SIZE), since: a.since, end: cursor }, a.opts),
       keyOf: (d) => d.uuid,
       // 後方 end 走査: このページ最古の found_at より前へ（境界重複は dedup が吸収）
       nextCursor: (rows) => String(Math.min(...rows.map((d) => d.found_at))),
       maxPages: a.maxPages,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) {
       return { success: false, error: `deposit(${asset ?? "crypto"}): ${paged.error}` };
@@ -54,10 +55,11 @@ export async function fetchWithdrawals(
   for (const asset of assets) {
     const paged = await paginate<Withdrawal>({
       fetchPage: (cursor) =>
-        withdrawalHistory({ asset, count: PAGE_SIZE, since: a.since, end: cursor }, a.opts),
+        withdrawalHistory({ asset, count: String(PAGE_SIZE), since: a.since, end: cursor }, a.opts),
       keyOf: (w) => w.uuid,
       nextCursor: (rows) => String(Math.min(...rows.map((w) => w.requested_at))),
       maxPages: a.maxPages,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) return { success: false, error: `${asset}: ${paged.error}` };
     for (const w of paged.data.rows) {

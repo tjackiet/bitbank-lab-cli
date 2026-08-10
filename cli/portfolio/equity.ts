@@ -8,8 +8,10 @@ import type { Trade } from "../commands/private/trade-history.js";
 import { ymdUtc } from "../date-utils.js";
 import { type DailyOpens, newPriceOrigin, resolvePrices } from "./price-map.js";
 import { type Holdings, reconstructHoldingsAtDate, type Transfers } from "./reconstruct.js";
+// 出力 DTO の型ソースは Zod（schema.ts）。ここで別定義を持つと契約が分岐する
+import type { EquityPoint } from "./schema.js";
 
-export type EquityPoint = { date: string; timestamp: number; value_jpy: number };
+export type { EquityPoint };
 
 export function calcPortfolioValue(
   holdings: Holdings,

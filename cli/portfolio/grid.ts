@@ -1,8 +1,11 @@
 // 評価時点のグリッド（UTC 日境界 / UTC 月初）。
 //
-// bitbank の candlestick は UTC 基準（cli/date-utils.ts の単一ソース。1day 足は
-// UTC 00:00 起点）なので、グリッドも UTC で刻んで足の日付キーと素直に一致させる。
-// **JST は表示用のみ**という CLI 規約（ADR-004 の税務例外の外）に従う。
+// **移植元**: `bitbankinc/bitbank-lab-mcp` の `src/handlers/analyzeMyPortfolioHandler.ts`
+// （§6.7 の `monthDates` / `yearDates` 構築、`ecf05ae` 時点）。
+// **意図的な差分**: 移植元は dayjs の JST（`Asia/Tokyo`）で刻むが、本ファイルは UTC で刻む。
+// bitbank の candlestick は UTC 基準（cli/date-utils.ts の単一ソース。1day 足は UTC 00:00
+// 起点）で、CLI は「JST は表示用のみ」が規約（ADR-004 の税務例外の外）なため。
+// MAX_POINTS による間引きは CLI 側の追加（移植元は期間が年初来固定で上限を持たない）。
 import { EXIT } from "../exit-codes.js";
 import type { Result } from "../types.js";
 

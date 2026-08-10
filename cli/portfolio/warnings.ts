@@ -1,4 +1,11 @@
-// 復元を疑うべき理由を文言にする層。**黙って通さない**ための出口なので、
+// 復元を疑うべき理由を文言にする層。
+//
+// **移植ではない**（姉妹リポ `bitbankinc/bitbank-lab-mcp` に対応するモジュールは無い）。
+// 移植元は打ち切りを `DepositWithdrawalData.isComplete` / `complete` で持つだけで、
+// 文言としては出さない。CLI は「黙って通さない」を出力契約に含めるため本ファイルを足した
+// （ADR-007「不完全データの扱い」）。
+//
+// **黙って通さない**ための出口なので、
 // Result の partial / meta.truncated と重複してでもレポート本体（data.warnings）に残す
 // （meta を読まない経路からは partial が見えない。cli/tax/import/collect.ts と同じ判断）。
 

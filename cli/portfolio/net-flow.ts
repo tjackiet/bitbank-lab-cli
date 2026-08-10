@@ -5,13 +5,10 @@
 // **元本と手数料を混ぜてはいけない**。混ぜると「入出金を除いた増減」がコストぶん狂う。
 import type { Deposit } from "../commands/private/deposit-history.js";
 import type { Transfers } from "./reconstruct.js";
+// 出力 DTO の型ソースは Zod（schema.ts）
+import type { NetFlow } from "./schema.js";
 
-export type NetFlow = {
-  /** 純入出金額（元本移動のみ。出金手数料を含まない）。正 = 入金超、負 = 出金超 */
-  net_flow_jpy: number;
-  /** 期間中の出金手数料合計（JPY）。調整後増減にコストとして残る */
-  withdrawal_fee_jpy: number;
-};
+export type { NetFlow };
 
 function depositAt(d: Deposit): number {
   return d.confirmed_at ?? d.found_at;

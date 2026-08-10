@@ -58,6 +58,7 @@ export async function fetchWithdrawals(
       nextCursor: (rows) => String(Math.min(...rows.map((w) => w.requested_at))),
       maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
       initialCursor: args.end,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) {
       return { success: false, error: `${asset}: ${paged.error}`, exitCode: paged.exitCode };
