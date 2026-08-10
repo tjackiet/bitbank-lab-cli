@@ -1,0 +1,64 @@
+import { describe, expect, it } from "vitest";
+import { ymdUtc } from "../../date-utils.js";
+import { EXIT } from "../../exit-codes.js";
+import { buildGrid, candleLimitFor, MAX_POINTS } from "../../portfolio/grid.js";
+
+const DAY = 86_400_000;
+const JAN3_NOON = Date.UTC(2026, 0, 3, 12);
+
+describe("buildGrid", () => {
+  it("day は UTC 日境界へ切り下げて 1 日ずつ刻む", () => {
+    const g = buildGrid(Date.UTC(2026, 0, 1, 9, 30), JAN3_NOON, "day");
+    expect(g.success).toBe(true);
+    if (!g.success) return;
+    expect(g.data.points.map(ymdUtc)).toEqual(["20260101", "20260102", "20260103"]);
+    expect(g.data.startMs).toBe(Date.UTC(2026, 0, 1));
+  });
+
+  it("month は UTC 月初へ切り下げて 1 か月ずつ刻む（暦依存）", () => {
+    const g = buildGrid(Date.UTC(2025, 10, 20), Date.UTC(2026, 1, 5), "month");
+    expect(g.success).toBe(true);
+    if (!g.success) return;
+    expect(g.data.points.map(ymdUtc)).toEqual(["20251101", "20251201", "20260101", "20260201"]);
+  });
+
+  it("ホスト TZ に依らず UTC 境界で刻む（JST 当日 09:00 は前日 UTC）", () => {
+    // 2026-01-02T00:00+09:00 = 2026-01-01T15:00Z → UTC では 1/1
+    const g = buildGrid(Date.parse("2026-01-01T15:00:00Z"), JAN3_NOON, "day");
+    expect(g.success).toBe(true);
+    if (g.success) expect(ymdUtc(g.data.points[0])).toBe("20260101");
+  });
+
+  it("当日の途中を since にしても 1 点は返す", () => {
+    const g = buildGrid(JAN3_NOON, JAN3_NOON, "day");
+    expect(g.success).toBe(true);
+    if (g.success) expect(g.data.points).toEqual([Date.UTC(2026, 0, 3)]);
+  });
+
+  it("MAX_POINTS を超えたら古い側を落として truncated を立てる", () => {
+    const g = buildGrid(JAN3_NOON - (MAX_POINTS + 50) * DAY, JAN3_NOON, "day");
+    expect(g.success).toBe(true);
+    if (!g.success) return;
+    expect(g.data.points).toHaveLength(MAX_POINTS);
+    expect(g.data.truncated).toBe(true);
+    // 残すのは新しい側。最後の点は当日
+    expect(g.data.points.at(-1)).toBe(Date.UTC(2026, 0, 3));
+  });
+
+  it("未来の since は PARAM エラー", () => {
+    const g = buildGrid(JAN3_NOON + DAY, JAN3_NOON, "day");
+    expect(g.success).toBe(false);
+    if (!g.success) expect(g.exitCode).toBe(EXIT.PARAM);
+  });
+});
+
+describe("candleLimitFor", () => {
+  it("グリッド全体を覆う本数を返す（最低 2 本）", () => {
+    const g = buildGrid(JAN3_NOON - 10 * DAY, JAN3_NOON, "day");
+    expect(g.success).toBe(true);
+    if (!g.success) return;
+    expect(candleLimitFor(g.data, JAN3_NOON)).toBeGreaterThanOrEqual(11);
+    const today = buildGrid(JAN3_NOON, JAN3_NOON, "day");
+    if (today.success) expect(candleLimitFor(today.data, JAN3_NOON)).toBeGreaterThanOrEqual(2);
+  });
+});

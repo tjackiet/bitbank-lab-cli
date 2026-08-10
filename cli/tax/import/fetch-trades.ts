@@ -1,9 +1,9 @@
 // 約定履歴の全ペア横断取得（GET /user/spot/trade_history）。ペア一覧は呼び出し側が
 // 渡す（cli/tax/ から cli/commands/ を import しないための注入。テストも楽になる）。
 import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
+import { paginate } from "../../paginate.js";
 import { parseResponse } from "../../parse-response.js";
 import type { Result } from "../../types.js";
-import { paginate } from "./paginate.js";
 import { type RawTrade, RawTradeHistory } from "./raw-trade.js";
 
 const PAGE_SIZE = 1000;
