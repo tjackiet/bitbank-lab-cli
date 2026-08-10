@@ -1,5 +1,6 @@
 import type { CommandEntry } from "./handler-types.js";
 import { paperCommands } from "./paper-handlers.js";
+import { privateBalanceCommands } from "./private-balance-handlers.js";
 import { privateCommands } from "./private-handlers.js";
 import { privateTransferCommands } from "./private-transfer-handlers.js";
 import { profileCommands } from "./profile-handlers.js";
@@ -12,6 +13,7 @@ import { watchCommands } from "./watch-handler.js";
 export const COMMANDS: Record<string, CommandEntry> = {
   ...publicCommands,
   ...privateCommands,
+  ...privateBalanceCommands,
   ...privateTransferCommands,
   ...streamCommands,
   ...watchCommands,

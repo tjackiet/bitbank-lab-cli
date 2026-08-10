@@ -2,9 +2,9 @@
 // **2 系統取得が必須**（要求仕様 §2.1・付録E.3）: `asset` 省略 = crypto のみ /
 // `asset=jpy` 明示 = fiat が返り、両者は排他。省略のみだと円入金が丸ごと落ちる。
 import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
+import { paginate } from "../../paginate.js";
 import { parseResponse } from "../../parse-response.js";
 import type { Result } from "../../types.js";
-import { paginate } from "./paginate.js";
 import { type RawDeposit, RawDepositHistory } from "./raw-transfer.js";
 
 // count の上限はエンドポイントごとに異なる可能性がある（約定履歴は 1000 と実測済み、
@@ -45,6 +45,7 @@ function fetchLeg(
     nextCursor: (rows) => String(Math.min(...rows.map((d) => d.found_at))),
     maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
     initialCursor: args.end,
+    pageSize: PAGE_SIZE,
   });
 }
 

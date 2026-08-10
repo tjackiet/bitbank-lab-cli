@@ -1,9 +1,9 @@
 // 出庫履歴の取得（GET /user/withdrawal_history）。**asset が必須**なので全資産を巡回する
 // （要求仕様 §2.1）。資産一覧は呼び出し側が渡す（fetch-trades.ts と同じ注入方針）。
 import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
+import { paginate } from "../../paginate.js";
 import { parseResponse } from "../../parse-response.js";
 import type { Result } from "../../types.js";
-import { paginate } from "./paginate.js";
 import { type RawWithdrawal, RawWithdrawalHistory } from "./raw-transfer.js";
 
 // count の上限はエンドポイントごとに異なる可能性がある（約定履歴は 1000 と実測済み、
@@ -58,6 +58,7 @@ export async function fetchWithdrawals(
       nextCursor: (rows) => String(Math.min(...rows.map((w) => w.requested_at))),
       maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
       initialCursor: args.end,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) {
       return { success: false, error: `${asset}: ${paged.error}`, exitCode: paged.exitCode };

@@ -1,9 +1,9 @@
 // 約定履歴の全ペア横断取得（GET /user/spot/trade_history）。ペア一覧は呼び出し側が
 // 渡す（cli/tax/ から cli/commands/ を import しないための注入。テストも楽になる）。
 import { type PrivateHttpOptions, privateGet } from "../../http-private.js";
+import { paginate } from "../../paginate.js";
 import { parseResponse } from "../../parse-response.js";
 import type { Result } from "../../types.js";
-import { paginate } from "./paginate.js";
 import { type RawTrade, RawTradeHistory } from "./raw-trade.js";
 
 const PAGE_SIZE = 1000;
@@ -58,6 +58,7 @@ export async function fetchTrades(
       // 昇順取得なので最終行の executed_at が次ページの since になる
       nextCursor: (rows) => String(rows[rows.length - 1].executed_at),
       maxPages: args.maxPages ?? MAX_PAGES_DEFAULT,
+      pageSize: PAGE_SIZE,
     });
     if (!paged.success) {
       return { success: false, error: `${pair}: ${paged.error}`, exitCode: paged.exitCode };

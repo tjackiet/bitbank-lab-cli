@@ -1,10 +1,10 @@
 // 取得層（ページング・重複排除・2 系統取得）。ページ境界はタイムスタンプカーソルの
 // ため**同一ミリ秒で重複が返る**（要求仕様 §2.1）ので、除去件数まで確認する。
 import { describe, expect, it } from "vitest";
+import { paginate } from "../../../paginate.js";
 import { fetchDeposits } from "../../../tax/import/fetch-deposits.js";
 import { fetchTrades } from "../../../tax/import/fetch-trades.js";
 import { fetchWithdrawals } from "../../../tax/import/fetch-withdrawals.js";
-import { paginate } from "../../../tax/import/paginate.js";
 import { tradeHistoryFixture } from "../../__fixtures__/private/trade-history.js";
 import { TEST_CREDS } from "../../test-helpers.js";
 
