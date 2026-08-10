@@ -17,8 +17,6 @@ export type WarningInput = {
   historyTruncated: boolean;
   /** 評価時点が MAX_POINTS を超え、古い側を落とした */
   gridTruncated: boolean;
-  /** 復元から除外した非 JPY クォートのペア */
-  nonJpyPairs: readonly string[];
   /** 復元から除外した信用約定のペア。実現損益は JPY 残高を動かすので値は不正確になる */
   marginPairs: readonly string[];
   /** 価格が一切引けず評価・純入出金から落ちた資産（0 円で積んだのと同じ） */
@@ -32,9 +30,6 @@ export function buildWarnings(i: WarningInput): string[] {
     warnings.push(
       "評価時点が上限に達したため、古い側の点を落としました（--since を狭めてください）",
     );
-  }
-  if (i.nonJpyPairs.length > 0) {
-    warnings.push(`非 JPY クォートの約定を復元から除外しました: ${i.nonJpyPairs.join(", ")}`);
   }
   if (i.marginPairs.length > 0) {
     warnings.push(

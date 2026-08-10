@@ -4,8 +4,16 @@
 import type { Deposit } from "../../commands/private/deposit-history.js";
 import type { Trade } from "../../commands/private/trade-history.js";
 import type { Withdrawal } from "../../commands/private/withdrawal-history.js";
+import type { PairAssets } from "../../portfolio/scope.js";
 
 let tradeId = 0;
+
+/** テスト用 pairs マスタ投影。本番は /spot/pairs から作る。 */
+export const PAIR_ASSETS: PairAssets = new Map([
+  ["btc_jpy", { base: "btc", quote: "jpy" }],
+  ["xrp_jpy", { base: "xrp", quote: "jpy" }],
+  ["xrp_btc", { base: "xrp", quote: "btc" }],
+]);
 
 export function trade(o: Partial<Trade> & Pick<Trade, "side" | "amount" | "price">): Trade {
   tradeId += 1;

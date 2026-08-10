@@ -11,6 +11,9 @@
 import type { Deposit } from "../commands/private/deposit-history.js";
 import type { Trade } from "../commands/private/trade-history.js";
 import type { Withdrawal } from "../commands/private/withdrawal-history.js";
+import type { PairAssets } from "./scope.js";
+
+export type { PairAssets };
 
 /** 数量の実質ゼロ判定。移植元と同じ閾値（浮動小数の残渣を保有として残さない） */
 const DUST = 1e-12;
@@ -44,7 +47,7 @@ function add(holdings: Holdings, asset: string, delta: number): void {
 }
 
 /**
- * 約定 1 件を巻き戻す。
+ * 約定 1 件を巻き戻す。base / quote は pairs マスタから渡す（ペア名の分割はしない）。
  *
  * base 残高の増減は **買い = `+qty - feeBase` / 売り = `-qty - feeBase`**
  * （base 建て手数料はどちら向きでも base から引かれる）。巻き戻しはその逆符号なので、
@@ -58,9 +61,10 @@ function add(holdings: Holdings, asset: string, delta: number): void {
  * 実口座では `fee_amount_base` が全行ゼロ（`docs/dev/tax-evidence/ANSWERS.md` §1）なので
  * 現状の出力は変わらないが、非ゼロが来たときに静かにずれない側へ倒す。
  *
- * JPY 側は 買い = `qty × price + feeQuote` を戻し、売り = 受取（`qty × price - feeQuote`）を除く。
+ * quote 側は 買い = `qty × price + feeQuote` を戻し、売り = 受取（`qty × price - feeQuote`）
+ * を除く。JPY 建てでも BTC 建てでも同じ数量演算（円換算は評価段が candle で行う）。
  */
-function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
+function undoTrade(holdings: Holdings, t: Trade, base: string, quote: string): void {
   const qty = t.amount;
   const price = t.price;
   const feeQuote = t.fee_amount_quote || 0;
@@ -68,11 +72,11 @@ function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
   if (!Number.isFinite(qty) || !Number.isFinite(price)) return;
 
   if (t.side === "buy") {
-    add(holdings, asset, -(qty - feeBase));
-    add(holdings, "jpy", qty * price + feeQuote);
+    add(holdings, base, -(qty - feeBase));
+    add(holdings, quote, qty * price + feeQuote);
   } else {
-    add(holdings, asset, qty + feeBase);
-    add(holdings, "jpy", -(qty * price) + feeQuote);
+    add(holdings, base, qty + feeBase);
+    add(holdings, quote, -(qty * price) + feeQuote);
   }
 }
 
@@ -80,6 +84,7 @@ function undoTrade(holdings: Holdings, t: Trade, asset: string): void {
  * `sinceMs` 時点の保有数量を復元する。
  *
  * - 対象の約定は `executed_at >= sinceMs`（新しい順に巻き戻す）
+ * - `pairAssets` に無いペアの約定は巻き戻さない（base/quote を推定しない）
  * - 入出金は **`status === "DONE"` のみ**（未確定・キャンセルは口座残高を動かしていない）
  * - **出金の巻き戻しは `amount + fee`**。出金時に失った手数料も当時は口座にあった
  */
@@ -88,6 +93,7 @@ export function reconstructHoldingsAtDate(
   trades: readonly Trade[],
   sinceMs: number,
   transfers: Transfers,
+  pairAssets: PairAssets,
 ): Holdings {
   const holdings: Holdings = new Map();
   for (const h of current) {
@@ -97,7 +103,11 @@ export function reconstructHoldingsAtDate(
   const recent = trades
     .filter((t) => t.executed_at >= sinceMs)
     .sort((a, b) => b.executed_at - a.executed_at);
-  for (const t of recent) undoTrade(holdings, t, t.pair.replace("_jpy", ""));
+  for (const t of recent) {
+    const a = pairAssets.get(t.pair);
+    if (!a) continue;
+    undoTrade(holdings, t, a.base, a.quote);
+  }
 
   for (const d of transfers.deposits) {
     if (d.status !== "DONE" || depositAt(d) < sinceMs) continue;
