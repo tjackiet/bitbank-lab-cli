@@ -12,9 +12,11 @@ description: |
 compatibility: |
   Requires the bitbank CLI on PATH (install separately: npm i -g bitbank-lab-cli).
   Plugin install alone does NOT bundle the CLI or its dependencies. Node.js 22+.
-  Private API commands require API key/secret in .env file.
-  Read-only: this skill only issues private GET requests (assets, trade-history,
-  deposit-history, withdrawal-history) plus public pairs/candles. It never POSTs.
+  Private API commands need credentials from a configured profile (recommended)
+  or legacy environment variables; see _shared/references/cli-conventions.md.
+  Read-only: private GETs (assets, balance-history — which internally reads
+  trade-history / deposit-history / withdrawal-history) plus public market data
+  (tickers-jpy, pairs, candles). It never POSTs.
 metadata:
   author: bitbankinc
   version: "3.0"
@@ -113,7 +115,7 @@ bitbank balance-history --since=1735689600000 --granularity=day --format=json --
 
 保有資産・評価額・比率を一覧する。
 
-```
+```text
 === 資産構成 ===
 
 総評価額: 2,500,000 JPY
@@ -137,21 +139,22 @@ Step 3（`balance-history`）の結果を提示する。以下の順序を守る
 3. **増減の内訳**（`change` / `flow`）
 4. **推移テーブル**（`points` + 最終点 `current`）
 
-```
+```text
 === 資産推移（2025-08-01 〜 2026-08-11・月次） ===
 
 前提（表より先に読む）:
 - 各時点の保有は現在の残高から約定・入出金を逆算して復元した値で、
   当時の残高スナップショットではない
 - 評価は各時点の 1day 足 open（UTC 日境界）。取れない資産は現在価格で代替
-- 最終行「現在」だけは復元値ではなく実測（ticker last × 現在残高）
+- 最終行「現在」だけは復元値ではなく実測（ticker last × 現在残高。
+  出金申請中の資産を含むため、出力項目 1 の総評価額とは一致しないことがある）
 - 販売所（即時売買）の取引は API に現れないため反映されない
 
 増減の内訳:
   単純増減      : +150,000 JPY (+6.5%)   期首からの評価額の差
   うち純入出金  : +120,000 JPY           入金 − 出金（元本移動のみ）
   調整後増減    :  +30,000 JPY (+1.3%)   単純増減 − 純入出金
-  出金手数料    :      -770 JPY          調整後増減にコストとして残る
+  出金手数料    :      770 JPY           上記の調整後増減に既に織り込み済み
 
 日付         | 評価額(JPY) | 前点比
 2025-08-01  |  2,300,000 | -
@@ -170,6 +173,9 @@ Step 3（`balance-history`）の結果を提示する。以下の順序を守る
   しない。とくに `completeness.complete` が `false`（履歴がページ上限で打ち切られた /
   グリッドを間引いた）のときは、**表より先に「復元値は信用できない」と明言**し、
   数値は参考値として扱う旨を添える
+- **`flow.withdrawal_fee_jpy` は正数の手数料合計。** 符号を反転して「−770」のように
+  出さない。コストとしての効果は `adjusted_change_jpy` 側に既に織り込まれているので、
+  内訳で二重に引かない
 - **`assumptions` も削らない。** 前提ブロックは出力の `note` / `assumptions` を
   そのまま引く。自分の言葉で短く言い換えて条件を落とさない
 - `price_quality.level` が `complete` でないときは `fallback_assets` を名指しで挙げる
@@ -209,7 +215,7 @@ Step 3（`balance-history`）の結果を提示する。以下の順序を守る
 | チャート ID | 内容 | 主な構成要素 |
 |---|---|---|
 | `portfolio.allocation` | 資産構成 | 出力項目 1 の評価額比率のドーナツ（評価額の大きい順、JPY 現金を含む、中央に総評価額）。ラベルは凡例方式が既定・小口は Others に集約（いずれも下記）。ticker 取得時刻をフッターに。詳細比較用に横棒版への切替も可 |
-| `portfolio.value-history` | JPY 建て資産推移 | 出力項目 2 の `points`（復元値）の折れ線 + 最終点 `current`（実測）を別マーカーで。`reconstructed from current balances; last point measured` と期間中の純入出金（`flow.net_flow_jpy`）を図中に明記し、入金による増加を値上がりと読ませない。`warnings` があればその要約も焼き込む |
+| `portfolio.value-history` | JPY 建て資産推移 | 出力項目 2 の `points`（復元値）の折れ線 + 最終点 `current`（実測）を別マーカーで。`reconstructed from current balances; last point measured` と期間中の純入出金（`flow.net_flow_jpy`）を図中に明記し、入金による増加を値上がりと読ませない。`price_quality.level` が `complete` でなければ現在価格で代替評価した資産がある旨を、`warnings` があればその要約も添える |
 
 チャート固有の注意:
 

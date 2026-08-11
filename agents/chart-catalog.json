@@ -98,7 +98,7 @@
       "id": "portfolio.value-history",
       "skill": "portfolio",
       "title": "JPY 建て資産推移",
-      "spec": "出力項目 2 の `points`（復元値）の折れ線 + 最終点 `current`（実測）を別マーカーで。`reconstructed from current balances; last point measured` と期間中の純入出金（`flow.net_flow_jpy`）を図中に明記し、入金による増加を値上がりと読ませない。`warnings` があればその要約も焼き込む"
+      "spec": "出力項目 2 の `points`（復元値）の折れ線 + 最終点 `current`（実測）を別マーカーで。`reconstructed from current balances; last point measured` と期間中の純入出金（`flow.net_flow_jpy`）を図中に明記し、入金による増加を値上がりと読ませない。`price_quality.level` が `complete` でなければ現在価格で代替評価した資産がある旨を、`warnings` があればその要約も添える"
     },
     {
       "id": "signal-explorer.scatter",
