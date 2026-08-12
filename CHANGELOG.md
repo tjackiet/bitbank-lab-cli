@@ -101,7 +101,10 @@
 - **`workflow_dispatch` で checkout 対象と publish 対象の tag が食い違い得た問題を修正**。
   3 つの `actions/checkout` は起動時に選んだ ref を取るため、入力 tag と別のコードを
   その tag の npm package として publish できた。各 checkout に
-  `ref: inputs.tag || ref_name` を指定する（存在しない tag なら checkout が失敗する）
+  `ref: refs/tags/<tag>` を指定する。`refs/` で修飾するのは、**未修飾 ref では branch が
+  tag より優先される**ため（`actions/checkout` の `getCheckoutInfo` は
+  `branchExists(origin/<ref>)` を先に見る）。修飾しないと、tag と同名の branch を
+  作るだけで「存在しない tag なら checkout が失敗する」ガードを迂回できてしまう
 - **`portfolio` Skill の「JPY 建て資産推移」が誤読を生んでいた問題を修正**
   （`skills/portfolio/SKILL.md`）。旧実装は「**現在の保有量 × 過去の価格**」の近似を
   モデルに計算させるもので、入出金も売買も反映していなかった。積み立てている口座では
