@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "cli_version": "0.2.0",
+  "cli_version": "0.0.0-dev",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable chart catalog for the bitbank-lab-cli Agent Skills. Generated from the 可視化 (visualization) sections of skills/*/SKILL.md. Each chart is a stable ID (`<skill>.<slug>`; renaming is a breaking change) plus its spec. Rendering conventions (opt-in trigger discipline, matplotlib resolution, output path/naming, style, provenance footer, safety rules) are defined in the shared guide — charts are opt-in and never replace text output. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
   "visualization_guide": "skills/_shared/references/visualization-guide.md",
