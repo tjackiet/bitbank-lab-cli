@@ -51,6 +51,13 @@ jobs:
       - name: Test
         run: npx vitest run
 
+      # plugin manifest は npm tarball ではなく **git tag のツリー**から読まれる
+      # （marketplace の install source が repo 自身なので）。CI は tag push 後に
+      # 走るため tagged tree を直せない。ここで照合して、ズレていれば publish 前に落とす。
+      # 書き込みは tag を切る前のローカル作業（docs/dev/release.md）
+      - name: Verify plugin manifest versions match the tag
+        run: npx tsx scripts/sync-version.ts --check "${{ github.event.inputs.tag || github.ref_name }}"
+
   # ──────────────────────────────────────────────
   # 2. Publish to npm
   # ──────────────────────────────────────────────
@@ -81,19 +88,22 @@ jobs:
       - name: Determine dist-tag
         id: dist-tag
         run: |
-          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           if echo "$TAG" | grep -qE '-(alpha|beta|rc)'; then
             echo "tag=beta" >> "$GITHUB_OUTPUT"
           else
             echo "tag=latest" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Set version from tag and sync publish artifacts
+      # package.json は git 上では `0.0.0-dev` のプレースホルダで、実バージョンは
+      # ここで tag から注入する。手で実バージョンを書くと tag と一致して
+      # `npm version` が "Version not changed" で落ちる（bitbank-lab-mcp#30）。
+      # plugin manifest は tarball に入らないので、ここでは触らず ci job で照合済み
+      - name: Set version from tag and regenerate catalogs
         run: |
-          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           VERSION="${TAG#v}"
           npm version "$VERSION" --no-git-tag-version
-          node scripts/sync-version.mjs
           npx tsx scripts/gen-agents-catalog.ts
 
       - name: Publish
@@ -115,7 +125,7 @@ jobs:
       - name: Determine release metadata
         id: meta
         run: |
-          TAG="${GITHUB_REF_NAME:-${{ github.event.inputs.tag }}}"
+          TAG="${{ github.event.inputs.tag || github.ref_name }}"
           if echo "$TAG" | grep -qE '-(alpha|beta|rc)'; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
@@ -125,6 +135,6 @@ jobs:
       - name: Create GitHub Release
         uses: softprops/action-gh-release@718ea10b132b3b2eba29c1007bb80653f286566b # v3.0.1
         with:
-          tag_name: ${{ github.ref_name || github.event.inputs.tag }}
+          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           generate_release_notes: true
           prerelease: ${{ steps.meta.outputs.prerelease }}

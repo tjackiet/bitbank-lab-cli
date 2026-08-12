@@ -75,6 +75,24 @@
 
 ### Fixed
 
+- **リリース時のバージョン同期が plugin 配布経路に届いていなかった問題を修正**
+  （`scripts/sync-version.ts` / `.github/workflows/release.yml` / `docs/dev/release.md`）。
+  plugin manifest 5 種は npm tarball に入らず（`package.json` の `files` 対象外）、
+  marketplace / plugin client が読むのは **git tag のツリー**。release workflow は
+  tag が push された後に走るため、そこでの書き換えはどの配布物にも残っていなかった。
+  **0.3.0 のリリース後も 5 種すべてが `0.2.0` を表示したままだった。**
+  版上げを tag を切る前のローカル作業に移し、workflow 側は
+  `sync-version.ts --check <tag>` で照合して不一致なら publish 前に落とす
+- **`package.json` の version をプレースホルダ `0.0.0-dev` に固定**。実バージョンは
+  publish 直前に `npm version <tag>` が注入する。実バージョンを手で書くと tag と
+  一致して `npm version` が "Version not changed" で落ちる
+  （姉妹リポ `bitbank-lab-mcp` の v0.4.0 で発生 →
+  [#30](https://github.com/bitbankinc/bitbank-lab-mcp/pull/30) と同じ方針）。
+  chaos `x23` が 2 系統（プレースホルダ / manifest 揃い）を検査する
+- **`workflow_dispatch` からのリリースが tag 入力を無視していた問題を修正**
+  （`.github/workflows/release.yml`）。`${GITHUB_REF_NAME:-inputs.tag}` は
+  `GITHUB_REF_NAME` が常に非空（手動起動時はブランチ名）なので入力に落ちず、
+  `VERSION=main` で `npm version` が失敗していた。`inputs.tag || ref_name` の順に修正
 - **`portfolio` Skill の「JPY 建て資産推移」が誤読を生んでいた問題を修正**
   （`skills/portfolio/SKILL.md`）。旧実装は「**現在の保有量 × 過去の価格**」の近似を
   モデルに計算させるもので、入出金も売買も反映していなかった。積み立てている口座では
