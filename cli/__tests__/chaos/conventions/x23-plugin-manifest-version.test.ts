@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -19,16 +20,46 @@ import { DEV_PLACEHOLDER, readVersion, TARGETS } from "../../../../scripts/sync-
  *  tag との一致は release.yml の `--check` が見るので、ここでは tag に依存しない
  *  不変条件（プレースホルダであること・5 種が揃っていること）だけを固定する。
  */
+function readJson<T>(rel: string): T {
+  return JSON.parse(readFileSync(join(process.cwd(), rel), "utf-8")) as T;
+}
+
+/** `npm pack --dry-run` の実出力を同梱判定の単一ソースにする（x22 と同じ）。 */
+function packedPaths(): string[] {
+  const out = execFileSync("npm", ["pack", "--dry-run", "--json", "--ignore-scripts"], {
+    encoding: "utf-8",
+    stdio: ["ignore", "pipe", "ignore"],
+  });
+  const parsed = JSON.parse(out) as { files: { path: string }[] }[];
+  return parsed[0].files.map((f) => f.path);
+}
+
 describe("Chaos X-23: release version placement (package.json placeholder vs plugin manifests)", () => {
   it("package.json keeps the dev placeholder (never a real version)", () => {
-    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf-8")) as {
-      version: string;
-    };
+    const pkg = readJson<{ version: string }>("package.json");
     expect(
       pkg.version,
       `package.json の version は ${DEV_PLACEHOLDER} 固定。実バージョンは publish 直前に ` +
         "release.yml が tag から注入する。手で上げると `npm version` が落ちる",
     ).toBe(DEV_PLACEHOLDER);
+  });
+
+  it("package-lock.json carries the same placeholder", () => {
+    // `npm version` は package.json と package-lock.json の両方を書き換える。
+    // 片方だけ手で戻すとプレースホルダが割れる（前科: このテストを入れた PR 自身）
+    const lock = readJson<{ version: string; packages: Record<string, { version?: string }> }>(
+      "package-lock.json",
+    );
+    for (const [where, version] of [
+      ["root", lock.version],
+      ['packages[""]', lock.packages[""]?.version],
+    ] as const) {
+      expect(
+        version,
+        `package-lock.json の ${where} が ${DEV_PLACEHOLDER} と揃っていない。` +
+          "`npm version 0.0.0-dev --no-git-tag-version --allow-same-version` で揃える",
+      ).toBe(DEV_PLACEHOLDER);
+    }
   });
 
   it("all plugin manifests carry the same version", () => {
@@ -47,13 +78,17 @@ describe("Chaos X-23: release version placement (package.json placeholder vs plu
   });
 
   it("plugin manifests are not shipped in the npm tarball (they are read from the git tree)", () => {
-    const pkg = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf-8")) as {
-      files: string[];
-    };
-    // `files` に載せると「tarball に入るから publish 時に同期すれば足りる」という
-    // 誤解が復活する。読み手は tag のツリーなので、載せない側を固定する
+    // 判定は `npm pack --dry-run` の実出力を単一ソースにする（x22 と同じ理由）。
+    // `files` の文字列一致だけでは、`*.json` やディレクトリ追加で manifest が
+    // 紛れ込む経路を拾えない。tarball に入ると「publish 時に同期すれば足りる」という
+    // 誤解が復活するので、載っていない側を実出力で固定する
+    const packed = new Set(packedPaths());
     for (const rel of TARGETS) {
-      expect(pkg.files, `${rel} を package.json の files に載せない`).not.toContain(rel);
+      expect(
+        packed.has(rel),
+        `${rel} が npm tarball に含まれている。plugin manifest の読み手は git tag の\n` +
+          "ツリーであって tarball ではない。package.json の files から外す",
+      ).toBe(false);
     }
   });
 });

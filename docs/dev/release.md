@@ -111,8 +111,9 @@ npm version "$VERSION" --no-git-tag-version
 npx tsx scripts/gen-agents-catalog.ts
 npm publish --otp=<OTP>
 
-# publish 後は package.json を必ずプレースホルダへ戻す（コミットしない運用でも可）
-git checkout package.json agents/
+# publish 後は必ずプレースホルダへ戻す（コミットしない運用でも可）。
+# `npm version` は package-lock.json の version も書き換えるので一緒に戻す
+git checkout package.json package-lock.json agents/
 ```
 
 `--provenance` は OIDC 経由でしか付かないため、手動 publish したバージョンは
