@@ -10,7 +10,7 @@ _bitbank() {
   cmd="\${COMP_WORDS[1]:-}"
   sub="\${COMP_WORDS[2]:-}"
 
-  local commands="active-orders assets candles circuit-break completion deposit-history deposit-originators depth margin-positions margin-status order orders-info pairs paper profile profiles schema status stream ticker tickers tickers-jpy trade trade-history trade-history-all transactions unconfirmed-deposits watch withdrawal-accounts withdrawal-history"
+  local commands="active-orders assets balance-history candles circuit-break completion deposit-history deposit-originators depth margin-positions margin-status order orders-info pairs paper profile profiles schema status stream ticker tickers tickers-jpy trade trade-history trade-history-all transactions unconfirmed-deposits watch withdrawal-accounts withdrawal-history"
   local trade_subs="cancel-order cancel-orders confirm-deposits confirm-deposits-all create-order"
   local paper_subs="active-orders assets cancel-order create-order init pnl reset tick trade-history"
   local profile_subs="add list remove set-default show"
@@ -92,6 +92,7 @@ _bitbank() {
         trade-history) opts="$opts --pair --count --order-id --since --end --order --all --all-pairs --year --max-pages" ;;
         trade-history-all) opts="$opts --pair --since --end --max-pages" ;;
         margin-positions) opts="$opts --pair" ;;
+        balance-history) opts="$opts --since --days --granularity --max-pages --no-cache" ;;
         deposit-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
         unconfirmed-deposits) opts="$opts --asset" ;;
         withdrawal-accounts) opts="$opts --asset" ;;
@@ -131,7 +132,7 @@ _bitbank() {
   cmd="\${words[2]:-}"
   sub="\${words[3]:-}"
 
-  local commands="active-orders assets candles circuit-break completion deposit-history deposit-originators depth margin-positions margin-status order orders-info pairs paper profile profiles schema status stream ticker tickers tickers-jpy trade trade-history trade-history-all transactions unconfirmed-deposits watch withdrawal-accounts withdrawal-history"
+  local commands="active-orders assets balance-history candles circuit-break completion deposit-history deposit-originators depth margin-positions margin-status order orders-info pairs paper profile profiles schema status stream ticker tickers tickers-jpy trade trade-history trade-history-all transactions unconfirmed-deposits watch withdrawal-accounts withdrawal-history"
   local trade_subs="cancel-order cancel-orders confirm-deposits confirm-deposits-all create-order"
   local paper_subs="active-orders assets cancel-order create-order init pnl reset tick trade-history"
   local profile_subs="add list remove set-default show"
@@ -213,6 +214,7 @@ _bitbank() {
       trade-history) opts="$opts --pair --count --order-id --since --end --order --all --all-pairs --year --max-pages" ;;
       trade-history-all) opts="$opts --pair --since --end --max-pages" ;;
       margin-positions) opts="$opts --pair" ;;
+      balance-history) opts="$opts --since --days --granularity --max-pages --no-cache" ;;
       deposit-history) opts="$opts --asset --count --since --end --all --year --max-pages" ;;
       unconfirmed-deposits) opts="$opts --asset" ;;
       withdrawal-accounts) opts="$opts --asset" ;;

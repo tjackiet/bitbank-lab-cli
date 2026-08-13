@@ -66,6 +66,71 @@
   必須 4 節・ステータス語彙）を機械検証する。狙いは並行ブランチでの採番衝突で、
   同じ番号の ADR が別ファイル名で作られると git は競合を出さないため、
   main への push 時の CI が唯一の検出点になる（欠番は無害なので検査しない）
+- **`bitbank balance-history`**。現在の残高から約定・入出金を逆算して各時点の保有を
+  復元し、その日の 1day 足 open で評価する（計算本体は `cli/portfolio/`、根拠は
+  [ADR-007](docs/adr/007-balance-history-reconstruction-in-cli.md)）。**private GET のみ**。
+  純入出金は元本と出金手数料を分離し、単純増減と調整後増減（単純増減 − 純入出金）を
+  併記する。履歴の打ち切りは `partial` / `meta.truncated` / `completeness` / `warnings`
+  の 4 経路で申告する
+
+### Fixed
+
+- **リリース時のバージョン同期が plugin 配布経路に届いていなかった問題を修正**
+  （`scripts/sync-version.ts` / `.github/workflows/release.yml` / `docs/dev/release.md`）。
+  plugin manifest 5 種は npm tarball に入らず（`package.json` の `files` 対象外）、
+  marketplace / plugin client が読むのは **git tag のツリー**。release workflow は
+  tag が push された後に走るため、そこでの書き換えはどの配布物にも残っていなかった。
+  **0.3.0 のリリース後も 5 種すべてが `0.2.0` を表示したままだった。**
+  版上げを tag を切る前のローカル作業に移し、workflow 側は
+  `sync-version.ts --check <tag>` で照合して不一致なら publish 前に落とす
+- **`package.json` の version をプレースホルダ `0.0.0-dev` に固定**。実バージョンは
+  publish 直前に `npm version <tag>` が注入する。実バージョンを手で書くと tag と
+  一致して `npm version` が "Version not changed" で落ちる
+  （姉妹リポ `bitbank-lab-mcp` の v0.4.0 で発生 →
+  [#30](https://github.com/bitbankinc/bitbank-lab-mcp/pull/30) と同じ方針）。
+  chaos `x23` が 2 系統（プレースホルダ / manifest 揃い）を検査する
+- **`workflow_dispatch` からのリリースが tag 入力を無視していた問題を修正**
+  （`.github/workflows/release.yml`）。`${GITHUB_REF_NAME:-inputs.tag}` は
+  `GITHUB_REF_NAME` が常に非空（手動起動時はブランチ名）なので入力に落ちず、
+  `VERSION=main` で `npm version` が失敗していた。`inputs.tag || ref_name` の順に修正
+- **release workflow の shell 式展開を env 経由に変更**（template injection の遮断）。
+  `workflow_dispatch` の `tag` は手入力で、`${{ }}` の展開はシェルがパースする**前**に
+  起きるため、メタ文字を含む値で `run:` に任意コマンドを注入できた。`npm-publish` は
+  `id-token: write` を持つので OIDC trusted publishing にも到達し得る。tag は
+  workflow 全体の `env.RELEASE_TAG` に置き、`run:` からは `"$RELEASE_TAG"` で参照する
+- **`workflow_dispatch` で checkout 対象と publish 対象の tag が食い違い得た問題を修正**。
+  3 つの `actions/checkout` は起動時に選んだ ref を取るため、入力 tag と別のコードを
+  その tag の npm package として publish できた。各 checkout に
+  `ref: refs/tags/<tag>` を指定する。`refs/` で修飾するのは、**未修飾 ref では branch が
+  tag より優先される**ため（`actions/checkout` の `getCheckoutInfo` は
+  `branchExists(origin/<ref>)` を先に見る）。修飾しないと、tag と同名の branch を
+  作るだけで「存在しない tag なら checkout が失敗する」ガードを迂回できてしまう
+- **`portfolio` Skill の「JPY 建て資産推移」が誤読を生んでいた問題を修正**
+  （`skills/portfolio/SKILL.md`）。旧実装は「**現在の保有量 × 過去の価格**」の近似を
+  モデルに計算させるもので、入出金も売買も反映していなかった。積み立てている口座では
+  過去の行が実残高から大きく乖離し、実機確認 #14 の追試で **口座の持ち主本人が
+  「資産が半減した」と誤認しかけた**（誤読は例外条件ではなく普通の使い方で起きる）。
+  **旧実装の出力を資産推移として信じていた場合、その過去の行は実残高ではない。**
+  新実装は `bitbank balance-history` の復元結果をそのまま提示し、モデルは計算しない
+  （月次ローソク足を取って掛け算する手順は削除）
+- 資産推移の提示規律を明文化した。**単純増減・純入出金・調整後増減は必ず 3 つ揃えて
+  出す**（「+50,000 円のうち 40,000 円は入金」が伝わらないと、入金を値上がりと
+  誤認させる）。`warnings` / `assumptions` は要約・省略せずそのまま伝え、履歴が
+  打ち切られているときは表より先に「復元値は信用できない」と明言する
+- **注記義務の非対称を解消した。** 「復元値であること・最終点だけ実測であること」の
+  明示は、これまで可視化節が**図にだけ**課しておりテキスト表側に規定が無かった。
+  それが今回の穴の直接原因だったため、テキストにも同じ強度の義務を課し、注記は
+  **表の前**に置くと定めた（旧実装の誤読は、注記が 20 行の表の後ろにあったために起きた）
+- 標準チャート `portfolio.value-history` の図中注記を新しい前提へ更新した
+  （`holdings fixed at current amounts` は**廃止**。復元ベースである旨・最終点のみ実測で
+  ある旨・期間中の純入出金を必須注記にした）。チャート ID は変えていない
+- `portfolio` Skill の提供機能から **`含み損益`** を外した。取得価額を持たないため
+  計算できず、`balance-history` が入っても変わらない（あれが出すのは評価額の推移と
+  入出金調整であって、取得原価ベースの損益ではない）。**トリガー「含み益ある？」は
+  残し**、評価額と推移を出したうえで tax-report（`tax pnl` の参考損益）へ案内する
+  応答を本文に規定した。`調整後増減` を含み損益と混同しない注意も入れている。
+  同じ記述を持っていた `skills/INDEX.md` / `recipe-portfolio-review` /
+  `recipe-pre-trade-check` も揃えた
 
 ## [0.3.0] - 2026-07-17
 

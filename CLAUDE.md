@@ -32,6 +32,12 @@ npx tsx cli/index.ts    # CLI 実行
   参考損益は表示ガードが成立した銘柄でだけ数値を出す。ガードの保護対象と
   唯一の対象外（verify-report の信用損益）は
   [ADR-006](docs/adr/006-reference-pnl-guard-scope.md)
+- **例外: `balance-history`**（[ADR-007](docs/adr/007-balance-history-reconstruction-in-cli.md)）は
+  現在の残高から約定・入出金を逆算して各時点の保有を復元する。生データを渡してもモデルには
+  再現できず、間違いが静かなための例外。計算本体は `cli/portfolio/`、移植元は姉妹リポ
+  `bitbank-lab-mcp`（各ファイル冒頭に明記）。**private GET のみ**。数値は倍精度で、
+  ADR-005 の厳密有理数は税務経路に限る。履歴の打ち切りは
+  `partial` / `meta.truncated` / `completeness` / `warnings` の 4 経路で申告する
 - **1 ファイル 100 行は目安**。超えたら設計を見直す（責務が広がっていないか、
   リトライ・パース・整形などが混ざっていないか）。どうしても超過に妥当な
   理由がある場合は、ファイル冒頭にコメントで理由を書く

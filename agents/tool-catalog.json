@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0",
-  "cli_version": "0.2.0",
+  "cli_version": "0.0.0-dev",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 47,
+  "command_count": 48,
   "dangerous_count": 5,
   "commands": [
     {
@@ -913,6 +913,185 @@
             },
             "executed_at": {
               "type": "number"
+            }
+          }
+        }
+      }
+    },
+    {
+      "command": "balance-history",
+      "category": "private",
+      "auth_required": true,
+      "description": "Reconstruct the JPY equity curve by rewinding trades and transfers from current balances",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "since": {
+            "type": "string",
+            "description": "Window start (Unix ms); cannot be combined with --days"
+          },
+          "days": {
+            "type": "string",
+            "description": "Window length in days back from now (default: 30)"
+          },
+          "granularity": {
+            "type": "string",
+            "description": "Grid step for reconstructed points (UTC boundaries)",
+            "enum": [
+              "day",
+              "month"
+            ],
+            "default": "day"
+          },
+          "max-pages": {
+            "type": "string",
+            "description": "Max history pages per pair/asset (default: 1000; positive integer). Hitting the cap sets completeness.complete=false and partial=true"
+          },
+          "no-cache": {
+            "type": "boolean",
+            "description": "Bypass the local 1day candle cache"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "as_of": {
+            "type": "string"
+          },
+          "since": {
+            "type": "string"
+          },
+          "granularity": {
+            "type": "string",
+            "enum": [
+              "day",
+              "month"
+            ]
+          },
+          "points": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "date": {
+                  "type": "string"
+                },
+                "timestamp": {
+                  "type": "number"
+                },
+                "value_jpy": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "current": {
+            "type": "object",
+            "properties": {
+              "date": {
+                "type": "string"
+              },
+              "timestamp": {
+                "type": "number"
+              },
+              "value_jpy": {
+                "type": "number"
+              }
+            }
+          },
+          "flow": {
+            "type": "object",
+            "properties": {
+              "net_flow_jpy": {
+                "type": "number"
+              },
+              "withdrawal_fee_jpy": {
+                "type": "number"
+              }
+            }
+          },
+          "change": {
+            "type": "object",
+            "properties": {
+              "start_value_jpy": {
+                "type": "number"
+              },
+              "change_jpy": {
+                "type": "number"
+              },
+              "change_pct": {
+                "type": "number"
+              },
+              "adjusted_change_jpy": {
+                "type": "number"
+              },
+              "adjusted_change_pct": {
+                "type": "number"
+              }
+            }
+          },
+          "price_quality": {
+            "type": "object",
+            "properties": {
+              "level": {
+                "type": "string",
+                "enum": [
+                  "complete",
+                  "partial_fallback",
+                  "fallback_only",
+                  "jpy_only"
+                ]
+              },
+              "fallback_assets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "completeness": {
+            "type": "object",
+            "properties": {
+              "complete": {
+                "type": "boolean"
+              },
+              "truncated_pairs": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "truncated_assets": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              },
+              "deposits_truncated": {
+                "type": "boolean"
+              },
+              "grid_truncated": {
+                "type": "boolean"
+              }
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "note": {
+            "type": "string"
+          },
+          "assumptions": {
+            "type": "array",
+            "items": {
+              "type": "string"
             }
           }
         }

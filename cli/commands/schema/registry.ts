@@ -1,5 +1,6 @@
 import { paperSchemas } from "./defs-paper.js";
 import { privateAccountSchemas } from "./defs-private-account.js";
+import { privateBalanceSchemas } from "./defs-private-balance.js";
 import { privateMarginSchemas } from "./defs-private-margin.js";
 import { privateTransferSchemas } from "./defs-private-transfer.js";
 import { profileSchemas } from "./defs-profile.js";
@@ -14,6 +15,7 @@ const DEFS: Record<string, SchemaDef>[] = [
   publicMarketSchemas,
   publicDataSchemas,
   privateAccountSchemas,
+  privateBalanceSchemas,
   privateTransferSchemas,
   privateMarginSchemas,
   tradeSchemas,

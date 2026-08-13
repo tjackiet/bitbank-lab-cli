@@ -48,7 +48,7 @@ Skill の追加・recipe 化の原則は [`.claude/rules/skills.md`](../.claude/
 
 | Skill | 説明 | 代表トリガー |
 |---|---|---|
-| [`portfolio`](portfolio/SKILL.md) | 保有資産の構成・JPY 建て評価額・含み損益 | 「ポートフォリオの状況を見せて」「含み益ある？」 |
+| [`portfolio`](portfolio/SKILL.md) | 保有資産の構成・JPY 建て評価額・入出金を調整した資産推移（`balance-history`） | 「ポートフォリオの状況を見せて」「含み益ある？」 |
 
 ## Operations（運用補助）
 
