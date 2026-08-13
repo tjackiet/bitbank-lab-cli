@@ -12,6 +12,8 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-08-17
+
 ### Added
 
 - **`bitbank tax` サブコマンドを新設**（`events` / `reconcile` / `verify-report` /
