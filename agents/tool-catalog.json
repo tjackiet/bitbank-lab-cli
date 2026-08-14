@@ -2630,6 +2630,23 @@
                     },
                     "carryover_cost_jpy": {
                       "type": "string"
+                    },
+                    "delta": {
+                      "type": "object",
+                      "properties": {
+                        "cogs_jpy": {
+                          "type": "string"
+                        },
+                        "income_total_jpy": {
+                          "type": "string"
+                        },
+                        "expense_total_jpy": {
+                          "type": "string"
+                        },
+                        "income_jpy": {
+                          "type": "string"
+                        }
+                      }
                     }
                   }
                 },
