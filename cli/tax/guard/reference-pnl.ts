@@ -1,5 +1,5 @@
 // 100行超: GuardInput の各フィールドが「当年 / 全履歴」のどちらのスコープを受け取る
-// 契約なのかを型定義に明記しているため。コード実体は 80 行未満（判定関数は 40 行弱）。
+// 契約なのかを型定義に明記しているため。コード実体は 80 行（判定関数は 45 行前後）。
 //
 // 参考損益の表示ガード（v2 §1.2 (a)〜(c) + 付録E.4 (d) + 履歴打ち切り）。**B案の核心**。
 // すべて満たす銘柄だけ参考損益を数値表示し、満たさない銘柄は取引集計のみを出して
@@ -53,6 +53,14 @@ export type GuardInput = {
    * **当年**のイベントのうち仕訳化できなかったもの（`events` と同じ年スコープ）。
    */
   deferred: readonly Deferred[];
+  /**
+   * `--carryover=zero`（当年が初年度）を**全履歴で反証した**銘柄。前年以前に同一銘柄の
+   * イベントがあれば初年度ではないので、ゼロ確定の繰越を (c) の充足として認めない。
+   * スコープは**全履歴**（当年イベントには前年の事情が現れないため、ここだけ年で絞らない）。
+   * (b) の年スコープとは別軸 — こちらはフラグの伝播ではなく、ユーザーの事実主張の反証。
+   * `--carryover=zero` 以外の実行では常に空。
+   */
+  carryoverZeroRejected: readonly string[];
 };
 
 export type GuardVerdict = { allowed: boolean; blockedBy: string[]; warnings: string[] };
@@ -110,7 +118,14 @@ export function evaluateGuard(input: GuardInput, currency: string): GuardVerdict
 
   const result = input.results.get(currency);
   if (result === undefined || !result.openingKnown) {
-    blockedBy.push("(c) 前年末残高（数量・簿価）が未確定です（--carryover で指定してください）");
+    // 「繰越を書き忘れた」と「zero と書いたが反証された」は、ユーザーが次に取る行動が
+    // 違う。同じ文言だと後者に「--carryover を付けてください」と言うことになる
+    blockedBy.push(
+      input.carryoverZeroRejected.includes(currency)
+        ? "(c) --carryover=zero は使えません（前年以前にこの銘柄の取引・入出庫があり、" +
+            "当年は初年度ではありません。前年末の数量と簿価をファイルで指定してください）"
+        : "(c) 前年末残高（数量・簿価）が未確定です（--carryover で指定してください）",
+    );
   }
   const reconcile = reconcileReason(input.reconciliation, currency);
   if (reconcile !== null) blockedBy.push(reconcile);
