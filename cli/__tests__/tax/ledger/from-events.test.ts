@@ -149,6 +149,23 @@ describe("信用の仕訳化", () => {
     expect(r.deferred[0].reason).toContain("fee_charged");
   });
 
+  // 呼び出し元は MARGIN_CLOSE でしかここへ来ない（新規建ては手前で continue）ので、
+  // realized_net が無いのは「新規建てだから」ではなく決済行の異常。空配列で捨てると
+  // その決済の差益・差損・手数料が income / expense / reference_pnl から消える
+  it("realized_net が無い決済は保留に回す（fee_charged 欠落と同じ扱い）", () => {
+    const e = marginClose("1000");
+    const { margin, ...rest } = e;
+    const broken = {
+      ...rest,
+      margin: { position_side: "long", role: "CLOSE", fee_charged: "100", fee_occurred: "100" },
+    } as TaxEvent;
+    const r = ledgerFromEvents([broken]);
+    expect(r.entries).toEqual([]);
+    expect(r.deferred).toHaveLength(1);
+    expect(r.deferred[0].reason).toContain("realized_net");
+    expect(r.deferred[0].currency).toBe("btc"); // ガードが銘柄でブロックできること
+  });
+
   it("新規建ては仕訳を作らない（決済年に帰属させるため）", () => {
     const open = { ...marginClose("0"), kind: "MARGIN_OPEN" } as TaxEvent;
     expect(ledgerFromEvents([open]).entries).toEqual([]);
