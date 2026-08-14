@@ -84,6 +84,6 @@ export function buildReport(args: BuildArgs): TaxReport {
     reconciliation: args.reconciliation.map(toRow),
     pending: args.collected.pending,
     warnings: reportWarnings(args.collected),
-    disclaimers: disclaimers(args.taxation, args.year),
+    disclaimers: disclaimers(args.taxation, args.year, args.method),
   };
 }

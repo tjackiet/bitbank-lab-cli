@@ -8,7 +8,11 @@ import { describe, expect, it } from "vitest";
 import { ntaCompat } from "../../../tax/compat/nta-sheet.js";
 import { movingAverage } from "../../../tax/engine/moving-average.js";
 import { totalAverage, ZERO_BOOK } from "../../../tax/engine/total-average.js";
+import { ZERO } from "../../../tax/ratio.js";
+import { fromDecimalString, toExactDecimalString } from "../../../tax/ratio-decimal.js";
 import type { LedgerEntry } from "../../../tax/schema/ledger.js";
+
+const dec = (s: string) => fromDecimalString(s) ?? ZERO;
 
 const DAY = 86_400_000;
 const base = (seq: number) => ({
@@ -93,5 +97,51 @@ describe("既定と丸め位置が違う（互換モードが効いている証�
     const c = ntaCompat(movingAverage("btc", entries, ZERO_BOOK), entries);
     expect(c.closing_cost_jpy).toBe("0");
     expect(c.cogs_jpy).toBe("1000");
+  });
+});
+
+// 計算書は繰越価額・購入価額が**整数円入力**である前提で組まれている（D.5 / D.3）。
+// 販売所（即時売買）は約定代金の列が無く `数量 × 指値価格` で出すため小数円になり、
+// そのまま漸化式へ入れると「シートに書いたらこうなる」値でなくなる。
+describe("移動平均法: シートへ入れる金額は円に確定してから回す（D.5）", () => {
+  it("小数円の購入価額は四捨五入してから漸化式に入る", () => {
+    // 999.9090426 → 1000。確定しないと残高 = ceil(999.9090426 / 3 × 2) = 667 のまま
+    // 差引原価が 999.9090426 − 667 = 332.909… となり、シートには書けない値になる
+    const entries = [acquire(1, "3", "999.9090426"), dispose(2, "1", "500")];
+    const c = ntaCompat(movingAverage("btc", entries, ZERO_BOOK), entries);
+    expect(c.closing_cost_jpy).toBe("667"); // ceil(1000 / 3 × 2)
+    expect(c.cogs_jpy).toBe("333"); // (0 + 1000) − 667。整数のまま閉じる
+  });
+
+  // 繰越価額の確定は **3 値で挟む**。1 つでは丸めモードも実装も特定できない:
+  // - 1000.6 … 確定なし（表示は切捨てで "1000"）と ROUNDDOWN を弾く。ROUNDUP は弾けない
+  // - 1000.4 … ROUNDUP（"1001"）を弾く。確定なしは弾けない（表示が同じ "1000"）
+  // - 1000.5 … 同値境界。`roundAtScale` の HALF_UP は `absRem * 2n >= den` の 1 行で
+  //            決まっていて、`>=` が `>` に滑ると切捨て側へ倒れる。上の 2 値はどちらも
+  //            `absRem * 2n !== den` なのでその取り違えを検知できない
+  // すぐ下の売却時残高が ROUNDUP なので、モードの取り違えも現実的な間違え方
+  it.each([
+    ["1000.6", "1001"],
+    ["1000.4", "1000"],
+    ["1000.5", "1001"],
+  ])("繰越価額も同じく円に確定する（%s → %s・HALF_UP を特定する）", (cost, expected) => {
+    const opening = { qty: dec("1"), cost: dec(cost) };
+    const entries = [dispose(2, "1", "500")];
+    const c = ntaCompat(movingAverage("btc", entries, opening), entries);
+    expect(c.closing_cost_jpy).toBe("0"); // 全量処分なので残高ゼロ
+    expect(c.cogs_jpy).toBe(expected);
+  });
+
+  it("整数円の入力では挙動が変わらない（取引所だけの口座は無影響）", () => {
+    const c = ntaCompat(movingAverage("btc", FAQ, ZERO_BOOK), FAQ);
+    expect(c.cogs_jpy).toBe("3080200"); // 公式設例と同値のまま
+    expect(c.closing_cost_jpy).toBe("957600");
+  });
+
+  // 既定エンジン（ADR-005: 非丸め）は確定を行わない。互換欄だけの話であること
+  it("既定の計算は小数円のまま（互換欄だけが確定する）", () => {
+    const entries = [acquire(1, "3", "999.9090426"), dispose(2, "1", "500")];
+    const o = movingAverage("btc", entries, ZERO_BOOK);
+    expect(toExactDecimalString(o.acquired.cost)).toBe("999.9090426");
   });
 });

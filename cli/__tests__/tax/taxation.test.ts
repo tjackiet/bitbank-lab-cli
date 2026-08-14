@@ -86,6 +86,14 @@ describe("免責の年埋め", () => {
     expect(aggregationNote(of(2027), 2027)).toContain("（2027年分・総合課税を前提）");
   });
 
+  // シートへの入力を円に確定する話は移動平均法にしか無い。総平均法（既定）にまで
+  // 常時載せると、無関係な注記でレポート末尾が伸びる
+  it("シート入力の円確定は移動平均法のときだけ注記する", () => {
+    expect(disclaimers(of(2026), 2026, "moving-average").join()).toContain("整数円入力");
+    expect(disclaimers(of(2026), 2026, "total-average").join()).not.toContain("整数円入力");
+    expect(disclaimers(of(2026), 2026).join()).not.toContain("整数円入力");
+  });
+
   it("2027 年分の免責一式に 2026 年分の制度説明が混ざらない", () => {
     const all = disclaimers(of(2027), 2027).join();
     expect(all).not.toContain("2026年分");
