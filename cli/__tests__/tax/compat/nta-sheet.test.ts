@@ -113,15 +113,19 @@ describe("移動平均法: シートへ入れる金額は円に確定してか�
     expect(c.cogs_jpy).toBe("333"); // (0 + 1000) − 667。整数のまま閉じる
   });
 
-  it("繰越価額も同じく円に確定する", () => {
-    // 1000.6 は切上げ側へ寄る値を選ぶ。切捨て表示（yen）と四捨五入の差が出ないと、
-    // 確定していなくてもテストが通ってしまう（1000.4 だとどちらも "1000"）
-    const opening = { qty: dec("1"), cost: dec("1000.6") };
+  // 繰越価額の確定は **2 値で挟む**。1 つでは丸めモードを特定できない:
+  // - 1000.6 … 確定なし（表示は切捨てで "1000"）と ROUNDDOWN を弾く。ROUNDUP は弾けない
+  // - 1000.4 … ROUNDUP（"1001"）を弾く。確定なしは弾けない（表示が同じ "1000"）
+  // すぐ下の売却時残高が ROUNDUP なので、取り違えは現実的な間違え方
+  it.each([
+    ["1000.6", "1001"],
+    ["1000.4", "1000"],
+  ])("繰越価額も同じく円に確定する（%s → %s・HALF_UP を特定する）", (cost, expected) => {
+    const opening = { qty: dec("1"), cost: dec(cost) };
     const entries = [dispose(2, "1", "500")];
     const c = ntaCompat(movingAverage("btc", entries, opening), entries);
-    // 全量処分なので残高ゼロ。差引原価は確定後の 1001（1000.6 のままなら "1000"）
-    expect(c.closing_cost_jpy).toBe("0");
-    expect(c.cogs_jpy).toBe("1001");
+    expect(c.closing_cost_jpy).toBe("0"); // 全量処分なので残高ゼロ
+    expect(c.cogs_jpy).toBe(expected);
   });
 
   it("整数円の入力では挙動が変わらない（取引所だけの口座は無影響）", () => {
