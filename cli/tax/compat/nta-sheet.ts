@@ -12,6 +12,7 @@ import { add, cmp, div, eq, isZero, mul, type Ratio, sub, ZERO } from "../ratio.
 import { fromDecimalString, toDecimalString, toYen } from "../ratio-decimal.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import { NTA_SHEET_MODE, type NtaCompat } from "../schema/nta.js";
+import { byLedgerOrder } from "../sort-order.js";
 
 const num = (s: string | undefined): Ratio => (s ? (fromDecimalString(s) ?? ZERO) : ZERO);
 const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>
@@ -23,9 +24,8 @@ const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>
  * 譲渡原価は最後に差引で出す（`(繰越 + Σ購入) − 年末残高`）。
  */
 function movingAverageBook(entries: readonly LedgerEntry[], opening: Book): Book {
-  const ordered = [...entries].sort(
-    (a, b) => a.ts_utc - b.ts_utc || a.sort_key.localeCompare(b.sort_key),
-  );
+  // 既定エンジンと**同じ順序**で回す（違う順序で回すと差が丸め由来かどうか判別できない）
+  const ordered = [...entries].sort(byLedgerOrder);
   let book = opening;
   let unit: Ratio | null = isZero(opening.qty) ? null : div(opening.cost, opening.qty);
   for (const e of ordered) {
