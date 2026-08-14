@@ -119,6 +119,9 @@ describe("繰越の読み込み", () => {
     expect(r.success).toBe(true);
     if (r.success) {
       expect(Object.keys(r.data)).toEqual(["pol"]);
+      // 名寄せはキーだけを付け替える。数量・簿価は素通りさせる（同ファイル冒頭の
+      // 「十進文字列のまま厳密に読む」と同じく両方見る）
+      expect(toExactDecimalString(r.data.pol.qty)).toBe("10");
       expect(toExactDecimalString(r.data.pol.cost)).toBe("5000");
     }
   });
