@@ -111,6 +111,43 @@ describe("繰越の読み込み", () => {
     }
   });
 
+  // 小文字化だけだと、旧シンボルで書いた繰越が新シンボルのイベントと結び付かない。
+  // 実体のある pol は (c) 未確定でブロックされ、matic は突合行を持たないまま
+  // 「取引ゼロ・期末＝繰越」の参考欄だけを出す（幽霊行）
+  it("旧シンボルの繰越は新シンボルへ名寄せする（イベント・突合と同じ canonicalAsset）", () => {
+    const r = parseCarryover({ MATIC: { qty: "10", cost_jpy: "5000" } });
+    expect(r.success).toBe(true);
+    if (r.success) {
+      expect(Object.keys(r.data)).toEqual(["pol"]);
+      // 名寄せはキーだけを付け替える。数量・簿価は素通りさせる（同ファイル冒頭の
+      // 「十進文字列のまま厳密に読む」と同じく両方見る）
+      expect(toExactDecimalString(r.data.pol.qty)).toBe("10");
+      expect(toExactDecimalString(r.data.pol.cost)).toBe("5000");
+    }
+  });
+
+  it("名寄せ後に衝突する旧新シンボルの併記も明示エラー", () => {
+    const r = parseCarryover({
+      matic: { qty: "1", cost_jpy: "100" },
+      pol: { qty: "2", cost_jpy: "999" },
+    });
+    expect(r.success).toBe(false);
+    if (!r.success) {
+      expect(r.exitCode).toBe(EXIT.PARAM);
+      expect(r.error).toContain("Duplicate carryover currency");
+    }
+  });
+
+  // mkr→sky は 1:24,000 の換算転換で名寄せ禁止（P-18）。繰越でも潰さない
+  it("換算比が 1 でない改称は名寄せしない（mkr と sky は別キーのまま）", () => {
+    const r = parseCarryover({
+      mkr: { qty: "1", cost_jpy: "100" },
+      sky: { qty: "24000", cost_jpy: "100" },
+    });
+    expect(r.success).toBe(true);
+    if (r.success) expect(Object.keys(r.data).sort()).toEqual(["mkr", "sky"]);
+  });
+
   it("十進文字列でない値は PARAM エラー（黙って 0 にしない）", () => {
     const r = parseCarryover({ btc: { qty: "1.5e3", cost_jpy: "1" } });
     expect(r.success).toBe(false);
