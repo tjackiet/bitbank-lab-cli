@@ -12,6 +12,7 @@ import { add, type Ratio, sub } from "../ratio.js";
 import { toDecimalString, toYen } from "../ratio-decimal.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import { NTA_SHEET_MODE, type NtaCompat } from "../schema/nta.js";
+import { i1Delta } from "./delta.js";
 import { movingAverageBook } from "./moving-average-sheet.js";
 
 const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>
@@ -19,6 +20,16 @@ const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>
 
 export function ntaCompat(outcome: AverageOutcome, entries: readonly LedgerEntry[]): NtaCompat {
   const revenue = add(outcome.disposed.proceeds, outcome.income);
+  const compat = sheetValues(outcome, entries, revenue);
+  // I4: 丸め起因の乖離を**違反ではなく開示**として併記する（delta.ts）
+  return { ...compat, delta: i1Delta(outcome, revenue, compat) };
+}
+
+function sheetValues(
+  outcome: AverageOutcome,
+  entries: readonly LedgerEntry[],
+  revenue: Ratio,
+): Omit<NtaCompat, "delta"> {
   if (outcome.method === "moving-average") {
     const { closing, inputCost } = movingAverageBook(entries, outcome.opening);
     // cogs は差引（D.5）。売却時の切上げぶんが原価側から抜けて残高へ寄る

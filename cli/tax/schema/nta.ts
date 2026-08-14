@@ -24,5 +24,17 @@ export const NtaCompat = z.object({
   income_jpy: decStr,
   /** 翌年へ繰り越す取得価額。DISPLAY 精度（表示書式 `#,##0` = 四捨五入） */
   carryover_cost_jpy: decStr,
+  /**
+   * 不変条件 I4（要求仕様 §3）: 丸め起因の乖離額。向きは **既定 − 互換**で、
+   * 正なら既定の方が大きい。対応する既定側は `reference` の
+   * `cogs_jpy` / `revenue_total_jpy` / `expense_total_jpy` / `reference_pnl_jpy`。
+   * 差が無い欄も 0 として出す（**差が無いこと自体が情報**なので落とさない）。
+   */
+  delta: z.object({
+    cogs_jpy: decStr,
+    income_total_jpy: decStr,
+    expense_total_jpy: decStr,
+    income_jpy: decStr,
+  }),
 });
 export type NtaCompat = z.infer<typeof NtaCompat>;

@@ -45,6 +45,16 @@ const ntaCompatProps = {
   expense_total_jpy: s,
   income_jpy: s,
   carryover_cost_jpy: s,
+  // I4: 丸め起因の乖離額（既定 − 互換）。schema/nta.ts が単一ソース
+  delta: {
+    type: "object",
+    properties: {
+      cogs_jpy: s,
+      income_total_jpy: s,
+      expense_total_jpy: s,
+      income_jpy: s,
+    },
+  },
 };
 
 const reconciliationRow = {

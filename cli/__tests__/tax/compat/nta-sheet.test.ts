@@ -8,8 +8,12 @@ import { describe, expect, it } from "vitest";
 import { ntaCompat } from "../../../tax/compat/nta-sheet.js";
 import { movingAverage } from "../../../tax/engine/moving-average.js";
 import { totalAverage, ZERO_BOOK } from "../../../tax/engine/total-average.js";
-import { ZERO } from "../../../tax/ratio.js";
-import { fromDecimalString, toExactDecimalString } from "../../../tax/ratio-decimal.js";
+import { add, type Ratio, sub, ZERO } from "../../../tax/ratio.js";
+import {
+  fromDecimalString,
+  toDecimalString,
+  toExactDecimalString,
+} from "../../../tax/ratio-decimal.js";
 import type { LedgerEntry } from "../../../tax/schema/ledger.js";
 
 const dec = (s: string) => fromDecimalString(s) ?? ZERO;
@@ -143,5 +147,94 @@ describe("移動平均法: シートへ入れる金額は円に確定してか�
     const entries = [acquire(1, "3", "999.9090426"), dispose(2, "1", "500")];
     const o = movingAverage("btc", entries, ZERO_BOOK);
     expect(toExactDecimalString(o.acquired.cost)).toBe("999.9090426");
+  });
+});
+
+// I4（要求仕様 §3）: 丸め起因の乖離を**違反ではなく開示**として出す。
+// 向きは既定 − 互換。既定側は report/currency.ts の `reference` の 4 欄に対応する。
+describe("I4: 丸め起因の乖離額", () => {
+  /** `report/format.ts` の `yen()` と同じ式。ここがずれたら乖離額の意味が変わる */
+  const defaultYen = (r: Ratio) => toDecimalString(r, 0, "ROUNDDOWN");
+
+  // 実口座の検証（tax-roadmap.md）は総平均法で「所得は一致・必要経費計だけ互換が
+  // 1 円大きい」という出方だった。income_jpy だけを出すと、この 1 円が消える
+  it("総平均法: 必要経費計に差が出て、譲渡原価・収入計は 0 のまま", () => {
+    const entries = [acquire(1, "3", "3000"), dispose(2, "1", "1000.4")];
+    const outcome = totalAverage("btc", entries, ZERO_BOOK);
+    outcome.expense = { n: 3n, d: 10n }; // 手数料等 0.3
+    const c = ntaCompat(outcome, entries);
+    expect(c.delta).toEqual({
+      cogs_jpy: "0", // 総平均の互換は原価を丸めない
+      income_total_jpy: "0", // 収入は既定も互換も切捨て
+      expense_total_jpy: "-1", // 既定 1000（切捨て）− 互換 1001（切上げ）
+      income_jpy: "1", // 既定 0（= floor(1000.4 − 1000.3)）− 互換 (−1)
+    });
+  });
+
+  // **売却 1 回では譲渡原価に差が出ない。** 簿価 C が整数のとき互換は
+  // `C − ceil(C − Cq/Q) = floor(Cq/Q)` で、既定の表示（切捨て）と代数的に一致する。
+  // それでも所得には差が出る — 互換の原価は既に整数なので、既定が持っている端数が
+  // 収入との差引で 1 円ぶん残る
+  it("移動平均法: 売却 1 回では譲渡原価は一致し、所得にだけ差が出る", () => {
+    const entries = [acquire(1, "3", "1000"), dispose(2, "1", "500")];
+    const outcome = movingAverage("btc", entries, ZERO_BOOK);
+    const c = ntaCompat(outcome, entries);
+    expect(c.cogs_jpy).toBe("333"); // 互換 = 1000 − 667
+    expect(defaultYen(outcome.cogs)).toBe("333"); // 既定 = floor(1000/3)
+    expect(c.delta.cogs_jpy).toBe("0");
+    // 既定 floor(500 − 333.33…) = 166 に対し互換は 500 − 333 = 167
+    expect(c.delta.income_jpy).toBe("-1");
+  });
+
+  // 差が原価に現れるのは**切上げた残高が次の単価に入ってから**。2 回目の売却が要る
+  // （D.3「切上げ分が次の購入時に AS/AO で将来単価へ取り込まれる」）
+  it("移動平均法: 2 回目の売却で譲渡原価に差が出る（切上げが残高へ繰り延べられる）", () => {
+    const entries = [
+      acquire(1, "3", "1000"),
+      dispose(2, "1", "500"),
+      acquire(3, "2", "1000"),
+      dispose(4, "1", "500"),
+    ];
+    const outcome = movingAverage("btc", entries, ZERO_BOOK);
+    const c = ntaCompat(outcome, entries);
+    // 既定は 1000/3 + 5000/12 = 750 ちょうど。互換は 2000 − ceil(1667/4 × 3) = 749
+    expect(defaultYen(outcome.cogs)).toBe("750");
+    expect(c.cogs_jpy).toBe("749");
+    expect(c.delta).toEqual({
+      cogs_jpy: "1", // 互換の原価が 1 円軽い（D.3 の「翌年以降へ繰り延べ」）
+      income_total_jpy: "0",
+      expense_total_jpy: "1",
+      income_jpy: "-1", // 原価が軽い分だけ互換の所得が大きい
+    });
+  });
+
+  // 差が 0 の欄も落とさない（「差なし」を確認できることが開示の目的）
+  it("公式設例（割り切れる）は全欄が 0", () => {
+    const c = ntaCompat(totalAverage("btc", FAQ, ZERO_BOOK), FAQ);
+    expect(c.delta).toEqual({
+      cogs_jpy: "0",
+      income_total_jpy: "0",
+      expense_total_jpy: "0",
+      income_jpy: "0",
+    });
+  });
+
+  it("乖離額は既定 − 互換で、既定側の式は reference と同じ", () => {
+    const entries = [acquire(1, "3", "1000"), dispose(2, "1", "500")];
+    const outcome = movingAverage("btc", entries, ZERO_BOOK);
+    const c = ntaCompat(outcome, entries);
+    const revenue = add(outcome.disposed.proceeds, outcome.income);
+    const expense = add(outcome.cogs, outcome.expense);
+    // 4 欄それぞれ「既定の表示値 − 互換の表示値」に一致する
+    expect(c.delta.cogs_jpy).toBe(String(BigInt(defaultYen(outcome.cogs)) - BigInt(c.cogs_jpy)));
+    expect(c.delta.income_total_jpy).toBe(
+      String(BigInt(defaultYen(revenue)) - BigInt(c.income_total_jpy)),
+    );
+    expect(c.delta.expense_total_jpy).toBe(
+      String(BigInt(defaultYen(expense)) - BigInt(c.expense_total_jpy)),
+    );
+    expect(c.delta.income_jpy).toBe(
+      String(BigInt(defaultYen(sub(revenue, expense))) - BigInt(c.income_jpy)),
+    );
   });
 });
