@@ -108,6 +108,33 @@ describe("信用約定の正規化", () => {
     expect(r.events[0].flags).toContain("UNOBSERVED_SHAPE");
   });
 
+  // 観測形状では open 行の profit_loss は "0"（FIELDS.md §1 / ANSWERS.md Q4）。
+  // 非ゼロなら新規 / 決済の判定か API の形状が想定と違う。realized_net は CLOSE に
+  // しか載せないので、ここで拾わないとその損益はどこにも計上されずに消える
+  it("建玉 open 行に実現損益が乗っていたら未観測形状として立てる", () => {
+    const r = run([{ ...open, profit_loss: "1000" }] as RawTrade[]);
+    expect(r.events[0].kind).toBe("MARGIN_OPEN");
+    expect(r.events[0].flags).toContain("UNOBSERVED_SHAPE");
+  });
+
+  it("十進として読めない profit_loss も同じ扱い（ゼロと確認できない側に倒す）", () => {
+    const r = run([{ ...open, profit_loss: "1e3" }] as RawTrade[]);
+    expect(r.events[0].flags).toContain("UNOBSERVED_SHAPE");
+  });
+
+  it("観測どおり open の profit_loss が 0 / null なら立てない（誤検知しない）", () => {
+    for (const pl of ["0", "0.0000", null, undefined]) {
+      const r = run([{ ...open, profit_loss: pl }] as RawTrade[]);
+      expect(r.events[0].flags, String(pl)).not.toContain("UNOBSERVED_SHAPE");
+    }
+  });
+
+  // 決済行は realized_net として正規に載る経路なので、非ゼロでも異常ではない
+  it("決済行の profit_loss が非ゼロでも未観測形状にはしない", () => {
+    const r = run([close] as RawTrade[]);
+    expect(r.events[0].flags).not.toContain("UNOBSERVED_SHAPE");
+  });
+
   it("決済されずに残った建玉は警告として報告する", () => {
     const r = run([open] as RawTrade[]);
     expect(r.warnings.join()).toContain("未決済建玉");

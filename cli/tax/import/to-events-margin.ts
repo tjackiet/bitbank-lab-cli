@@ -14,6 +14,18 @@ import type { MarginRole } from "./margin-tracker.js";
 import type { RawTrade } from "./raw-trade.js";
 import { isJpyQuote, splitPair } from "./symbol-alias.js";
 
+/**
+ * 建玉 open 行に実現損益が乗っていないか。**観測形状では open は `"0"`**
+ * （`docs/dev/tax-evidence/FIELDS.md` §1・`ANSWERS.md` Q4 で実機確認済み）。
+ * 非ゼロなら新規 / 決済の判定か API の形状が想定と違う。読めない値も同じ扱いにする
+ * （「ゼロと確認できない」は「ゼロではない」側に倒す）。
+ */
+function openWithPnl(role: MarginRole, profitLoss: string | null | undefined): boolean {
+  if (role !== "OPEN" || profitLoss == null) return false;
+  const pl = fromDecimalString(profitLoss);
+  return pl === null || !isZero(pl);
+}
+
 export function marginEvent(t: RawTrade, role: MarginRole | undefined): TaxEvent | Pending {
   const sourceRef = String(t.trade_id);
   const fail = (reason: string): Pending => ({ source_ref: sourceRef, reason });
@@ -38,8 +50,13 @@ export function marginEvent(t: RawTrade, role: MarginRole | undefined): TaxEvent
   const jpyQuote = isJpyQuote(pair.quote);
   const flags: EventFlag[] = ["FEE_API_ROUNDED"];
   // `fee_amount_base` は現物 / 信用の共通フィールド。現物側（to-events-spot.ts）と
-  // 同じガードを置く — 片方だけ見ていると信用で base 建て手数料が出たとき無言で落ちる
-  if (!isZero(feeBase)) flags.push("UNOBSERVED_SHAPE");
+  // 同じガードを置く — 片方だけ見ていると信用で base 建て手数料が出たとき無言で落ちる。
+  //
+  // `openWithPnl` も同じ「未観測の形状」。realized_net は CLOSE にしか載せないので
+  // （下の三項）、OPEN と判定した行に損益が乗っていること自体が想定外で、そのまま進むと
+  // その損益はどこにも計上されない。**この行を落とすのではなく銘柄をブロックする**
+  // — 1 行だけ捨てても残りの計算は前提が崩れたままだから
+  if (!isZero(feeBase) || openWithPnl(role, t.profit_loss)) flags.push("UNOBSERVED_SHAPE");
   if (!jpyQuote) flags.push("NON_JPY_QUOTE", "NO_RATE");
 
   const event = baseEvent({
