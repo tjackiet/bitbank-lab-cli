@@ -10,6 +10,8 @@
 // 取得時点の平均単価」という FAQ 2-4 の定義がそのままこの形になる。
 import { add, cmp, div, eq, isZero, mul, type Ratio, sub, ZERO } from "../ratio.js";
 import type { LedgerEntry } from "../schema/ledger.js";
+import { byLedgerOrder } from "../sort-order.js";
+import { orderAmbiguities } from "./order-ambiguity.js";
 import { type EntrySums, readAmount, sumEntries } from "./sum-entries.js";
 import type { AverageOutcome, Book } from "./types.js";
 
@@ -95,17 +97,17 @@ export function movingAverage(
   opening: Book,
 ): AverageOutcome {
   const totals = sumEntries(entries);
-  const violations = [...totals.violations];
+  // 順序を定義できない同時刻は、打ち切り判定より**先**に積む（打ち切っても理由を残す）
+  const violations = [...totals.violations, ...orderAmbiguities(currency, entries)];
 
   // 実用上限の判定は計算に入る前に（ADR-005。入ってしまうと実用時間で返らない）
   const disposals = countDisposals(entries);
   if (disposals > MAX_DISPOSALS_UNROUNDED) {
     return abortedOutcome(currency, disposals, opening, totals, violations);
   }
-  // sort_key は (source_ref, seq)。同一ミリ秒の約定はここで安定順序になる
-  const ordered = [...entries].sort(
-    (a, b) => a.ts_utc - b.ts_utc || a.sort_key.localeCompare(b.sort_key),
-  );
+  // 同一ミリ秒は約定ID の数値順（`sort-order.ts` が単一ソース）。辞書順だと "10" < "9" で
+  // 取得順と食い違い、取得と処分が混ざったミリ秒で譲渡原価が入れ替わる
+  const ordered = [...entries].sort(byLedgerOrder);
 
   let book = opening;
   let unit: Ratio | null = isZero(opening.qty) ? null : div(opening.cost, opening.qty);

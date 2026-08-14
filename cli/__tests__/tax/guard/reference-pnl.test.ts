@@ -64,6 +64,7 @@ function input(over: Partial<GuardInput> = {}): GuardInput {
     results: runEngine({ entries: [entry], method: "total-average", opening: { btc: ZERO_BOOK } }),
     reconciliation: [match],
     deferred: [],
+    carryoverZeroRejected: [],
     ...over,
   };
 }
@@ -117,6 +118,21 @@ describe("evaluateGuard", () => {
     const v = evaluateGuard(input({ results }), "btc");
     expect(v.allowed).toBe(false);
     expect(v.blockedBy.join()).toContain("(c)");
+  });
+
+  // 反証された銘柄は opening が埋まらないので (c) 側で落ちる。文言だけが分かれる
+  // （「書き忘れ」と「zero と書いたが初年度ではない」でユーザーの次の行動が違う）
+  it("(c) --carryover=zero が反証されていれば、その旨を理由に載せる", () => {
+    const results = runEngine({ entries: [entry], method: "total-average", opening: {} });
+    const v = evaluateGuard(input({ results, carryoverZeroRejected: ["btc"] }), "btc");
+    expect(v.allowed).toBe(false);
+    expect(v.blockedBy.join()).toContain("--carryover=zero は使えません");
+    expect(v.blockedBy.join()).not.toContain("前年末残高（数量・簿価）が未確定");
+  });
+
+  // 反証は銘柄ごと。1 銘柄が初年度でなくても、他の銘柄まで巻き込まない
+  it("反証されていない銘柄は従来どおり通る", () => {
+    expect(evaluateGuard(input({ carryoverZeroRejected: ["eth"] }), "btc").allowed).toBe(true);
   });
 
   it("(d) 残高突合が閾値外ならブロックし、残差を理由に載せる", () => {

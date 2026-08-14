@@ -7,6 +7,7 @@
 import type { BrokerageRow } from "../import-csv/brokerage-columns.js";
 import { brokerageEvent } from "../import-csv/to-events-brokerage.js";
 import { TaxEvent } from "../schema/event.js";
+import { byEventOrder } from "../sort-order.js";
 import { isPending, type Normalized, type Pending } from "./event-base.js";
 import { trackMargin } from "./margin-tracker.js";
 import type { RawTrade } from "./raw-trade.js";
@@ -79,8 +80,8 @@ export function toEvents(input: RawInput): NormalizeResult {
       pending.push({ source_ref: e.source_ref, reason: `スキーマ違反: ${parsed.error.message}` });
   }
 
-  // 決定論性 NFR: 同一タイムスタンプは source_ref で安定ソートする
-  validated.sort((a, b) => a.ts_utc - b.ts_utc || a.event_id.localeCompare(b.event_id));
+  // 決定論性 NFR: 同一タイムスタンプは約定ID の数値順（`sort-order.ts` が単一ソース）
+  validated.sort(byEventOrder);
 
   const warnings = margin.anomalies.map((a) => `trade_id=${a.trade_id}: ${a.reason}`);
   if (margin.outstanding.length > 0) {

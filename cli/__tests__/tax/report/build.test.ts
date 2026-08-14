@@ -92,6 +92,7 @@ function build(attested: boolean, over: Partial<Collected> = {}) {
       opening: { btc: ZERO_BOOK },
     }),
     reconciliation: [match],
+    carryoverZeroRejected: [],
   });
 }
 

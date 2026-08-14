@@ -7,52 +7,33 @@
 //   **収入金額計を切捨て（AV52）・必要経費計を切上げ（AV53）**。所得は丸めた両者の差
 // - 移動平均法: **売却の都度、残高価額を切上げ**。譲渡原価はそこからの差引で、
 //   集計段階の**追加の丸めは無い**（丸めは既に売却時に入っているため）
-import type { AverageOutcome, Book } from "../engine/types.js";
-import { add, cmp, div, eq, isZero, mul, type Ratio, sub, ZERO } from "../ratio.js";
-import { fromDecimalString, toDecimalString, toYen } from "../ratio-decimal.js";
+import type { AverageOutcome } from "../engine/types.js";
+import { add, type Ratio, sub } from "../ratio.js";
+import { toDecimalString, toYen } from "../ratio-decimal.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import { NTA_SHEET_MODE, type NtaCompat } from "../schema/nta.js";
+import { i1Delta } from "./delta.js";
+import { movingAverageBook } from "./moving-average-sheet.js";
 
-const num = (s: string | undefined): Ratio => (s ? (fromDecimalString(s) ?? ZERO) : ZERO);
 const yen = (r: Ratio, mode: "ROUNDDOWN" | "ROUNDUP" | "HALF_UP"): string =>
   toYen(r, mode).toString();
 
-/**
- * 移動平均法の残高を計算書の漸化式で回し直す。既定エンジンは `cost -= cogs` だが、
- * 計算書は**売却のたびに残高を `ceil(単価 × 残数量)` へ置き直す**（D.3）。
- * 譲渡原価は最後に差引で出す（`(繰越 + Σ購入) − 年末残高`）。
- */
-function movingAverageBook(entries: readonly LedgerEntry[], opening: Book): Book {
-  const ordered = [...entries].sort(
-    (a, b) => a.ts_utc - b.ts_utc || a.sort_key.localeCompare(b.sort_key),
-  );
-  let book = opening;
-  let unit: Ratio | null = isZero(opening.qty) ? null : div(opening.cost, opening.qty);
-  for (const e of ordered) {
-    const qty = num(e.qty);
-    if (e.kind === "ACQUIRE") {
-      book = { qty: add(book.qty, qty), cost: add(book.cost, num(e.cost_jpy)) };
-      if (!isZero(book.qty)) unit = div(book.cost, book.qty);
-      continue;
-    }
-    if (e.kind !== "DISPOSE" || isZero(qty) || cmp(qty, book.qty) > 0) continue;
-    const left = sub(book.qty, qty);
-    // 全量処分は残高ゼロ（切上げても 0）。単価が無い異常時は簿価を動かさない
-    const cost =
-      eq(qty, book.qty) || unit === null ? ZERO : fromYen(toYen(mul(unit, left), "ROUNDUP"));
-    book = { qty: left, cost };
-  }
-  return book;
-}
-
-const fromYen = (v: bigint): Ratio => ({ n: v, d: 1n });
-
 export function ntaCompat(outcome: AverageOutcome, entries: readonly LedgerEntry[]): NtaCompat {
   const revenue = add(outcome.disposed.proceeds, outcome.income);
+  const compat = sheetValues(outcome, entries, revenue);
+  // I4: 丸め起因の乖離を**違反ではなく開示**として併記する（delta.ts）
+  return { ...compat, delta: i1Delta(outcome, revenue, compat) };
+}
+
+function sheetValues(
+  outcome: AverageOutcome,
+  entries: readonly LedgerEntry[],
+  revenue: Ratio,
+): Omit<NtaCompat, "delta"> {
   if (outcome.method === "moving-average") {
-    const closing = movingAverageBook(entries, outcome.opening);
+    const { closing, inputCost } = movingAverageBook(entries, outcome.opening);
     // cogs は差引（D.5）。売却時の切上げぶんが原価側から抜けて残高へ寄る
-    const cogs = sub(add(outcome.opening.cost, outcome.acquired.cost), closing.cost);
+    const cogs = sub(inputCost, closing.cost);
     const expense = add(cogs, outcome.expense);
     // 移動平均法は集計段階の追加丸めが無い。表示のため切捨てるだけ
     return {

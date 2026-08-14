@@ -10,6 +10,7 @@ import { add, cmp, neg, ZERO } from "../ratio.js";
 import { fromDecimalString, toExactDecimalString } from "../ratio-decimal.js";
 import type { TaxEvent } from "../schema/event.js";
 import type { LedgerEntry } from "../schema/ledger.js";
+import { byLedgerOrder } from "../sort-order.js";
 import { feeSplit, makeEntry } from "./entry-parts.js";
 import { marginEntries } from "./margin-entries.js";
 
@@ -68,6 +69,6 @@ export function ledgerFromEvents(events: readonly TaxEvent[]): LedgerResult {
       deferred.push({ event_id: e.event_id, currency: e.currency, reason: built });
     else entries.push(...built);
   }
-  entries.sort((a, b) => a.ts_utc - b.ts_utc || a.sort_key.localeCompare(b.sort_key));
+  entries.sort(byLedgerOrder);
   return { entries, deferred };
 }

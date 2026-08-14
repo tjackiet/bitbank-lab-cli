@@ -9,6 +9,7 @@
 // 正しく出る。これは v2 §1.2 の表示ガードが体現している条件そのもの（(a) アテステーション
 // = 口座外に保有・取引が無い旨の申告）で、無条件に「原理的に計算できない」と書くと
 // **自分のガードを否定し、bitbank だけで取引している利用者の数値まで無効に見せる**。
+import type { Method } from "../schema/method.js";
 import type { Taxation } from "../schema/taxation.js";
 
 export const POSITIONING =
@@ -83,6 +84,18 @@ export const ROUNDING_NOTE =
   "「参考損益」が 1 円ずれることがあります。国税庁計算書と同じ丸め位置で計算した欄は、" +
   "参考損益を表示した銘柄に nta_compat として併記しています。";
 
+/**
+ * 移動平均法のときだけ足す注記。計算書は**繰越価額・購入価額が整数円入力**である前提で
+ * 組まれていて（付録D.5 / D.3）、そこが崩れると「シートに書いたらこうなる」値でなくなる。
+ * 販売所（即時売買）は約定代金の列が無く `数量 × 指値価格` で出すため小数円が生じるので、
+ * 互換欄はその確定を挟んでいる。総平均法には無関係なので常時は載せない。
+ */
+export const SHEET_INPUT_NOTE =
+  "移動平均法の nta_compat は、国税庁計算書が整数円入力を前提とするため" +
+  "（付録D.5）、繰越価額と購入価額を円へ確定（四捨五入）してから計算しています。" +
+  "販売所（即時売買）の約定は「数量 × 指値価格」で小数円になるため、この確定が" +
+  "入る銘柄があります。既定の計算（非丸め）はこの確定を行いません。";
+
 /** 年間取引報告書との突合用。差の有無は「取込の網羅性」の話で、税務上の正しさではない。 */
 export const VERIFY_NOTE =
   "本突合は取込データの網羅性を確認するもので、税務上の正しさを保証するものでは" +
@@ -92,8 +105,11 @@ export function verifyDisclaimers(): string[] {
   return [POSITIONING, VERIFY_NOTE];
 }
 
-/** レポート末尾に常時載せる免責の並び。 */
-export function disclaimers(taxation: Taxation, year: number): string[] {
+/**
+ * レポート末尾に載せる免責の並び。`method` を受けるのは `SHEET_INPUT_NOTE` のためだけで、
+ * 総平均法（既定）に無関係な注記を常時載せない。省略時は載せない側に倒す。
+ */
+export function disclaimers(taxation: Taxation, year: number, method?: Method): string[] {
   return [
     POSITIONING,
     `スコープ外: ${OUT_OF_SCOPE.join(" / ")}`,
@@ -101,5 +117,6 @@ export function disclaimers(taxation: Taxation, year: number): string[] {
     TWENTY_MAN_RULE,
     futureRegime(taxation, year),
     ROUNDING_NOTE,
+    ...(method === "moving-average" ? [SHEET_INPUT_NOTE] : []),
   ];
 }

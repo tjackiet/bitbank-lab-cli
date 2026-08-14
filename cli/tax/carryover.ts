@@ -2,6 +2,8 @@
 // 入力そのもので、**未入力とゼロは別物**として扱う（未入力なら参考損益を出さない）。
 //
 // 形式: { "btc": { "qty": "1.5", "cost_jpy": "931800" }, ... }
+// 資産キーの正規化は `canonicalAsset`（イベント・残高突合と同じ関数）を通す。ここだけ
+// 小文字化で済ませると、旧シンボルで書いた繰越が当年のイベントと結び付かない。
 import { readFileSync } from "node:fs";
 import { z } from "zod";
 import { EXIT } from "../exit-codes.js";
@@ -9,6 +11,7 @@ import { fsErrorSuffix } from "../fs-error.js";
 import { decStr } from "../schema-helpers.js";
 import type { Result } from "../types.js";
 import type { OpeningBalances } from "./engine/types.js";
+import { canonicalAsset } from "./import/symbol-alias.js";
 import { fromDecimalString } from "./ratio-decimal.js";
 
 export const CarryoverFile = z.record(z.string(), z.object({ qty: decStr, cost_jpy: decStr }));
@@ -29,9 +32,14 @@ export function parseCarryover(json: unknown): Result<OpeningBalances> {
   // プロトタイプ汚染を避けるため null プロトタイプで持つ（"__proto__" 等のキーが来ても安全）
   const opening = Object.create(null) as OpeningBalances;
   for (const [currency, v] of Object.entries(parsed.data)) {
-    // 資産キーは小文字へ寄せる。**正規化後に衝突したら黙って上書きせずエラーにする** —
-    // `BTC` と `btc` を両方書かれると後勝ちで繰越簿価が入れ替わり、参考損益が静かに狂う
-    const key = currency.toLowerCase();
+    // 資産キーはイベント・突合と**同じ** `canonicalAsset` で正規化する（付録E.5）。
+    // 小文字化だけだと旧シンボル（`matic`）で書かれた繰越が `pol` のイベントと結び付かず、
+    // 実体のある `pol` は (c) 未確定でブロックされる一方、`matic` は突合行を持たないまま
+    // 「取引ゼロ・期末＝繰越」の参考欄だけを出す（幽霊行）。
+    //
+    // **正規化後に衝突したら黙って上書きせずエラーにする** — `BTC` と `btc`、あるいは
+    // `matic` と `pol` を両方書かれると後勝ちで繰越簿価が入れ替わり、参考損益が静かに狂う
+    const key = canonicalAsset(currency);
     if (Object.hasOwn(opening, key)) {
       return {
         success: false,

@@ -23,7 +23,12 @@ import { makeEntry } from "./entry-parts.js";
 
 export function marginEntries(e: TaxEvent): LedgerEntry[] | string {
   const net = e.margin?.realized_net;
-  if (net === undefined) return []; // 新規建ては決済年に帰属させるのでここでは仕訳しない
+  // 呼び出し元（from-events.ts）は MARGIN_CLOSE でしかここへ来ない。新規建ては手前の
+  // `continue` で落ちる。つまり realized_net が無いのは「新規建てだから」ではなく、
+  // **決済行なのに実現損益が取れていない**という異常。空配列で黙って捨てると、その
+  // 決済の差益・差損・手数料が income / expense / reference_pnl から消える
+  // （verify-report は同じ欠落を `warnings` に出しているので、pnl 側だけが沈黙していた）
+  if (net === undefined) return "信用の決済に realized_net がありません";
   const value = fromDecimalString(net);
   if (value === null) return "realized_net を十進文字列として読めません";
 
