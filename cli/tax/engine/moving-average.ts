@@ -11,6 +11,7 @@
 import { add, cmp, div, eq, isZero, mul, type Ratio, sub, ZERO } from "../ratio.js";
 import type { LedgerEntry } from "../schema/ledger.js";
 import { byLedgerOrder } from "../sort-order.js";
+import { orderAmbiguities } from "./order-ambiguity.js";
 import { type EntrySums, readAmount, sumEntries } from "./sum-entries.js";
 import type { AverageOutcome, Book } from "./types.js";
 
@@ -96,7 +97,8 @@ export function movingAverage(
   opening: Book,
 ): AverageOutcome {
   const totals = sumEntries(entries);
-  const violations = [...totals.violations];
+  // 順序を定義できない同時刻は、打ち切り判定より**先**に積む（打ち切っても理由を残す）
+  const violations = [...totals.violations, ...orderAmbiguities(currency, entries)];
 
   // 実用上限の判定は計算に入る前に（ADR-005。入ってしまうと実用時間で返らない）
   const disposals = countDisposals(entries);
