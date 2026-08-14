@@ -27,6 +27,8 @@ export type BuildArgs = {
   ledger: LedgerResult;
   results: Map<string, CurrencyResult>;
   reconciliation: readonly AssetComparison[];
+  /** `--carryover=zero` を全履歴で反証した銘柄（**全履歴**スコープ。`run.ts` が組む） */
+  carryoverZeroRejected: readonly string[];
 };
 
 /**
@@ -59,6 +61,7 @@ export function buildReport(args: BuildArgs): TaxReport {
     results: args.results,
     reconciliation: args.reconciliation,
     deferred: args.ledger.deferred,
+    carryoverZeroRejected: args.carryoverZeroRejected,
   };
   const currencies = [...args.results.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
