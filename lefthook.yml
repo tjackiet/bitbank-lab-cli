@@ -17,6 +17,38 @@ pre-commit:
       glob: "cli/**/*.{ts,json}"
       run: |
         ! grep -rn 'BITBANK_API_KEY\|BITBANK_API_SECRET\|API_KEY=' --include='*.ts' --include='*.json' --exclude-dir=__tests__ cli/ | grep -v -e 'process\.env\.' -e '"BITBANK_API' || (echo '❌ シークレットがコードに含まれています' && exit 1)
+    secret-file-names:
+      # ファイル名だけの検査。`.gitignore` は `git add -f` と追跡済みファイルを
+      # 防げないため、その穴を埋める。中身の検査は下の gitleaks が担う
+      run: |
+        for f in {staged_files}; do
+          case "$(basename "$f")" in
+            .env.example) ;;
+            .env|.env.*|*.pem|*.key|id_rsa|id_rsa.*|id_ed25519|id_ed25519.*|credentials.json)
+              echo "❌ 秘密情報らしきファイルがステージされています: $f"
+              exit 1
+              ;;
+          esac
+        done
+    # 上の secret-check / secret-file-names はファイル名と既知の変数名しか見ない。
+    # ソース中にベタ書きされた鍵は gitleaks でステージ済みの「中身」を CI と同じ
+    # ルールセットで走査する。CI（.github/workflows/security.yml）は push 後にしか
+    # 回らず、その時点で既に GitHub / CodeRabbit へ送信済みなので、commit 時点で
+    # 止めるのがここの役割。
+    gitleaks:
+      run: |
+        if [ "${LEFTHOOK_SKIP_GITLEAKS:-}" = "1" ]; then
+          echo "WARN: gitleaks scan skipped (LEFTHOOK_SKIP_GITLEAKS=1)."
+          exit 0
+        fi
+        if ! command -v gitleaks >/dev/null 2>&1; then
+          echo "ERROR: gitleaks not found — staged secret scan cannot run."
+          echo "  install: brew install gitleaks  /  https://github.com/gitleaks/gitleaks#installing"
+          echo "  誤検知の場合は行末 'gitleaks:allow' か .gitleaksignore で除外する。"
+          echo "  どうしても回避が必要なときのみ LEFTHOOK_SKIP_GITLEAKS=1 git commit ...（理由を PR に明記）"
+          exit 1
+        fi
+        gitleaks git --staged --redact --verbose --no-banner --exit-code 1
     no-real-account-data:
       # 検出パターンの単一ソースは scripts/check-no-real-account-data.sh（CI も同じものを呼ぶ）
       run: sh scripts/check-no-real-account-data.sh staged

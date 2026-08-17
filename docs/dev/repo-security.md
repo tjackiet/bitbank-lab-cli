@@ -46,6 +46,23 @@ Settings → Code security:
 critical / high の patch PR を即時に出す（version update 側の cooldown は
 適用されない。[dependency-cooldown.md](dependency-cooldown.md) 参照）。
 
+## GitHub: Secret Protection / Push protection
+
+Settings → Code security → Secret Protection:
+
+- ✅ Secret scanning
+- ✅ Push protection
+
+ただし **bitbank は GitHub の secret scanning パートナーではない**ため、bitbank API キー
+専用の検出器は存在しない。汎用の高エントロピー検出に引っかからなければすり抜ける。
+カスタムパターンは有償機能のため、無料の public リポジトリでは使えない。
+
+そのうえ push protection は **push 時点**の網であり、commit を止めない。CodeRabbit の
+レビューは PR の open / push で発火するので、push まで通ってしまうと送信は防げない。
+
+→ 本命の防御は pre-commit の gitleaks（`lefthook.yml`）。運用は
+[CONTRIBUTING.md](../../CONTRIBUTING.md#秘密情報の誤コミット防止gitleaks) を参照。
+
 ## npm: 2FA を auth-and-writes に
 
 https://www.npmjs.com/settings/<user>/profile → Two-factor authentication
