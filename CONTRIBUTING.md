@@ -22,6 +22,45 @@ npm ci   # 依存インストール（初回のみ）
 - README:「[コントリビューター向けセットアップ](README.md#コントリビューター向けセットアップ)」
 - [.contrib/setup.sh](.contrib/setup.sh) / [.contrib/README.md](.contrib/README.md)
 
+## 秘密情報の誤コミット防止（gitleaks）
+
+pre-commit フック（lefthook）が、ステージ済みの**内容**を gitleaks で走査する
+（フック自体は `npm ci` の lefthook postinstall で `.git/hooks/` に配線される）。
+CI の Security Audit と同じルールセットで、鍵がリポジトリに入る前に commit を止める。
+
+**gitleaks のインストールが必須。** 未導入だと pre-commit が失敗する（黙ってスキップはしない）:
+
+```bash
+brew install gitleaks          # macOS
+# その他: https://github.com/gitleaks/gitleaks#installing
+gitleaks version               # CI は 8.30.1 に固定。ローカルも同等以上を推奨
+```
+
+CI（`.github/workflows/security.yml`）は SHA256 検証済みの **8.30.1** を使う。ローカルは
+PATH 上の gitleaks を使うためバージョンが一致するとは限らないが、検出ルールは版で増えるので
+新しい側に倒しておく。最終的な判定は CI の固定バージョンが行う。
+
+- **誤検知だった場合**: 実鍵でないことを確認したうえで、行末に**その言語のコメント構文で**
+  `gitleaks:allow` を付ける（TypeScript なら `// gitleaks:allow`、shell / YAML なら
+  `# gitleaks:allow`）。JSON のようにコメントを書けない形式では代わりに
+  `.gitleaksignore` に fingerprint と理由コメントを追加する。
+- **一時的に回避する場合**: `LEFTHOOK_SKIP_GITLEAKS=1 git commit ...`。回避した理由を PR に必ず明記すること。
+
+ファイル名ベースの検査（`.env` / `.env.*` / `*.pem` / `*.key` / `id_rsa*` / `id_ed25519*` /
+`credentials.json`。`.env.example` のみ除外）は
+同じ pre-commit の `secret-file-names` が担う。`.gitignore` は `git add -f` と追跡済みファイルを
+防げないため、2 段構えにしている。
+
+### なぜ pre-commit で止める必要があるか
+
+CI の gitleaks（`.github/workflows/security.yml`）は push 後にしか走らない。その時点で
+コードは既に GitHub に到達し、CodeRabbit などリポジトリ全体を参照するレビューツールにも
+渡っている。CI は最後の網であって、送信を防ぐ位置にはいない。commit 時点で止めるのが本命の防御。
+
+GitHub の Push protection も同様に push 時点の網で、かつ bitbank は secret scanning の
+パートナーではないため **bitbank API キー専用の検出器が存在しない**（詳細は
+[docs/dev/repo-security.md](docs/dev/repo-security.md)）。
+
 ## 開発規約
 
 - 全体方針・アーキテクチャ: [CLAUDE.md](CLAUDE.md)
