@@ -18,8 +18,10 @@ jobs:
         with:
           node-version-file: '.nvmrc'
       - run: npm ci
-      - name: Audit dependencies (critical, non-blocking)
-        run: npm audit --audit-level=critical || echo "::warning::npm audit found vulnerabilities (non-blocking)"
+      # 依存の脆弱性チェックは security.yml（npm audit --audit-level=high・ブロッキング）に
+      # 一本化している。トリガーが同一で high は critical を含むため、ここに audit を置いても
+      # security.yml の部分集合にしかならない。非ブロッキングな audit を重ねると
+      # 「チェックがある」ように見えて実際には止まらないため、あえて置かない。
       - run: npx biome check cli/
       - run: npx tsc --noEmit
       - run: npx vitest run
