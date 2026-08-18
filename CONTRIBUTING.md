@@ -28,7 +28,8 @@ pre-commit フック（lefthook）が、ステージ済みの**内容**を gitle
 （フック自体は `npm ci` の lefthook postinstall で `.git/hooks/` に配線される）。
 CI の Security Audit と同じルールセットで、鍵がリポジトリに入る前に commit を止める。
 
-**gitleaks のインストールが必須。** 未導入だと pre-commit が失敗する（黙ってスキップはしない）:
+**gitleaks のインストールを強く推奨する。** 未導入でも commit は通るが、その場合
+ローカルの秘密情報チェックは効いていない（警告を出してスキップする）:
 
 ```bash
 brew install gitleaks          # macOS
@@ -40,24 +41,35 @@ CI（`.github/workflows/security.yml`）は SHA256 検証済みの **8.30.1** �
 PATH 上の gitleaks を使うためバージョンが一致するとは限らないが、検出ルールは版で増えるので
 新しい側に倒しておく。最終的な判定は CI の固定バージョンが行う。
 
-- **誤検知だった場合**: 実鍵でないことを確認したうえで、行末に**その言語のコメント構文で**
-  `gitleaks:allow` を付ける（TypeScript なら `// gitleaks:allow`、shell / YAML なら
-  `# gitleaks:allow`）。JSON のようにコメントを書けない形式では代わりに
-  `.gitleaksignore` に fingerprint と理由コメントを追加する。
-- **一時的に回避する場合**: `LEFTHOOK_SKIP_GITLEAKS=1 git commit ...`。回避した理由を PR に必ず明記すること。
+### 環境変数
+
+| 変数 | 効果 |
+|---|---|
+| `LEFTHOOK_REQUIRE_GITLEAKS=1` | gitleaks 未導入を**エラー**として commit を中断する。厳格に運用したい場合に設定する |
+| `LEFTHOOK_SKIP_GITLEAKS=1` | スキャン自体をスキップする。回避した理由を PR に必ず明記すること |
+
+いずれも値が `1` のときだけ有効。`0` や `false` を設定しても既定の動作のままになる。
+
+**誤検知だった場合**は、実鍵でないことを確認したうえで、行末に**その言語のコメント構文で**
+`gitleaks:allow` を付ける（TypeScript なら `// gitleaks:allow`、shell / YAML なら
+`# gitleaks:allow`）。JSON のようにコメントを書けない形式では代わりに `.gitleaksignore` に
+fingerprint と理由コメントを追加する。`LEFTHOOK_SKIP_GITLEAKS` での回避は最後の手段とする。
 
 ファイル名ベースの検査（`.env` / `.env.*` / `*.pem` / `*.key` / `id_rsa*` / `id_ed25519*` /
 `credentials.json`。`.env.example` のみ除外）は
 同じ pre-commit の `secret-file-names` が担う。`.gitignore` は `git add -f` と追跡済みファイルを
 防げないため、2 段構えにしている。
 
-### なぜ pre-commit で止める必要があるか
+### なぜ pre-commit で止めるのか
 
-CI の gitleaks（`.github/workflows/security.yml`）は push 後にしか走らない。その時点で
-コードは既に GitHub に到達し、CodeRabbit などリポジトリ全体を参照するレビューツールにも
-渡っている。CI は最後の網であって、送信を防ぐ位置にはいない。commit 時点で止めるのが本命の防御。
+一度 commit すると、鍵は git 履歴に残る。push 前に気づいても、除去には履歴の書き換えと
+鍵の失効・再発行が必要で、push 後であればなおさら手間が増える。
 
-GitHub の Push protection も同様に push 時点の網で、かつ bitbank は secret scanning の
+CI の gitleaks（`.github/workflows/security.yml`）は全履歴をスキャンする最終防衛線だが、
+そこで検知した時点では既に履歴に入っている。**履歴に入る前に止められる唯一の場所が
+pre-commit** なので、ここを本命の防御と位置づけている。
+
+GitHub の Push protection も push 時点の網で、かつ bitbank は secret scanning の
 パートナーではないため **bitbank API キー専用の検出器が存在しない**（詳細は
 [docs/dev/repo-security.md](docs/dev/repo-security.md)）。
 
