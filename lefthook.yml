@@ -31,10 +31,17 @@ pre-commit:
           esac
         done
     # 上の secret-check / secret-file-names はファイル名と既知の変数名しか見ない。
-    # ソース中にベタ書きされた鍵は gitleaks でステージ済みの「中身」を CI と同じ
-    # ルールセットで走査する。CI（.github/workflows/security.yml）は push 後にしか
-    # 回らず、その時点で既に GitHub / CodeRabbit へ送信済みなので、commit 時点で
-    # 止めるのがここの役割。
+    # ソース中にベタ書きされた鍵を捕まえるため、gitleaks でステージ済みの「中身」を
+    # 走査する。CI（security.yml）がやっている検査を commit 時点に前倒しするものだが、
+    # ここは PATH 上の gitleaks を使うため、CI が固定する 8.30.1 とバージョンが一致する
+    # とは限らず、既定ルールにも差が出うる（最終判定は CI の固定バージョンが行う）。
+    #
+    # 一度 commit すると鍵は git 履歴に残り、除去には履歴の書き換えと鍵の失効・再発行が
+    # 必要になる。CI（.github/workflows/security.yml）の全履歴スキャンは最終防衛線だが、
+    # そこで検知した時点で既に履歴に入っているため、その手前で止めるのがこのフックの役割。
+    #
+    # gitleaks 未導入の環境では警告のみでスキップする（コントリビュータの参入障壁に
+    # しないため）。未導入を失敗として扱いたい場合は LEFTHOOK_REQUIRE_GITLEAKS=1 を設定する。
     gitleaks:
       run: |
         if [ "${LEFTHOOK_SKIP_GITLEAKS:-}" = "1" ]; then
@@ -42,11 +49,15 @@ pre-commit:
           exit 0
         fi
         if ! command -v gitleaks >/dev/null 2>&1; then
-          echo "ERROR: gitleaks not found — staged secret scan cannot run."
+          echo "gitleaks not found — staged secret scan cannot run."
           echo "  install: brew install gitleaks  /  https://github.com/gitleaks/gitleaks#installing"
-          echo "  誤検知の場合は行末 'gitleaks:allow' か .gitleaksignore で除外する。"
-          echo "  どうしても回避が必要なときのみ LEFTHOOK_SKIP_GITLEAKS=1 git commit ...（理由を PR に明記）"
-          exit 1
+          if [ "${LEFTHOOK_REQUIRE_GITLEAKS:-}" = "1" ]; then
+            echo "ERROR: LEFTHOOK_REQUIRE_GITLEAKS=1 が設定されているため commit を中断する。"
+            exit 1
+          fi
+          echo "WARN: ローカルの秘密情報チェックが無効な状態で commit する。"
+          echo "      厳格に運用する場合は LEFTHOOK_REQUIRE_GITLEAKS=1 を設定すること。"
+          exit 0
         fi
         gitleaks git --staged --redact --verbose --no-banner --exit-code 1
     no-real-account-data:
