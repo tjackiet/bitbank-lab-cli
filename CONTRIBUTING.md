@@ -33,14 +33,21 @@ CI の Security Audit と同じルールセットで、鍵がリポジトリに�
 ```bash
 brew install gitleaks          # macOS
 # その他: https://github.com/gitleaks/gitleaks#installing
-gitleaks version               # `gitleaks git` サブコマンドを使うため 8.19 以降
+gitleaks version               # CI は 8.30.1 に固定。ローカルも同等以上を推奨
 ```
 
-- **誤検知だった場合**: 実鍵でないことを確認したうえで、行末に `gitleaks:allow` を付けるか、
+CI（`.github/workflows/security.yml`）は SHA256 検証済みの **8.30.1** を使う。ローカルは
+PATH 上の gitleaks を使うためバージョンが一致するとは限らないが、検出ルールは版で増えるので
+新しい側に倒しておく。最終的な判定は CI の固定バージョンが行う。
+
+- **誤検知だった場合**: 実鍵でないことを確認したうえで、行末に**その言語のコメント構文で**
+  `gitleaks:allow` を付ける（TypeScript なら `// gitleaks:allow`、shell / YAML なら
+  `# gitleaks:allow`）。JSON のようにコメントを書けない形式では代わりに
   `.gitleaksignore` に fingerprint と理由コメントを追加する。
 - **一時的に回避する場合**: `LEFTHOOK_SKIP_GITLEAKS=1 git commit ...`。回避した理由を PR に必ず明記すること。
 
-ファイル名ベースの検査（`.env` / `*.pem` / `*.key` / `id_rsa*` / `credentials.json` 等）は
+ファイル名ベースの検査（`.env` / `.env.*` / `*.pem` / `*.key` / `id_rsa*` / `id_ed25519*` /
+`credentials.json`。`.env.example` のみ除外）は
 同じ pre-commit の `secret-file-names` が担う。`.gitignore` は `git add -f` と追跡済みファイルを
 防げないため、2 段構えにしている。
 

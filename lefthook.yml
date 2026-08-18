@@ -24,7 +24,7 @@ pre-commit:
         for f in {staged_files}; do
           case "$(basename "$f")" in
             .env.example) ;;
-            .env|.env.*|*.pem|*.key|id_rsa|id_rsa.*|id_ed25519|id_ed25519.*|credentials.json)
+            .env|.env.*|*.pem|*.key|id_rsa*|id_ed25519*|credentials.json)
               echo "❌ 秘密情報らしきファイルがステージされています: $f"
               exit 1
               ;;
