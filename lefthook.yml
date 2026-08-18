@@ -32,7 +32,9 @@ pre-commit:
         done
     # 上の secret-check / secret-file-names はファイル名と既知の変数名しか見ない。
     # ソース中にベタ書きされた鍵を捕まえるため、gitleaks でステージ済みの「中身」を
-    # CI と同じルールセットで走査する。
+    # 走査する。CI（security.yml）がやっている検査を commit 時点に前倒しするものだが、
+    # ここは PATH 上の gitleaks を使うため、CI が固定する 8.30.1 とバージョンが一致する
+    # とは限らず、既定ルールにも差が出うる（最終判定は CI の固定バージョンが行う）。
     #
     # 一度 commit すると鍵は git 履歴に残り、除去には履歴の書き換えと鍵の失効・再発行が
     # 必要になる。CI（.github/workflows/security.yml）の全履歴スキャンは最終防衛線だが、

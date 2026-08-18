@@ -26,7 +26,8 @@ npm ci   # 依存インストール（初回のみ）
 
 pre-commit フック（lefthook）が、ステージ済みの**内容**を gitleaks で走査する
 （フック自体は `npm ci` の lefthook postinstall で `.git/hooks/` に配線される）。
-CI の Security Audit と同じルールセットで、鍵がリポジトリに入る前に commit を止める。
+CI の Security Audit がやっている検査を commit 時点に前倒しし、鍵がリポジトリに入る前に
+止める（使う gitleaks のバージョンは CI と一致するとは限らない。後述）。
 
 **gitleaks のインストールを強く推奨する。** 未導入でも commit は通るが、その場合
 ローカルの秘密情報チェックは効いていない（警告を出してスキップする）:
