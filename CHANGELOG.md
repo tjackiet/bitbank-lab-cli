@@ -14,6 +14,11 @@
 
 ### Added
 
+- **`bitbank --version` / `-v` を追加した**（#28）。package.json の version を出す。
+  `--machine` 併用時は他コマンドと同じ envelope（`{"success":true,"data":{"version":...}}`）。
+  fnm 等で Node ごとにグローバル install が分かれ、シェルと launchd で別バージョンが
+  動いていた事例が 1 コマンドで見分けられるようになる
+
 - **pre-commit で秘密情報を走査するようにした**（`lefthook.yml`）。ステージ済みの
   「中身」を gitleaks で、ファイル名を `secret-file-names` で検査する。一度 commit すると
   鍵は git 履歴に残り、除去には履歴の書き換えと鍵の失効・再発行が要る。CI

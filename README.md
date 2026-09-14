@@ -468,6 +468,18 @@ bitbank candles btc_jpy --type=1day --format=json --machine
 [`skills/_shared/references/cli-conventions.md`](skills/_shared/references/cli-conventions.md)
 を参照してください。
 
+### `--version`（インストール済みバージョンの確認）
+
+`bitbank --version`（または `-v`）で package.json の version を表示します。
+fnm / nvm で Node を複数入れていると npm のグローバルは Node ごとに分かれるため、
+シェルと cron / launchd で別バージョンの `bitbank` が動いていることがあります。
+挙動が食い違ったらまずこれで揃っているか確認してください。
+
+```bash
+bitbank --version             # → 0.4.0
+bitbank --version --machine   # → {"success":true,"data":{"version":"0.4.0"}}
+```
+
 ## Shell 補完
 
 `bitbank completion <shell>` で補完スクリプトを stdout に出力します。
