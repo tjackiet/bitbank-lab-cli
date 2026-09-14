@@ -1,7 +1,7 @@
 // issue #27: 全 paper コマンドが meta.statePath で「どの state file を読んだか」を申告する
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { isAbsolute, join, resolve } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { paperActiveOrders } from "../../commands/paper/active-orders.js";
 import { paperAssets } from "../../commands/paper/assets.js";
@@ -51,7 +51,7 @@ describe("withStatePath", () => {
   it("normalizes a relative statePath to an absolute path (cli/types.ts contract)", () => {
     const r = withStatePath({ success: true, data: 1 }, "./paper-state.json");
     expect(r.success && r.meta?.statePath).toBe(resolve("./paper-state.json"));
-    expect(r.success && r.meta?.statePath).toMatch(/^\//);
+    expect(r.success && isAbsolute(r.meta?.statePath ?? "")).toBe(true);
   });
 
   it("leaves error results untouched", () => {
