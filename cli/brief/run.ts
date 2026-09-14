@@ -1,6 +1,7 @@
 // periodical-brief のパイプライン（ADR-008）: 銘柄ごとに「日足 + 時足を取得 → 計算 → 3 行」を
 // 同時数ガード付きで回し、ヘッダと連結する。失敗した銘柄は落とさず errors に積み、
 // 1 件でもあれば Result.partial を立てる（全滅のときだけ失敗を返す）。
+import { sanitizeErrorMessage } from "../error-sanitize.js";
 import type { HttpOptions } from "../http.js";
 import type { Result } from "../types.js";
 import { computePairBrief } from "./compute.js";
@@ -24,13 +25,19 @@ export const BRIEF_NOTE =
 type PairOutcome = { ok: true; brief: PairBrief } | { ok: false; pair: string; error: string };
 
 async function onePair(pair: string, args: RunArgs, opts?: HttpOptions): Promise<PairOutcome> {
-  const [daily, hourly] = await Promise.all([
-    fetchDaily(pair, args.nowMs, opts, args.noCache),
-    fetchHourly(pair, args.nowMs, opts, args.noCache),
-  ]);
-  if (!daily.success) return { ok: false, pair, error: daily.error };
-  if (!hourly.success) return { ok: false, pair, error: hourly.error };
-  return { ok: true, brief: computePairBrief(pair, daily.data, hourly.data, args.nowMs) };
+  // 取得層は Result を返すが、candle キャッシュの書き込み（cli/cache.ts の mkdirSync 等）は
+  // FS 障害で例外になり得る。1 銘柄の例外で全体を巻き込まず、銘柄単位の失敗に変換する。
+  try {
+    const [daily, hourly] = await Promise.all([
+      fetchDaily(pair, args.nowMs, opts, args.noCache),
+      fetchHourly(pair, args.nowMs, opts, args.noCache),
+    ]);
+    if (!daily.success) return { ok: false, pair, error: daily.error };
+    if (!hourly.success) return { ok: false, pair, error: hourly.error };
+    return { ok: true, brief: computePairBrief(pair, daily.data, hourly.data, args.nowMs) };
+  } catch (e) {
+    return { ok: false, pair, error: sanitizeErrorMessage(e) };
+  }
 }
 
 export async function runBrief(args: RunArgs, opts?: HttpOptions): Promise<Result<Brief>> {

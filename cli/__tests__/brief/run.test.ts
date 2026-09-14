@@ -1,6 +1,6 @@
 // 100行超: 取得〜3 行整形の通し検証。「確定足だけで指標を計算する」「JST 当日の出来高」
 // 「失敗銘柄を落とさず partial で申告する」を 1 本の実行経路で押さえる。
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { runBrief } from "../../brief/run.js";
 import { BriefSchema } from "../../brief/schema.js";
 import { dailyCandles, hourlyCandles, mockMarketFetch } from "./mock-candles.js";
@@ -103,6 +103,29 @@ describe("runBrief", () => {
     expect(r.data.errors).toHaveLength(1);
     expect(r.data.errors[0].pair).toBe("eth_jpy");
     expect(r.data.text).toContain("## eth_jpy  ERROR:");
+  });
+
+  it("converts an exception inside one pair into a per-pair error (no global reject)", async () => {
+    const fetchMod = await import("../../brief/fetch.js");
+    const spy = vi.spyOn(fetchMod, "fetchHourly").mockImplementation(async (pair) => {
+      if (pair === "eth_jpy") throw new Error("EACCES: mkdir failed");
+      return { success: true, data: hourlyCandles(TODAY_UTC - DAY, 26, 2) };
+    });
+    try {
+      const { fetch } = mockMarketFetch(market(["btc_jpy", "eth_jpy"]));
+      const r = await runBrief(
+        { pairs: ["btc_jpy", "eth_jpy"], nowMs: NOW, concurrency: 2, noCache: true },
+        { ...OPTS, fetch },
+      );
+      expect(r.success).toBe(true);
+      if (!r.success) return;
+      expect(r.partial).toBe(true);
+      expect(r.data.pairs.map((p) => p.pair)).toEqual(["btc_jpy"]);
+      expect(r.data.errors[0]).toMatchObject({ pair: "eth_jpy" });
+      expect(r.data.errors[0].error).toContain("EACCES");
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("fails outright when every pair fails", async () => {
