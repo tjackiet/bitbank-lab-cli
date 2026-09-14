@@ -161,7 +161,9 @@ bitbank assets --format=json --machine
 - ペーパートレード（仮想資金）。`bitbank paper <cmd>` で呼び出す
 - 実 API は public ticker のみを叩く（private/trade は触らない）。`.env` 不要
 - 状態は `~/.bitbank/paper-state.json`（または `$XDG_DATA_HOME/bitbank/paper-state.json`）
-  に保存される
+  に保存される。`BITBANK_PAPER_STATE_PATH=<path>` で上書き可（複数口座の切替用）
+- 全 paper コマンドは `--machine` の envelope に `meta.statePath`（実際に読み書きした
+  state file）を載せる。複数口座を使い分けるときはこれで参照先を確認する
 - 主要例:
 
   ```bash
