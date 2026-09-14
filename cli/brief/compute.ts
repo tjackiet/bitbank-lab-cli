@@ -28,7 +28,8 @@ function trendOf(
     if (isBelow) below++;
     position.push(`${isBelow ? "<" : ">"}S${SMA_PERIODS[i]}`);
   });
-  const trend = below >= 2 ? "DOWN" : below === 0 ? "UP" : "MIX";
+  // SMA が 1 本も揃わない（確定足 20 本未満）ときは判定不能なので MIX に倒す
+  const trend = position.length === 0 ? "MIX" : below >= 2 ? "DOWN" : below === 0 ? "UP" : "MIX";
   return { trend, position };
 }
 

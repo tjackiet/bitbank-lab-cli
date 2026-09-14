@@ -76,6 +76,19 @@ describe("runBrief", () => {
     expect(r.success && r.data.pairs[0].lines[0]).not.toContain("未確定");
   });
 
+  it("reports MIX (not UP) when no SMA can be computed", async () => {
+    const m = market(["btc_jpy"]);
+    m.daily.btc_jpy = dailyCandles(TODAY_UTC, 10);
+    const { fetch } = mockMarketFetch(m);
+    const r = await runBrief(
+      { pairs: ["btc_jpy"], nowMs: NOW, concurrency: 1, noCache: true },
+      { ...OPTS, fetch },
+    );
+    expect(r.success && r.data.pairs[0].position).toEqual([]);
+    expect(r.success && r.data.pairs[0].trend).toBe("MIX");
+    expect(r.success && r.data.pairs[0].lines[0]).toContain("trend:MIX[]");
+  });
+
   it("keeps successful pairs and reports failed ones as partial", async () => {
     const m = { ...market(["btc_jpy", "eth_jpy"]), fail: { "eth_jpy/candlestick/1hour": 500 } };
     const { fetch } = mockMarketFetch(m);

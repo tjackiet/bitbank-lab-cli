@@ -43,6 +43,8 @@ export function rsi(closes: readonly number[], n: number): number | null {
     avgGain = (avgGain * (n - 1) + Math.max(diff, 0)) / n;
     avgLoss = (avgLoss * (n - 1) + Math.max(-diff, 0)) / n;
   }
+  // 横ばい（上昇も下落も無い）は中立の 50。avgLoss だけ 0 なら 100
+  if (avgGain === 0 && avgLoss === 0) return 50;
   if (avgLoss === 0) return 100;
   return 100 - 100 / (1 + avgGain / avgLoss);
 }

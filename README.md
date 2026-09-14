@@ -232,7 +232,7 @@ profile を 1 つも登録していない環境では、従来通り `BITBANK_AP
 | `pairs` | ペア設定情報 | `bitbank pairs` |
 | `periodical-brief` | 複数銘柄の商い状況ダイジェスト（1 銘柄 3 行） | `bitbank periodical-brief --top=10` |
 
-> `periodical-brief` は RSI14 / MACD / SMA20-50-200 / ATR14 と曜日別出来高を **CLI 内で計算**し、1 銘柄 3 行に圧縮して返します（分析ロジックを CLI に置かない原則の例外。[ADR-008](docs/adr/008-periodical-brief-indicators-in-cli.md)）。指標は確定日足のみで計算し、売買判断は出しません。銘柄は位置引数（`periodical-brief btc_jpy sol_jpy`）、`--top=N`（24h 売買代金上位）、`--all`（現行の取扱い JPY 建て全銘柄）で指定します。`--format=table` はダイジェスト本文をそのまま出すので cron や通知にそのまま流せます。一部銘柄の取得に失敗しても落とさず `errors` + `partial: true` で申告します。
+> `periodical-brief` は RSI14 / MACD / SMA20-50-200 / ATR14 と曜日別出来高を **CLI 内で計算**し、1 銘柄 3 行に圧縮して返します（分析ロジックを CLI に置かない原則の例外。[ADR-008](docs/adr/008-periodical-brief-indicators-in-cli.md)）。指標は確定日足のみで計算し、売買判断は出しません。銘柄は位置引数（`periodical-brief btc_jpy sol_jpy`）、`--top=N`（24h 売買代金上位）、`--all`（現行の取扱い JPY 建て全銘柄。母集団は `cli/pairs.ts` の `KNOWN_PAIRS` で、新規上場ペアは同ファイルと `skills/_shared/references/pair-classification.md` に追記しないと `--all` / `--top` に載りません）で指定します。`--format=table` はダイジェスト本文をそのまま出すので cron や通知にそのまま流せます。一部銘柄の取得に失敗しても落とさず `errors` + `partial: true` で申告します。
 
 ### Private（要認証）
 
@@ -588,7 +588,7 @@ Skill はモデルへの指示書であり、CLI コマンドを組み合わせ�
 
 #### periodical-brief
 
-複数銘柄の商い状況を 1 銘柄 3 行のダイジェストで一覧。現在値・RSI14・MACD 符号・SMA20/50/200 との位置・曜日別出来高・ATR14。計算は CLI（`bitbank periodical-brief`）が確定日足だけで行い、Skill 側では計算しない。生ローソク足を文脈に入れないので銘柄数を増やしてもトークン消費は増えない。
+複数銘柄の商い状況を 1 銘柄 3 行のダイジェストで一覧。現在値・RSI14・MACD 符号・SMA20/50/200 との位置・曜日別出来高・ATR14。計算は CLI（`bitbank periodical-brief`）が確定日足だけで行い、Skill 側では計算しない。生ローソク足を文脈に入れないので、銘柄を増やしても 1 銘柄あたり 3 行しか増えない。
 
 ```
 「朝のブリーフ出して」

@@ -21,6 +21,8 @@ describe("rsi (Wilder)", () => {
     const down = Array.from({ length: 20 }, (_, i) => 100 - i);
     expect(rsi(up, 14)).toBe(100);
     expect(rsi(down, 14)).toBe(0);
+    // 横ばい（gain も loss も 0）は中立の 50
+    expect(rsi(Array(20).fill(100), 14)).toBe(50);
   });
 
   it("matches a hand-computed Wilder value on a short series", () => {

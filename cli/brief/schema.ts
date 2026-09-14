@@ -46,7 +46,8 @@ export const PairBriefSchema = z.object({
   sma20: nullableNumber,
   sma50: nullableNumber,
   sma200: nullableNumber,
-  /** SMA20/50/200 との位置関係。2 本以上下なら DOWN、全部上なら UP、それ以外 MIX */
+  /** SMA20/50/200 との位置関係。2 本以上下なら DOWN、全部上なら UP、それ以外 MIX。
+   *  SMA が 1 本も揃わない（確定足 20 本未満）ときも MIX */
   trend: z.enum(TRENDS),
   /** 例: ["<S20", ">S50", ">S200"]。本数不足の SMA は載らない */
   position: z.array(z.string()),
