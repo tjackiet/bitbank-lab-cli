@@ -40,6 +40,8 @@ skill 実行前に、以下の順で CLI の起動方法を解決する。skill 
   - `completion`: 補完スクリプトを stdout に吐くだけで API も呼ばない
   - `profile add`: secret を対話 hidden 入力で受けるインタラクティブコマンド
 - `table` / `csv` は人間向けの整形であり、モデルがパースする用途では使わない
+  （`periodical-brief --format=table` はダイジェスト本文をそのまま出す独自経路。cron / 通知
+  向けで、skill 経路では `--machine` の `data.text` から同じ本文を読む）
 - JSON 以外をパースしようとすると整形の揺れで壊れるため、例外を作らない
 
 ### `--machine` envelope の読み方
