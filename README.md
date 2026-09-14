@@ -706,6 +706,13 @@ bitbank の WebSocket public stream で ticker をリアルタイム購読。1 �
 | `signal-explorer` | [Vol.05 テクニカル指標の作成と評価](https://github.com/i-love-profit/crypto-data-analysis-course/blob/main/vol05_technical_indicators.ipynb)（後半） / [Vol.06 指標の探索](https://github.com/i-love-profit/crypto-data-analysis-course/blob/main/vol06_indicator_exploration.ipynb) / [Vol.04 リードラグ分析](https://github.com/i-love-profit/crypto-data-analysis-course/blob/main/vol04_lead_lag_analysis.ipynb)（リーク検証手法） |
 | `backtest` | [Vol.04 リードラグ分析](https://github.com/i-love-profit/crypto-data-analysis-course/blob/main/vol04_lead_lag_analysis.ipynb)（リーク・コスト感度） + 教材横断のリスク指標 |
 
+`periodical-brief` コマンドと同名の Skill は、[aobathree](https://github.com/aobathree) 氏の提案
+（[bitbankinc/bitbank-lab-cli#21](https://github.com/bitbankinc/bitbank-lab-cli/issues/21)）に基づいています。
+1 銘柄 3 行の出力書式、1 銘柄 4 リクエストの取得設計、同時実行数の上限（無制限だと 30 銘柄超で失速する）
+という核心部分はすべて同氏の参考実装（Rust）と実測データによるもので、CLI 内部にネイティブ実装する
+根拠となった CPU 時間 42 倍差の計測も同氏の提供です。設計判断の詳細と参考実装からの意図的な差分は
+[ADR-008](docs/adr/008-periodical-brief-indicators-in-cli.md) に記録しています。丁寧な提案と検証に感謝いたします。
+
 ## フィードバック
 
 バグ報告・機能リクエストは [GitHub Issues](https://github.com/bitbankinc/bitbank-lab-cli/issues) へお願いします。  

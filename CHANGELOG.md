@@ -12,6 +12,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-14
+
 ### Added
 
 - **`bitbank periodical-brief` を追加**（upstream #21）。複数銘柄の商い状況を 1 銘柄 3 行
@@ -24,7 +26,11 @@
   指標は**確定日足のみ**で計算・売買判断は出さない。同時実行は既定 16（`--concurrency`）で、
   無制限だと 30 銘柄超で失速する実測に基づく。一部銘柄の失敗は落とさず `errors` +
   `partial: true` で申告する。`--format=table` はダイジェスト本文をそのまま出す
-  （cron / 通知向け）。対の Skill `periodical-brief`（「朝のブリーフ出して」）を追加
+  （cron / 通知向け）。対の Skill `periodical-brief`（「朝のブリーフ出して」）を追加。
+  **提案・出力書式・取得設計・参考実装（Rust）・レート制限と CPU 時間の実測は
+  [@aobathree](https://github.com/aobathree)**（upstream #21）による。TypeScript 版は
+  それを本 CLI の規約（Result パターン・Zod・`KNOWN_PAIRS` への絞り込み・部分失敗の申告）に
+  移植したもので、差分は ADR-008 に記載
 
 - **paper: 全コマンドが `meta.statePath` で参照した state file を申告するようになった**（#27）。
   `BITBANK_PAPER_STATE_PATH` で複数の仮想口座を切り替えて使う場合、環境変数を付け忘れると
