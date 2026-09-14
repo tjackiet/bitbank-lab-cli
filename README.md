@@ -280,6 +280,10 @@ Trade コマンドは `bitbank trade <subcommand>` の形で呼び出します�
 `bitbank paper <subcommand>` でライブ価格 × 仮想資金のシミュレーションを行います。  
 実 API は public ticker のみ叩き、private / trade エンドポイントには一切触れません。  
 状態は `~/.bitbank/paper-state.json`（または `$XDG_DATA_HOME/bitbank/paper-state.json`）に保存されます。
+`BITBANK_PAPER_STATE_PATH=<path>` で保存先を上書きでき、複数の仮想口座を切り替えて使えます。
+全 paper コマンドは実際に読み書きした state file を `meta.statePath` で返す（`--machine` /
+`--format=json` の envelope に載る）ので、環境変数の付け忘れで既定パスへフォールバックしていないか
+確認できます。
 
 | コマンド | 説明 | 使用例 |
 |---------|------|--------|
@@ -294,6 +298,10 @@ Trade コマンドは `bitbank trade <subcommand>` の形で呼び出します�
 | `paper pnl` | 損益サマリ（realized + unrealized、ペア別 + 合計） | `paper pnl --pair=btc_jpy` |
 | `paper reset` | 仮想口座をリセット（`--confirm` 必須） | `paper reset --confirm` |
 
+> **paper state の参照先。** `bitbank paper assets --machine` の `meta.statePath` が想定したファイルを
+> 指しているか確認してください。`BITBANK_PAPER_STATE_PATH` を付け忘れると既定パスの別口座が
+> `success: true` で返り、エラーにはなりません。
+>
 > 指値は GTC のみ（部分約定なし）。fill 判定は前回 tick 以降の 1m 足を時系列で走査し、`buy: candle.low <= price` / `sell: candle.high >= price` で全量約定します。約定価格は指値ぴったり（スリッページなし）。`paper assets` / `paper trade-history` / `paper active-orders` / `paper create-order` を呼ぶと裏で lazy tick が走り、未解決の fill を解消してから結果を返します。明示的に解決したい場合は `paper tick` を直接実行してください。`lastTickAt` から 24h 以上空くと対象期間を直近 24h に制限し、stderr に警告を出します。
 >
 > 指値発注時は `price * amount + fee` 相当を JPY（買い）または `amount` を base 通貨（売り）で「ロック扱い」にします。`paper assets` の `available` は `total - locked` で、`available` 不足の指値発注は Err になります。手数料は対象ペアのライブ maker/taker レート（`/spot/pairs` 由来・24h キャッシュ。取得できないときのみ既定 0.12% にフォールバック）。スリッページは入っていません。

@@ -8,6 +8,7 @@ import type { HttpOptions } from "../../http.js";
 import { type CachedPair, getPairsWithCache } from "../../pairs-cache.js";
 import { type FetchCandles, type GetPairs, runTick } from "../../paper-fill.js";
 import { BALANCE_EPS, hasEnough } from "../../paper-precision.js";
+import { withStatePath } from "../../paper-result.js";
 import {
   applyFillToBalances,
   availableOf,
@@ -103,12 +104,12 @@ export async function paperCreateOrder(
   });
   if (!tick.success) return tick;
   if (parsed.data.type === "limit") {
-    return placeLimit(parsed.data, args.feeRate, pairsR.data, path);
+    return withStatePath(await placeLimit(parsed.data, args.feeRate, pairsR.data, path), path);
   }
   // 成行は必ず taker。サイズ検証で使った pairs から該当ペアを引き、
   // ライブ taker_fee_rate_quote を fillMarket に渡す（campaign 追従）。
   const pair = pairsR.data.find((p) => p.name === parsed.data.pair);
-  return fillMarket(parsed.data, pair, args.feeRate, path, opts);
+  return withStatePath(await fillMarket(parsed.data, pair, args.feeRate, path, opts), path);
 }
 
 async function placeLimit(

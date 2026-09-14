@@ -14,6 +14,12 @@
 
 ### Added
 
+- **paper: 全コマンドが `meta.statePath` で参照した state file を申告するようになった**（#27）。
+  `BITBANK_PAPER_STATE_PATH` で複数の仮想口座を切り替えて使う場合、環境変数を付け忘れると
+  既定パスへ静かにフォールバックし、別口座の残高が `success: true` で返っていた。
+  `--machine` / `--format=json` の envelope に載る。あわせて `BITBANK_PAPER_STATE_PATH` を
+  README・runbook・Skill の参照資料に記載した（従来は `cli/paper-state.ts` にしか無かった）
+
 - **`bitbank --version` / `-v` を追加した**（#28）。package.json の version を出す。
   `--machine` 併用時は他コマンドと同じ envelope（`{"success":true,"data":{"version":...}}`）。
   fnm 等で Node ごとにグローバル install が分かれ、シェルと launchd で別バージョンが
