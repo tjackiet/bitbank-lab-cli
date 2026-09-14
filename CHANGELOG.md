@@ -44,6 +44,14 @@
 
 ### Fixed
 
+- **paper: 残高の丸め誤差で全量売却が永久に通らなくなる問題を直した**（#30）。
+  売買を繰り返すと残高が `0.0031999999999999967` のように目減りし、`pnl` の
+  position（`0.0032`）をそのまま `create-order --side=sell` に渡すと
+  `insufficient` で弾かれ続けていた。約定後の残高と履歴から積む position を
+  同じ桁（10 桁）で snap し（`cli/paper-precision.ts`）、残高チェックは `1e-9` の
+  誤差を許容する。`pnl` と `assets` が同じ数値を返すようになる。修正前に書かれた
+  誤差入りの state もそのまま全量売却できる
+
 - **README が実装に追従していなかったのを直した。** コマンド一覧に `bitbank tax`
   （`events` / `reconcile` / `pnl` / `verify-report`）・`balance-history`・`profile` の
   3 つが載っておらず、Agent Skills にも `tax-report` が無かった（カテゴリ小計が
