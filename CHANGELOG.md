@@ -12,6 +12,8 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-09-14
+
 ### Added
 
 - **`bitbank periodical-brief` を追加**（upstream #21）。複数銘柄の商い状況を 1 銘柄 3 行
