@@ -230,6 +230,9 @@ profile を 1 つも登録していない環境では、従来通り `BITBANK_AP
 | `circuit-break` | サーキットブレーカー | `bitbank circuit-break btc_jpy` |
 | `status` | 取引所ステータス | `bitbank status` |
 | `pairs` | ペア設定情報 | `bitbank pairs` |
+| `periodical-brief` | 複数銘柄の商い状況ダイジェスト（1 銘柄 3 行） | `bitbank periodical-brief --top=10` |
+
+> `periodical-brief` は RSI14 / MACD / SMA20-50-200 / ATR14 と曜日別出来高を **CLI 内で計算**し、1 銘柄 3 行に圧縮して返します（分析ロジックを CLI に置かない原則の例外。[ADR-008](docs/adr/008-periodical-brief-indicators-in-cli.md)）。指標は確定日足のみで計算し、売買判断は出しません。銘柄は位置引数（`periodical-brief btc_jpy sol_jpy`）、`--top=N`（24h 売買代金上位）、`--all`（現行の取扱い JPY 建て全銘柄）で指定します。`--format=table` はダイジェスト本文をそのまま出すので cron や通知にそのまま流せます。一部銘柄の取得に失敗しても落とさず `errors` + `partial: true` で申告します。
 
 ### Private（要認証）
 
@@ -511,7 +514,7 @@ Skill はモデルへの指示書であり、CLI コマンドを組み合わせ�
 > Skill の使い所はこちら → [Skill 使い所ガイド](docs/skill-workflow.md)
 > 全 Skill の責務・カテゴリ・代表トリガーの一覧（正典カタログ）→ [Skills Index](skills/INDEX.md)
 
-### 分析系（7本）
+### 分析系（8本）
 
 #### portfolio
 
@@ -561,6 +564,16 @@ Skill はモデルへの指示書であり、CLI コマンドを組み合わせ�
 「BTC の RSI を見て」
 「移動平均のクロスを確認して」
 「ETH の4時間足でテクニカル分析して」
+```
+
+#### periodical-brief
+
+複数銘柄の商い状況を 1 銘柄 3 行のダイジェストで一覧。現在値・RSI14・MACD 符号・SMA20/50/200 との位置・曜日別出来高・ATR14。計算は CLI（`bitbank periodical-brief`）が確定日足だけで行い、Skill 側では計算しない。生ローソク足を文脈に入れないので銘柄数を増やしてもトークン消費は増えない。
+
+```
+「朝のブリーフ出して」
+「出来高上位 10 銘柄の様子は？」
+「全銘柄の商い状況ざっと見せて」
 ```
 
 #### signal-explorer
@@ -774,7 +787,7 @@ cli/
     paper/              # ペーパートレード（ライブ価格 × ローカル state、9）
     stream.ts           # リアルタイムストリーム
   __tests__/            # 全コマンドのテスト（件数は npx vitest run 参照）
-skills/                 # Agent Skills（13本 + _shared/references/）
+skills/                 # Agent Skills（14本 + _shared/references/）
 docs/                   # ADR・フェーズ管理・カスタマイズガイド
 .contrib/               # コントリビューター向け hook tooling（clone 利用者は不要）
 ```
