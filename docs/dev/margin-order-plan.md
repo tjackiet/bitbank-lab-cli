@@ -65,7 +65,13 @@
 | ショート新規建て | `sell` | `short` |
 | ショート返済 | `buy` | `short` |
 
-- 返済注文は約定まで建玉の `locked_amount` として `margin-positions` に現れる
+- 返済注文は約定まで建玉の `locked_amount`（アクティブな返済注文の `remaining_amount` 合計）
+  として `margin-positions` に現れる。返済可能数量は `open_amount - locked_amount`
+- **既存 CLI の `margin-positions` には 2 つの前提バグがある**（本フェーズの前提修正、Step 1.5）:
+  - `PositionSchema` に `locked_amount` が無く、Zod が未知キーを落とすため出力に現れない。
+    返済可能数量を利用者が判定できないので、フィールドを足す
+  - `--pair` を API に渡しているが、公式仕様では `GET /user/margin/positions` は
+    パラメータ無し（全ペア返却）。`--pair` は CLI 側のフィルタに変える
 - レスポンスは現物と同じ形で `position_side` が付く（`OrderSchema` は既に optional で受けている）
 
 ### 関連エラーコード（[errors.md](https://github.com/bitbankinc/bitbank-api-docs/blob/master/errors.md)）
@@ -77,7 +83,7 @@
 | 50058 | 信用取引の審査が未完了 | `AUTH` ではなく `GENERAL`。メッセージで「bitbank で信用取引の申込・審査が必要」と案内 |
 | 50059 / 50060 | 新規建ての一時制限 | retry 可（時間を置く） |
 | 50061 | 新規建て可能額超過 | `margin-status` の `available_balances[pair].long/short` を見るよう案内 |
-| 50062 | 建玉超過（`Exceeds total margin position`）。**建玉が無い / 足りない状態で返済方向を出すとこれが返る**（#M-6 で実機確認） | 「返済数量が建玉を超えている。`margin-positions` で `open_amount` を確認」と案内。逆方向の新規建てには**ならない** |
+| 50062 | 建玉超過（`Exceeds total margin position`）。**建玉が無い / 足りない状態で返済方向を出すとこれが返る**（#M-6 で実機確認） | 「返済数量が返済可能数量（`open_amount - locked_amount`）を超えている。`margin-positions` で確認」と案内。`locked_amount` は未約定の返済注文が予約している数量なので、`open_amount` だけでは判定できない。逆方向の新規建てには**ならない** |
 | 50081〜50084 | 信用 売り新規 / 売り返済 / 買い新規 / 買い返済 が停止中 | retry 不可。方向別の停止であることをメッセージに出す |
 | 60019 | TakeProfit / StopLoss の side が返済方向でない | 本フェーズは該当タイプを拒否するので到達しない想定 |
 
@@ -203,6 +209,13 @@ cli/commands/trade/
 - `npx tsx scripts/gen-agents-catalog.ts` で `agents/error-catalog.json` を再生成
 - `skills/_shared/references/error-catalog.md` に信用行を追記
 
+### Step 1.5: `margin-positions` の前提修正
+
+- `PositionSchema` に `locked_amount: numStr` を追加（fixture `__fixtures__/private/margin-positions.ts`
+  も実 API 形状に合わせて更新。`x18` が fixture 経由を強制する）
+- `--pair` は API に送らず CLI 側で `positions` を絞り込む（API はパラメータを受けない）
+- `defs-private.ts` の output に `locked_amount` を足し、`tool-catalog.json` を再生成
+
 ### Step 2: 共通部の切り出し（挙動変更なし）
 
 - `order-body.ts` / `margin-operation.ts` を新設し、`create-order.ts` を
@@ -257,6 +270,11 @@ cli/commands/trade/
 - `CHANGELOG.md`
 
 ### Step 6: 実機確認（メンテナ、信用審査済みアカウントで）
+
+**前提**: 検証専用のアカウント（または他の bot・手動発注がすべて止まっている口座）で行う。
+建玉確認と POST の間に同じペア・同方向の建玉が開くと、返済方向のテスト注文が本物の
+返済注文になり `locked_amount` を予約する。直前の再確認では競合を防げないので、
+「同時に注文を出す主体が無い」ことを運用で保証する。
 
 phases.md の慣例に合わせ、番号付きで記録する:
 
