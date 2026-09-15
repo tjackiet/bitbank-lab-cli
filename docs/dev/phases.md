@@ -211,7 +211,7 @@
 ### 計画・意思決定
 
 - [x] 開発計画（`margin-order-plan.md`）
-- [ ] ADR-009: 信用注文を `trade create-margin-order` として分離（フレーズも分ける）
+- [x] ADR-009: 信用注文を `trade create-margin-order` として分離（フレーズも分ける）（[009-margin-order-separate-command.md](../adr/009-margin-order-separate-command.md)）
 
 ### 実装
 
