@@ -215,7 +215,7 @@
 
 ### 実装
 
-- [ ] エラーコード登録（50058〜50062 / 50081〜50084 / 60019）＋ `error-catalog.json` 再生成
+- [ ] エラーコード登録（40164 / 40167 / 50058〜50062 / 50081〜50084 / 60019）＋ `error-catalog.json` 再生成
 - [ ] `create-order.ts` から `order-body.ts` / `margin-operation.ts` を切り出し（既存テスト無変更で green）
 - [ ] `create-order` が `--position-side` を `PARAM` で拒否する
 - [ ] `trade create-margin-order`（`--position-side` 必須・`take_profit`/`stop_loss`/`losscut` 拒否・dry-run に操作ラベル・手数料見積りなし）
@@ -234,4 +234,5 @@
 
 ### 実機確認（信用審査済みアカウント）
 
+- [x] `pairs` に信用対応フラグが無いことを確認（信用対応ペアは `margin-status` の `available_balances` が唯一の情報源）
 - [ ] #M-1〜#M-6（計画書 §4 Step 6）。**#M-6 の結果で `--intent` の必須化を判断**

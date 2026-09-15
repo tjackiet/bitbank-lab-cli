@@ -72,6 +72,8 @@
 
 | code | 内容 | CLI での扱い |
 |---|---|---|
+| 40164 | `position_side` が不正 | `PARAM`（`apiErrorExitCode` の 30001〜40001 範囲外なので分岐追加が要る。CLI 側の Zod enum で先に弾くため通常は到達しない） |
+| 40167 | 信用取引に対応していないペア | `PARAM` 相当だが同上の理由で分岐追加。`margin-status` の `available_balances` に載るペアだけが対象である旨を案内 |
 | 50058 | 信用取引の審査が未完了 | `AUTH` ではなく `GENERAL`。メッセージで「bitbank で信用取引の申込・審査が必要」と案内 |
 | 50059 / 50060 | 新規建ての一時制限 | retry 可（時間を置く） |
 | 50061 | 新規建て可能額超過 | `margin-status` の `available_balances[pair].long/short` を見るよう案内 |
@@ -80,6 +82,18 @@
 | 60019 | TakeProfit / StopLoss の side が返済方向でない | 本フェーズは該当タイプを拒否するので到達しない想定 |
 
 いずれも `cli/error-codes.ts` に未登録。`agents/error-catalog.json` の再生成対象。
+`apiErrorExitCode` は 30001〜40001 だけを `PARAM` にしているので、40164 / 40167 を
+`PARAM` にするなら範囲を広げるのではなく**個別コードで**足す（40xxx 全体を `PARAM` に
+すると出金系の 401xx も巻き込む）。
+
+### 実機確認済み（2026-09-15）
+
+- `GET /spot/pairs` に信用対応フラグは**無い**（`is_enabled` / `stop_order` /
+  `stop_order_and_cancel` のみ）。信用対応ペアの唯一の情報源は `margin-status` の
+  `available_balances[].pair`（確認時点で btc / eth / xrp / doge / sol の 5 ペア）
+- したがって非対応ペアは CLI 側で事前に弾けず、API の 40167 に任せる。dry-run は
+  private を叩かない方針（3.4）なので、runbook で「`margin-status` で対象ペアを確認
+  してから」と案内する
 
 ---
 
@@ -174,8 +188,8 @@ cli/commands/trade/
 
 ### Step 1: エラーコード登録
 
-- `cli/error-codes.ts` に 50058〜50062 / 50081〜50084 / 60019 を追加
-- `apiErrorExitCode` の分岐は変えない（既存範囲外は `GENERAL`）。
+- `cli/error-codes.ts` に 40164 / 40167 / 50058〜50062 / 50081〜50084 / 60019 を追加
+- `apiErrorExitCode` は 40164 / 40167 だけを個別に `PARAM` へ。既存の範囲分岐は変えない（50xxx / 60019 は `GENERAL`）。
   retry 指針は `scripts/gen-agents-catalog.ts` 側のカテゴリ分類に従う
 - `npx tsx scripts/gen-agents-catalog.ts` で `agents/error-catalog.json` を再生成
 - `skills/_shared/references/error-catalog.md` に信用行を追記
@@ -266,8 +280,8 @@ phases.md の慣例に合わせ、番号付きで記録する:
 - **#M-6 の結果次第で設計が変わる**。建玉なしの返済方向が「逆方向の新規建て」に
   なるなら、`--intent` を任意から必須に格上げする（または `close` 時だけ
   private GET で建玉を確認する 3.4 の例外を作る）。着手前に実機で確定する
-- `pairs` API に信用対応ペアのフラグがあるか未確認。あれば `PairSchema` 段階で
-  弾けるが、無ければ API のエラー（50081〜50084 / 50003）に任せる
+- ~~`pairs` API に信用対応ペアのフラグがあるか未確認~~ → **無いことを実機確認済み**
+  （§2「実機確認済み」）。非対応ペアは API の 40167 に任せる
 - 信用の `amount` 単位・桁数が現物 `/spot/pairs` の `unit_amount` /
   `amount_digits` と同じかは docs に記載がない。#M-1 で確認
 - `trade-log` は `params` を丸ごと記録するので `positionSide` は自動で残るが、
