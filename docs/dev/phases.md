@@ -215,7 +215,7 @@
 
 ### 実装
 
-- [ ] エラーコード登録（40164 / 40167 / 50058〜50062 / 50081〜50084 / 60019）＋ `error-catalog.json` 再生成
+- [x] エラーコード登録（40164 / 40167 / 50058〜50062 / 50081〜50084 / 60019）＋ `error-catalog.json` 再生成
 - [ ] `margin-positions` の前提修正（`locked_amount` を露出、`--pair` を CLI 側フィルタに）
 - [ ] `create-order.ts` から `order-body.ts` / `margin-operation.ts` を切り出し（既存テスト無変更で green）
 - [ ] `create-order` が `--position-side` を `PARAM` で拒否する

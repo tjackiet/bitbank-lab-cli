@@ -12,6 +12,15 @@
 
 ## [Unreleased]
 
+### Added
+
+- 信用取引のエラーコードを `cli/error-codes.ts` に登録（Phase 7 Step 1）。40164 / 40167 /
+  50058〜50062 / 50081〜50084 / 60019 に公式 errors.md に沿った和訳と案内を付け、
+  40164 / 40167 だけを個別に `EXIT.PARAM` にする（40xxx 全体には広げない）。
+  `agents/error-catalog.json` の GENERAL 各コードにコード別の `retry` / `hint` を追加し、
+  `skills/_shared/references/error-catalog.md` に `margin` 節を追加。
+  設計判断は [ADR-009](docs/adr/009-margin-order-separate-command.md)
+
 ## [0.5.0] - 2026-09-14
 
 ### Added
