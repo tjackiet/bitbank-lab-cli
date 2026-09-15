@@ -67,6 +67,13 @@ bitbank CLI が返す `success: false` のエラーを skill が一貫して扱�
 - **skill としての振る舞い**:
   - 引数を直さないと永久に失敗する。リトライ禁止
   - CLI に渡した値（pair, asset, order-id, quantity, price）を見直す
+  - **信用の 2 コードは `error` 先頭のコードで個別に案内する**（exit code だけでは
+    「引数の見直し」で止まってしまい、正しい復旧手順に届かない）:
+    - 40164（`position_side` 不正）: `long` / `short` 以外を渡している。CLI の Zod で
+      先に弾かれるので通常は到達しない
+    - 40167（信用非対応ペア）: `pairs` に信用フラグは無いので引数を眺めても分からない。
+      `bitbank margin-status` の `available_balances[].pair` に載るペアだけが対象。
+      そのペアが載っていなければ、ペアを変えるか skill を中止する
 
 ### 3b. state — 状態不一致（注文が見つからない 等）
 
@@ -125,7 +132,7 @@ bitbank CLI が返す `success: false` のエラーを skill が一貫して扱�
 ### 6b. margin — 信用取引（`trade create-margin-order`）
 
 - **API code**: 50058 / 50059 / 50060 / 50061 / 50062 / 50081〜50084 / 60019
-  （40164 / 40167 は `param` に入る。下表参照）
+  （40164 / 40167 は `EXIT.PARAM` なので `param`（§3）で個別判定する。下表にも併記）
 - **exit code**: `EXIT.GENERAL (1)`（`state` / `balance` と同じく `error` 先頭のコードで
   個別判定する）
 - **GET / POST**: POST（`trade create-margin-order`）でのみ発生
@@ -159,7 +166,11 @@ res = run_cli(...)
 if res.success: ...
 elif res.exitCode == AUTH: → auth
 elif res.exitCode == RATE_LIMIT: → rate_limit
-elif res.exitCode == PARAM: → param
+elif res.exitCode == PARAM:
+  code = leadingCode(res.error)
+  if code == 40167: → param（信用非対応ペア。margin-status の available_balances[].pair を確認）
+  elif code == 40164: → param（position_side 不正）
+  else: → param（引数の見直し）
 elif res.exitCode == NETWORK: → network
 else:                                   # ここから success: false かつ exitCode 未分類
   code = leadingCode(res.error)         # error 文字列先頭の数値（"60001: 残高不足" → 60001）
