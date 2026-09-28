@@ -21,6 +21,15 @@
   `skills/_shared/references/error-catalog.md` に `margin` 節を追加。
   設計判断は [ADR-009](docs/adr/009-margin-order-separate-command.md)
 
+### Fixed
+
+- plugin manifest（`.claude-plugin/plugin.json` / `.cursor-plugin/plugin.json` /
+  `.codex-plugin/plugin.json`）の `homepage` / `repository`（Codex は
+  `interface.websiteURL` も）が個人フォーク `tjackiet/bitbank-lab-cli` を指していたのを、
+  README の導線と同じ `bitbankinc/bitbank-lab-cli` に揃えた。`author` / `developerName` /
+  marketplace の `owner.name` は作者を表す欄なので変えていない。marketplace の plugin
+  `source` は既に相対パス `"./"`（登録したリポ自身から解決）で、fork 固定ではなかった
+
 ## [0.5.0] - 2026-09-14
 
 ### Added
