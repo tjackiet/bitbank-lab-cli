@@ -238,3 +238,43 @@
 - [x] `pairs` に信用対応フラグが無いことを確認（信用対応ペアは `margin-status` の `available_balances` が唯一の情報源）
 - [x] #M-6: 建玉なしの返済方向は 50062 で拒否される（逆方向の新規建てにならない）→ `--intent` は任意のまま
 - [ ] #M-1〜#M-5（計画書 §4 Step 6）。#M-4 は #M-1 で建てた注文で確認
+
+---
+
+## Phase 8: ペーパートレードの信用取引（計画）
+
+**リスクレベル:** なし（仮想資金。public GET のみ）
+**成果物:** `cli/paper-margin/`、`cli/commands/paper/create-margin-order.ts` / `margin-status.ts` / `margin-positions.ts`、ADR-010
+**計画書:** [`paper-margin-plan.md`](paper-margin-plan.md)（スコープ・前提となる事実・設計判断・仕様確認項目はそちらが単一ソース）
+**ドッグフーディング基準:** paper で書いた信用のコマンドが、`paper` → `trade` の差し替えだけで本番の dry-run に通ること。仮定値が全出力に `assumptions` として出て、本番より緩い向きにずれないこと
+
+### 計画・意思決定
+
+- [x] 開発計画（`paper-margin-plan.md`）
+- [ ] ADR-010: paper に信用取引を public のみの近似シミュレーションとして足す（Proposed → Step 0 の結果で Accepted）（[010-paper-margin-simulation.md](../adr/010-paper-margin-simulation.md)）
+
+### 仕様確認（メンテナ）
+
+- [ ] #PM-0: 最新の `/spot/pairs` 生レスポンスで `margin_*` / `stop_margin_*` を確認（Phase 7 計画 §2 の「pairs に信用フラグ無し」の再確認を兼ねる）
+- [ ] #PM-1〜#PM-4: 追証・ロスカットのしきい値、保証金率の算式、利息の課金境界、評価価格（bitbank 信用取引ルールの原文）
+- [ ] #PM-5: 実口座の `margin-status` と paper の算式の突合（最小数量の建玉で手作業）
+
+### 実装
+
+- [ ] `pairs` / pairs キャッシュが `margin_*` / `stop_margin_*` を通す（キャッシュ version 2）＋ `tool-catalog.json` 再生成
+- [ ] `cli/margin-operation.ts`（Phase 7 と共有。先に着手した側が作る）
+- [ ] state v4（`cli/paper-margin/state.ts`）と v1〜v3 からの移行
+- [ ] `cli/paper-margin/`（params / account / positions / interest / losscut）
+- [ ] `paper create-margin-order` / `margin-status` / `margin-positions`、`paper create-order` の `--position-side` 拒否
+- [ ] `paper-fill.ts` の建玉 tick・ロスカット、`paper pnl` の `margin` 節、`paper assets` の信用ロック
+- [ ] `defs-paper.ts` / `paper-handlers.ts` 登録、`agents/` 再生成
+
+### テスト
+
+- [ ] 新規建て → 返済の精算（手数料・利息の按分）、4 組合せのラベルと `--intent` 不一致
+- [ ] ロスカット（単一ペア / 複数ペア / 両建て / 24h 超ギャップの `approximate`）
+- [ ] chaos `x09` の検査範囲に `cli/paper-margin/` を追加、`package.json` の `files`（`x22`）
+
+### ドキュメント（ADR-010 Accepted 後）
+
+- [ ] CLAUDE.md paper 例外節 / `commands.md` / `skills/paper-trade/SKILL.md` / `botter-runbook.md` / README / CHANGELOG
