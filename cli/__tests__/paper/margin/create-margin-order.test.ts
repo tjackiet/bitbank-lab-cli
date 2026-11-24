@@ -214,6 +214,7 @@ describe("paper create-margin-order: other pairs in the book", () => {
       type: "limit",
       price: "20000000",
       amount: "0.01",
+      nowMs: T0 + 2 * MIN, // 足（T0 + 1 分）より後にして、裏の tick が足を見つけられるようにする
     });
     expect(placed.success).toBe(true);
     const close = await order({ getPairs, side: "sell", intent: "close", nowMs: T0 + 5 * MIN });
