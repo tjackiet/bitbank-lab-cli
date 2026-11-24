@@ -178,9 +178,14 @@ bitbank paper margin-positions [--pair=btc_jpy]
   現物の買い（成行・指値ロック）で保証金が必要保証金を割り込むなら、その注文は拒否する
 - **v1 の保証金は JPY 残高だけ**（代用暗号資産なし）。安全側に倒すため（§1 スコープ外）
 - **建玉は `pair × position_side` で集約し、平均建値で持つ。** 本番の `margin-positions` と同じ粒度にする。
-  フィールド名も本番に合わせる: `open_amount` / `locked_amount` / `product` / `average_price` /
-  `unrealized_fee_amount` / `unrealized_interest_amount`
-- 返済は平均建値で損益を確定し、未実現の手数料・利息を返済数量で按分して精算する
+  **出力の**フィールド名は本番に合わせる: `open_amount` / `locked_amount` / `product` / `average_price` /
+  `unrealized_fee_amount` / `unrealized_interest_amount`。state の中は paper の慣例どおり camelCase
+  （`openAmount` / `product` / `unrealizedFee` / `unrealizedInterest`）で持ち、出力側で写す
+- `locked_amount`（未約定の返済注文が予約している数量）は state に持たず、未約定注文から導く。
+  現物の指値ロック（`computeLocked`）と同じ考え方で、取消・約定のたびに数字を合わせ直さずに済む
+- 返済は平均建値で損益を確定し、未実現の手数料・利息を返済数量で按分して精算する。
+  確定する損益は手数料・利息を引いた後のネット値で、本番 `trade-history` の `profit_loss` と同じ定義
+  （`cli/tax/import/to-events-margin.ts` 冒頭。batch1 の検算で確認済み）。JPY 残高にはこの値だけを足す
 - 両建て（同じペアのロングとショートを同時に持つ）は本番で可能なので、paper でも禁止しない
 
 ### 3.4 数値の出どころ — ライブ値と、申告する仮定値
@@ -314,6 +319,7 @@ Mo = Σ 未約定の新規建て指値 amount × price × r       # 約定時必
 ### Step 3: state v4
 
 - `cli/paper-state.ts` は既に 243 行あるので、信用のスキーマは `cli/paper-margin/state.ts` に分ける
+  （建玉のスキーマ `MarginPositionSchema` は Step 4 の建玉計算と一緒に先に作成済み）
 - v1 / v2 / v3 → v4 の移行。仮定値の既定は `cli/paper-margin/assumptions.ts` を単一ソースにする
 
 ### Step 4: 計算本体 `cli/paper-margin/`
@@ -322,7 +328,9 @@ Mo = Σ 未約定の新規建て指値 amount × price × r       # 約定時必
 |---|---|
 | `params.ts` | pairs → ペアごとの信用パラメータ（比率・手数料率・利息率・停止フラグ） |
 | `account.ts` | §3.4 の P / U / C / B / Mm / Mo・保証金率・新規建て可否・`status` |
-| `positions.ts` | 建玉の加算（平均建値）・返済（按分精算）・`locked_amount` |
+| `positions.ts` | 建玉の加算（平均建値）・評価損益（**実装済み**） |
+| `close.ts` | 返済と精算（未実現の手数料・利息の按分、ネット損益の確定）（**実装済み**） |
+| `closable.ts` | `locked_amount` の導出と返済可能数量の検査（本番の 50062 相当）（**実装済み**） |
 | `interest.ts` | 日付境界ごとの利息の積み上げ（境界は仮定値から引く） |
 | `losscut.ts` | 足の時系列走査・不利な極値での判定・全建玉の決済（§3.5） |
 
