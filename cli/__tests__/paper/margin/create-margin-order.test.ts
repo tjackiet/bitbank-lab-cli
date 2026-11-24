@@ -198,6 +198,30 @@ describe("paper create-margin-order: limit", () => {
   });
 });
 
+describe("paper create-margin-order: other pairs in the book", () => {
+  it("a pending order on another pair does not break a market close (its risk ratio is fetched too)", async () => {
+    // 実 API での確認（SKILL.md の例）で見つかった回帰: ETH のショート指値があると BTC の返済が
+    // "missing risk ratio of eth_jpy" で失敗していた（約定時必要保証金に注文のペアの比率が要る）
+    await paperInit({ jpy: "1000000", statePath });
+    const ETH: CachedPair = { ...BTC, name: "eth_jpy", base_asset: "eth" };
+    const getPairs = async () => ({ success: true as const, data: [BTC, ETH, LTC] });
+    expect((await order({ getPairs })).success).toBe(true);
+    const placed = await order({
+      getPairs,
+      pair: "eth_jpy",
+      side: "sell",
+      positionSide: "short",
+      type: "limit",
+      price: "20000000",
+      amount: "0.01",
+    });
+    expect(placed.success).toBe(true);
+    const close = await order({ getPairs, side: "sell", intent: "close", nowMs: T0 + 5 * MIN });
+    if (!close.success || !("fill" in close.data)) throw new Error(JSON.stringify(close));
+    expect(close.data.position).toBe(null);
+  });
+});
+
 describe("paper create-margin-order: rejections", () => {
   beforeEach(async () => {
     await paperInit({ jpy: "1000000", statePath });

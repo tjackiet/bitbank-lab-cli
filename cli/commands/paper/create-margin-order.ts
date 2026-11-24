@@ -51,14 +51,16 @@ export async function paperCreateMarginOrder(
     nowMs,
   });
   if (!tick.success) return tick;
-  // 口座評価には建玉のある全ペアの比率・現在値が要る（lock の外で取る）
+  // 口座評価には、建玉と未約定の信用注文のある全ペアの比率（約定時必要保証金にも要る）と、
+  // 建玉のある全ペアの現在値が要る（lock の外で取る）
   const peek = await loadState(path);
   if (!peek.success) return peek;
   const held = (peek.data?.margin.positions ?? []).map((p) => p.pair);
-  const pairs = [...new Set([...held, pair])];
-  const params = await resolveMarginParams(pairs, { nowMs, getPairs, refreshPairs });
+  const ordered = (peek.data?.margin.orders ?? []).map((o) => o.pair);
+  const booked = [...new Set([...held, ...ordered, pair])];
+  const params = await resolveMarginParams(booked, { nowMs, getPairs, refreshPairs });
   if (!params.success) return params;
-  const prices = await fetchLastPrices(pairs, opts);
+  const prices = await fetchLastPrices([...new Set([...held, pair])], opts);
   if (!prices.success) return prices;
   const plan: MarginOrderPlan = {
     ...{ pair, side, positionSide, type, amount, price, op: op.data },
