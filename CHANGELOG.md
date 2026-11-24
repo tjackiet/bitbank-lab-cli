@@ -19,6 +19,9 @@
   結果に操作ラベル（例: `ロング返済（sell × long）`）を載せる。成行は ticker の last で即時約定、指値は lazy tick で約定。
   保証金率・追証・強制決済・利息は bitbank の公表ルールどおりに paper の lazy tick が処理する
   （[ADR-010](docs/adr/010-paper-margin-simulation.md)）。public の API だけを叩く
+- `bitbank paper margin-status` / `paper margin-positions` を追加。本番の `margin-status` / `margin-positions` と同じ名前の欄
+  （保証金率・維持必要保証金・新規建て可能額・建玉の locked_amount など）を本番の docs と同じ丸めで出し、paper の判定しきい値
+  （`thresholds`）・仮定（`assumptions`）・状態が古いかどうか（`stale`）を添える
 - `bitbank paper active-orders` / `paper cancel-order` が信用の指値も扱うようにした。一覧では信用の注文だけに
   `positionSide` が付く（現物の注文の出力は変わらない）
 

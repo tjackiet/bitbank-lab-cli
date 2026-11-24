@@ -3,7 +3,7 @@
   "cli_version": "0.0.0-dev",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 50,
+  "command_count": 52,
   "dangerous_count": 5,
   "commands": [
     {
@@ -3901,6 +3901,262 @@
             }
           }
         ]
+      }
+    },
+    {
+      "command": "paper margin-status",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show the paper margin account (margin ratio, required margin, capacity; with assumptions)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "NORMAL",
+              "CALL",
+              "DEBT"
+            ]
+          },
+          "total_margin_balance": {
+            "type": "number"
+          },
+          "total_margin_balance_percentage": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "margin_position_profit_loss": {
+            "type": "number"
+          },
+          "unrealized_cost": {
+            "type": "number"
+          },
+          "total_margin_position_product": {
+            "type": "number"
+          },
+          "open_margin_position_product": {
+            "type": "number"
+          },
+          "open_margin_order_product": {
+            "type": "number"
+          },
+          "total_position_maintenance_margin": {
+            "type": "number"
+          },
+          "total_long_position_maintenance_margin": {
+            "type": "number"
+          },
+          "total_short_position_maintenance_margin": {
+            "type": "number"
+          },
+          "total_open_order_maintenance_margin": {
+            "type": "number"
+          },
+          "total_long_open_order_maintenance_margin": {
+            "type": "number"
+          },
+          "total_short_open_order_maintenance_margin": {
+            "type": "number"
+          },
+          "available_balances": {
+            "type": "array",
+            "description": "Paper estimate (B − Mm − Mo) / risk ratio; production is also capped by the credit line",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pair": {
+                  "type": "string"
+                },
+                "long": {
+                  "type": "number"
+                },
+                "short": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "thresholds": {
+            "type": "object",
+            "description": "Paper's trigger levels in margin ratio %: margin call below Mm / P, losscut below Mm × multiplier / P",
+            "properties": {
+              "margin_call_below_percentage": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "losscut_below_percentage": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "margin_call": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "judgedAt": {
+                "type": "string"
+              },
+              "deadline": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              }
+            }
+          },
+          "payables": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              }
+            }
+          },
+          "last_tick_at": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean",
+            "description": "True if the last tick could not process margin up to now"
+          },
+          "assumptions": {
+            "type": "object",
+            "description": "Values the paper margin cannot read from the public API: published-rule constants fixed at init, the valuation price assumption (ticker last) and collateral scope (JPY only), with the source"
+          }
+        }
+      }
+    },
+    {
+      "command": "paper margin-positions",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Show paper margin positions (locked amount, unrealized fee/interest/PnL; margin call notice)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "description": "Show positions of this pair only (filtered after loading, like production)"
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "type": "object",
+        "properties": {
+          "notice": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "what": {
+                "type": "string",
+                "enum": [
+                  "margin_call",
+                  "debt"
+                ]
+              },
+              "occurred_at": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "amount": {
+                "type": "number"
+              },
+              "due_date_at": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "payables": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              }
+            }
+          },
+          "positions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pair": {
+                  "type": "string"
+                },
+                "position_side": {
+                  "type": "string"
+                },
+                "open_amount": {
+                  "type": "number"
+                },
+                "locked_amount": {
+                  "type": "number"
+                },
+                "product": {
+                  "type": "number"
+                },
+                "average_price": {
+                  "type": "number"
+                },
+                "unrealized_fee_amount": {
+                  "type": "number"
+                },
+                "unrealized_interest_amount": {
+                  "type": "number"
+                },
+                "opened_at": {
+                  "type": "string"
+                },
+                "current_price": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "unrealized_profit_loss": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                }
+              }
+            }
+          },
+          "last_tick_at": {
+            "type": "string"
+          },
+          "stale": {
+            "type": "boolean"
+          },
+          "assumptions": {
+            "type": "object",
+            "description": "Values the paper margin cannot read from the public API: published-rule constants fixed at init, the valuation price assumption (ticker last) and collateral scope (JPY only), with the source"
+          }
+        }
       }
     },
     {

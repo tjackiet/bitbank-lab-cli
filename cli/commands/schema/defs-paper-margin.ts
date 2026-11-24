@@ -81,6 +81,14 @@ const marginPosition = {
   },
 };
 
+const nn = { type: ["number", "null"] };
+const assumptions = {
+  type: "object",
+  description:
+    "Values the paper margin cannot read from the public API: published-rule constants fixed at init, " +
+    "the valuation price assumption (ticker last) and collateral scope (JPY only), with the source",
+};
+
 const operation = {
   type: "object",
   description: "Derived from side × position_side (e.g. ロング返済（sell × long）)",
@@ -128,6 +136,99 @@ export const paperMarginSchemas: Record<string, SchemaDef> = {
         },
         { type: "object", properties: { operation, placed: marginOrder } },
       ],
+    },
+  },
+  "margin-status": {
+    category: "paper",
+    params: {},
+    // 本番 margin-status と同名の欄は同じ意味・同じ丸め。margin_call_percentage / losscut_percentage は出さず thresholds を出す
+    output: {
+      type: "object",
+      properties: {
+        status: { type: "string", enum: ["NORMAL", "CALL", "DEBT"] },
+        total_margin_balance: n,
+        total_margin_balance_percentage: nn,
+        margin_position_profit_loss: n,
+        unrealized_cost: n,
+        total_margin_position_product: n,
+        open_margin_position_product: n,
+        open_margin_order_product: n,
+        total_position_maintenance_margin: n,
+        total_long_position_maintenance_margin: n,
+        total_short_position_maintenance_margin: n,
+        total_open_order_maintenance_margin: n,
+        total_long_open_order_maintenance_margin: n,
+        total_short_open_order_maintenance_margin: n,
+        available_balances: {
+          type: "array",
+          description:
+            "Paper estimate (B − Mm − Mo) / risk ratio; production is also capped by the credit line",
+          items: { type: "object", properties: { pair: s, long: n, short: n } },
+        },
+        thresholds: {
+          type: "object",
+          description:
+            "Paper's trigger levels in margin ratio %: margin call below Mm / P, losscut below Mm × multiplier / P",
+          properties: { margin_call_below_percentage: nn, losscut_below_percentage: nn },
+        },
+        margin_call: {
+          type: ["object", "null"],
+          properties: { judgedAt: s, deadline: s, amount: n },
+        },
+        payables: { type: "object", properties: { amount: n } },
+        last_tick_at: s,
+        stale: {
+          type: "boolean",
+          description: "True if the last tick could not process margin up to now",
+        },
+        assumptions,
+      },
+    },
+  },
+  "margin-positions": {
+    category: "paper",
+    params: {
+      pair: p(
+        "string",
+        "Show positions of this pair only (filtered after loading, like production)",
+      ),
+    },
+    output: {
+      type: "object",
+      properties: {
+        notice: {
+          type: ["object", "null"],
+          properties: {
+            what: { type: "string", enum: ["margin_call", "debt"] },
+            occurred_at: nn,
+            amount: n,
+            due_date_at: nn,
+          },
+        },
+        payables: { type: "object", properties: { amount: n } },
+        positions: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              pair: s,
+              position_side: s,
+              open_amount: n,
+              locked_amount: n,
+              product: n,
+              average_price: n,
+              unrealized_fee_amount: n,
+              unrealized_interest_amount: n,
+              opened_at: s,
+              current_price: nn,
+              unrealized_profit_loss: nn,
+            },
+          },
+        },
+        last_tick_at: s,
+        stale: b,
+        assumptions,
+      },
     },
   },
 };

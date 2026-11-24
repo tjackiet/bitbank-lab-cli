@@ -451,7 +451,15 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
     指値は `margin.orders` に積み（約定は lazy tick）、成行は last で約定させる（`market-fill.ts`。taker 手数料・円に丸めない）
   - 成行の返済で追証が解ければ解消し、結果の `marginCallResolved` で返す
   - 結果に `operation: { label, intent }` を載せる。口座の状態による拒否は一般のエラー（exit 1）、入力の誤りは PARAM（exit 4）
-- `cli/commands/paper/margin-status.ts` / `margin-positions.ts`（lazy tick → 評価 → 出力。`assumptions` 付き）
+- **`paper margin-status` / `paper margin-positions`（実装済み）**: `cli/commands/paper/margin-status.ts` / `margin-positions.ts`
+  （準備は `margin-view-prep.ts`、組み立ては `paper-margin/status.ts` / `positions-view.ts`）
+  - 本番と同じ意味で計算できる欄は本番と同じ名前（snake_case）・同じ丸め（`paper-margin/rounding.ts`。保証金率は切り捨て 2 桁、
+    維持必要保証金は切り上げ 4 桁など）。丸めの前に 3 桁下でそろえ、浮動小数の誤差が 1 単位として出ないようにする
+  - `margin_call_percentage` / `losscut_percentage` / `losscut_threshold` は本番の値の意味・単位を実口座で確かめていないので同名では出さず、
+    paper の判定しきい値を `thresholds`（追証は Mm / P、強制決済は Mm × 掛け目 / P。保証金率 %）に出す
+  - paper だけの欄: `assumptions`（使ったリスク想定比率と until・評価価格・公表ルールの値と出典）、`stale`（直前の tick が now まで
+    走査できなかった）、`margin_call`、建玉ごとの `current_price` / `unrealized_profit_loss`（本番の API は建玉ごとの評価損益を返さない）
+  - `status` は NORMAL / CALL / DEBT。`available_balances` は信用対応の全ペアについての paper の見積り（B − Mm − Mo）/ r
 - `paper create-order` は `--position-side` を受けたら `PARAM`（「信用は `paper create-margin-order`」）
 - **lazy tick への組み込み（実装済み）**: `cli/paper-fill.ts` の `runTick` が、現物の約定を反映した後に信用の走査を回す
   - 取得（足・pairs）は lock の外の `cli/paper-margin-tick.ts`、state の更新は lock 内の `cli/paper-margin/tick.ts`。
