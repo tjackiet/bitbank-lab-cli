@@ -500,6 +500,96 @@
             },
             "amount_digits": {
               "type": "number"
+            },
+            "margin_open_maker_fee_rate_quote": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_open_taker_fee_rate_quote": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_close_maker_fee_rate_quote": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_close_taker_fee_rate_quote": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_long_interest": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_short_interest": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_current_individual_ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_current_company_ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_next_individual_ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_next_company_ratio": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_current_individual_until": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_current_company_until": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_next_individual_until": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "margin_next_company_until": {
+              "type": [
+                "number",
+                "null"
+              ]
+            },
+            "stop_margin_long_order": {
+              "type": "boolean"
+            },
+            "stop_margin_short_order": {
+              "type": "boolean"
             }
           }
         }

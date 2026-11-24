@@ -12,6 +12,21 @@
 
 ## [Unreleased]
 
+### Added
+
+- `bitbank pairs` が信用取引のフィールドを返すようにした（ペーパートレードの信用 Phase 8
+  Step 1）。新規建て / 決済の maker・taker 手数料率（`margin_open_*` / `margin_close_*`）、
+  ロング / ショートの利息率 /日（`margin_long_interest` / `margin_short_interest`）、
+  個人 / 法人のリスク想定比率とその適用終了日時（`margin_current_*` / `margin_next_*`）、
+  新規建て停止ステータス（`stop_margin_long_order` / `stop_margin_short_order`）。
+  公開 API はこれまでも返していたが、CLI の Zod スキーマが落としていた。信用非対応ペアでは
+  率・日時が `null`。設計判断は [ADR-010](docs/adr/010-paper-margin-simulation.md)（Proposed）
+
+### Changed
+
+- pairs キャッシュ（`~/.bitbank/pairs-cache.json`）の形式を version 2 にした（信用フィールドを保存）。
+  version 1 のキャッシュは次回利用時に 1 度だけ自動で取り直す
+
 ## [0.5.1] - 2026-09-28
 
 ### Added
