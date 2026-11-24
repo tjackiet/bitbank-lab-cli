@@ -464,7 +464,10 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
     信用を走査せず `lastTickAt` を進めない（次の tick でやり直す）
   - この tick で現物の売りが約定し追証が残っていれば、窓の最後の足で解消を判定する（売りの約定時刻までは再現しない近似）
   - `paper tick` の出力に `margin`（約定・強制決済の決済の履歴行、追証・強制決済の出来事、`approximate`）を足した
-- `paper cancel-order`: 信用の指値も取り消せる（返済注文なら `locked_amount` を戻す）
+- **`paper cancel-order` / `paper active-orders`（実装済み）**: `cancel-order` は id で現物の指値を探し、無ければ信用の指値を取り消す
+  （返済注文の予約数量・新規建て注文の約定時必要保証金は導出なので、注文を消すだけで解放される）。lazy tick が先に約定させた注文は
+  現物と同じく「already filled」になる。`active-orders` は現物と信用の未約定注文を作成順にまとめ、信用の注文だけに `positionSide` を付ける
+  （混在時は表の列が出るよう、現物の行にもキーを undefined で持たせる。JSON には出ない）
 - `paper pnl`: 信用の履歴を `perPair` から除外し、`margin` 節を足す（§3.7）
 - `paper assets`: 信用の指値の約定時必要保証金をロックとして見せる
 

@@ -3134,6 +3134,9 @@
                 "side": {
                   "type": "string"
                 },
+                "positionSide": {
+                  "type": "string"
+                },
                 "type": {
                   "type": "string"
                 },
@@ -3280,6 +3283,9 @@
                   "side": {
                     "type": "string"
                   },
+                  "positionSide": {
+                    "type": "string"
+                  },
                   "type": {
                     "type": "string"
                   },
@@ -3303,7 +3309,7 @@
       "command": "paper active-orders",
       "category": "paper",
       "auth_required": false,
-      "description": "Show paper open (limit) orders",
+      "description": "Show paper open (limit) orders, spot and margin",
       "dangerous": false,
       "params": {
         "type": "object",
@@ -3322,6 +3328,9 @@
               "type": "string"
             },
             "side": {
+              "type": "string"
+            },
+            "positionSide": {
               "type": "string"
             },
             "type": {
@@ -3344,7 +3353,7 @@
       "command": "paper cancel-order",
       "category": "paper",
       "auth_required": false,
-      "description": "Cancel a paper limit order by id",
+      "description": "Cancel a paper limit order by id (spot or margin)",
       "dangerous": false,
       "params": {
         "type": "object",
@@ -3369,6 +3378,9 @@
                 "type": "string"
               },
               "side": {
+                "type": "string"
+              },
+              "positionSide": {
                 "type": "string"
               },
               "type": {

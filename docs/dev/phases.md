@@ -274,6 +274,7 @@
 - [x] `cli/paper-margin/` の口座評価（`account.ts` 保証金率・必要保証金 / `conditions.ts` 追証・強制決済の判定基準 / `new-open.ts` 新規建ての可否）
 - [x] `cli/paper-margin/` の強制決済と追証（`losscut.ts` 判定価格・全建玉の決済 / `margin-call.ts` 15 時の判定・期限・解消 / `fills.ts` 信用の指値の約定 / `scan*.ts` 時系列の処理）
 - [x] `paper create-margin-order`（成行・指値、新規建て・返済。PARAM / 40167 / 停止 / 50061 / 50062 / 追証 / 不足金 / 状態が古い、を拒否）
+- [x] `paper active-orders` / `cancel-order` が信用の指値も扱う
 - [ ] `paper margin-status` / `margin-positions`、`paper create-order` の `--position-side` 拒否
 - [x] lazy tick への組み込み（`paper-fill.ts` の `runTick` から信用の走査。取得は `paper-margin-tick.ts`、反映は `paper-margin/tick.ts`。24h 超は 4hour 足で approximate）
 - [ ] `paper pnl` の `margin` 節、`paper assets` の信用ロック

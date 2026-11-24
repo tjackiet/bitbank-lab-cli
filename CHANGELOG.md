@@ -19,6 +19,8 @@
   結果に操作ラベル（例: `ロング返済（sell × long）`）を載せる。成行は ticker の last で即時約定、指値は lazy tick で約定。
   保証金率・追証・強制決済・利息は bitbank の公表ルールどおりに paper の lazy tick が処理する
   （[ADR-010](docs/adr/010-paper-margin-simulation.md)）。public の API だけを叩く
+- `bitbank paper active-orders` / `paper cancel-order` が信用の指値も扱うようにした。一覧では信用の注文だけに
+  `positionSide` が付く（現物の注文の出力は変わらない）
 
 - `bitbank pairs` が信用取引のフィールドを返すようにした（ペーパートレードの信用 Phase 8
   Step 1）。新規建て / 決済の maker・taker 手数料率（`margin_open_*` / `margin_close_*`）、

@@ -23,9 +23,19 @@ const historyEntry = {
   },
 };
 
+// positionSide は信用の注文（ADR-010）だけに付く。現物の注文には無い
 const openOrder = {
   type: "object",
-  properties: { id: s, pair: s, side: s, type: s, price: n, amount: n, createdAt: s },
+  properties: {
+    id: s,
+    pair: s,
+    side: s,
+    positionSide: s,
+    type: s,
+    price: n,
+    amount: n,
+    createdAt: s,
+  },
 };
 
 const pnlRow = {

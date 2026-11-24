@@ -62,11 +62,11 @@ export const paperCommands: Record<string, CommandEntry> = {
     })),
   },
   "active-orders": {
-    description: "Show paper open (limit) orders",
+    description: "Show paper open (limit) orders, spot and margin",
     handler: handler("./paper/active-orders.js", "paperActiveOrders", () => ({})),
   },
   "cancel-order": {
-    description: "Cancel a paper limit order by id",
+    description: "Cancel a paper limit order by id (spot or margin)",
     options: { id: str },
     handler: handler("./paper/cancel-order.js", "paperCancelOrder", (_a, v) => ({
       id: valStr(v, "id"),
