@@ -298,13 +298,18 @@ Mo = Σ 未約定の新規建て指値 amount × price × r       # 約定時必
   （v1 のキャッシュは信用フィールドが無いので、読んだら取り直す）
 - 比率は週次で切り替わる（`until`）。キャッシュの TTL（24h）とは別に、`until` を過ぎていたら
   `next` の値を使うか取り直すかを `cli/paper-margin/params.ts` で決める
+  （実装: current の `until` までは current、過ぎたら next、next も過ぎたら `stale` を返して取り直させる）
 - `defs-public-*.ts` の `pairs` output を更新し、`tool-catalog.json` を再生成する
 - 現物 paper の挙動は変えない（既存テスト無変更で green）
+- `cli/paper-margin/` を作るので、chaos `x09` の検査範囲と `package.json` の `files` もこの Step で足す（§3.8）
+- キーの一覧と、Zod（API / キャッシュ）・JSON Schema（カタログ）の各表現での型は
+  `cli/pair-margin-fields.ts` を単一ソースにする
 
 ### Step 2: `cli/margin-operation.ts`（Phase 7 と共有）
 
 - `side × position_side → { label, intent }` の純関数と、`--intent` 不一致の判定
-- Phase 7 が先に作っていたら、それを使う
+- Phase 7 が先に作っていたら、それを使う（実際は本フェーズが先に作った。
+  `margin-order-plan.md` §3.5 を `cli/margin-operation.ts` に合わせて更新済み）
 
 ### Step 3: state v4
 
@@ -360,8 +365,8 @@ Mo = Σ 未約定の新規建て指値 amount × price × r       # 約定時必
   - `paper pnl` の `perPair` / `total` が信用の約定で変わらない
   - state v3 → v4 の移行
 - chaos:
-  - `x09` の検査範囲に `cli/paper-margin/` を足す（§3.8）
-  - `x22` は `package.json` の `files` 更新で通す
+  - `x09` の検査範囲に `cli/paper-margin/` を足す（§3.8。Step 1 で実施済み）
+  - `x22` は `package.json` の `files` 更新で通す（Step 1 で実施済み）
   - `x04`（各ファイル 100 行目安）、`x17`（catalog の drift）
 
 ### Step 8: ドキュメント（ADR-010 が Accepted になってから）

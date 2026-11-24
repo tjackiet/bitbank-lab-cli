@@ -183,8 +183,13 @@ cli/commands/trade/
   create-order.ts          # 現物。position-side を受けたら PARAM
   create-margin-order.ts   # 信用。position-side 必須・intent クロスチェック
   order-body.ts            # 共通: 入力 Zod ベース + body 組立 + type 別 refine
-  margin-operation.ts      # side × position_side → ラベル/intent の純関数
+cli/
+  margin-operation.ts      # side × position_side → ラベル/intent の純関数（paper と共有）
 ```
+
+`margin-operation.ts` は paper の信用（Phase 8）と共有するため、`cli/commands/trade/` ではなく
+`cli/` 直下に置く。Phase 8 Step 2 で作成済み（`marginOperation` / `checkMarginIntent`。
+テストは `cli/__tests__/margin-operation.test.ts`）。trade 側はこれを import して使う。
 
 `order-body.ts` の Zod ベースを両コマンドが `.extend()` して使う。
 `refineExecuteConfirm("<command>")` の呼び出しは各コマンドファイルに残す
@@ -218,8 +223,8 @@ cli/commands/trade/
 
 ### Step 2: 共通部の切り出し（挙動変更なし）
 
-- `order-body.ts` / `margin-operation.ts` を新設し、`create-order.ts` を
-  それに乗せ換える。**既存テスト（`create-order.test.ts`）を一切変えずに green** が完了条件
+- `order-body.ts` を新設し、`create-order.ts` をそれに乗せ換える
+  （`margin-operation.ts` は Phase 8 で `cli/` 直下に作成済み。§3.5）。**既存テスト（`create-order.test.ts`）を一切変えずに green** が完了条件
 - `create-order.ts` に `positionSide` を受けたら `PARAM` で拒否する分岐を足す
   （「信用は `trade create-margin-order` を使ってください」）
 
@@ -251,7 +256,8 @@ cli/commands/trade/
   - body に `position_side` が入り、レスポンスの `position_side` がパースされる
   - 監査ログ（`trade-log`）に `params.positionSide` が残る
 - `cli/__tests__/trade/create-order.test.ts` に「`positionSide` を渡すと `PARAM`」を追加
-- `cli/__tests__/trade/margin-operation.test.ts`（純関数）
+- ~~`cli/__tests__/trade/margin-operation.test.ts`（純関数）~~ → Phase 8 で
+  `cli/__tests__/margin-operation.test.ts` として作成済み
 - chaos の更新:
   - `x10-confirm-guards.test.ts` の「`CONFIRM_PHRASES` covers exactly the 5 trade commands」を 6 に更新
   - `x06` / `x10b` は新ファイルを自動検出するので、`.execute` 参照と

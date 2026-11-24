@@ -204,7 +204,7 @@
 ## Phase 7: 信用取引の新規建て・返済注文（計画）
 
 **リスクレベル:** 資金操作（損失が証拠金を超え得る）
-**成果物:** `cli/commands/trade/create-margin-order.ts`、共通化した `order-body.ts` / `margin-operation.ts`、ADR-009
+**成果物:** `cli/commands/trade/create-margin-order.ts`、共通化した `order-body.ts`、`cli/margin-operation.ts`（Phase 8 と共有・作成済み）、ADR-009
 **計画書:** [`margin-order-plan.md`](margin-order-plan.md)（スコープ・設計判断・実機確認項目はそちらが単一ソース）
 **ドッグフーディング基準:** 「返済のつもりで新規建て」が構造的に起こらないこと（API 側は #M-6 で 50062 拒否を確認済み。CLI 側は dry-run の操作ラベルと `--intent` クロスチェックで承認前に可視化する）
 
@@ -217,7 +217,8 @@
 
 - [x] エラーコード登録（40164 / 40167 / 50058〜50062 / 50081〜50084 / 60019）＋ `error-catalog.json` 再生成
 - [ ] `margin-positions` の前提修正（`locked_amount` を露出、`--pair` を CLI 側フィルタに）
-- [ ] `create-order.ts` から `order-body.ts` / `margin-operation.ts` を切り出し（既存テスト無変更で green）
+- [ ] `create-order.ts` から `order-body.ts` を切り出し（既存テスト無変更で green）
+- [x] `cli/margin-operation.ts`（side × position_side → ラベル / intent。Phase 8 Step 2 で作成済み）
 - [ ] `create-order` が `--position-side` を `PARAM` で拒否する
 - [ ] `trade create-margin-order`（`--position-side` 必須・`take_profit`/`stop_loss`/`losscut` 拒否・dry-run に操作ラベル・手数料見積りなし）
 - [ ] `CONFIRM_PHRASES` に `I-UNDERSTAND-CREATE-MARGIN-ORDER`、`x10` の件数を 6 に更新
@@ -261,8 +262,9 @@
 
 ### 実装
 
-- [ ] `pairs` / pairs キャッシュが `margin_*` / `stop_margin_*` を通す（キャッシュ version 2）＋ `tool-catalog.json` 再生成
-- [ ] `cli/margin-operation.ts`（Phase 7 と共有。先に着手した側が作る）
+- [x] `pairs` / pairs キャッシュが `margin_*` / `stop_margin_*` を通す（キャッシュ version 2）＋ `tool-catalog.json` 再生成
+- [x] `cli/paper-margin/params.ts`（pairs → ペアごとの信用パラメータ。比率の週次切替・fail-closed）
+- [x] `cli/margin-operation.ts`（Phase 7 と共有）
 - [ ] state v4（`cli/paper-margin/state.ts`）と v1〜v3 からの移行
 - [ ] `cli/paper-margin/`（params / account / positions / interest / losscut）
 - [ ] `paper create-margin-order` / `margin-status` / `margin-positions`、`paper create-order` の `--position-side` 拒否
@@ -273,7 +275,7 @@
 
 - [ ] 新規建て → 返済の精算（手数料・利息の按分）、4 組合せのラベルと `--intent` 不一致
 - [ ] ロスカット（単一ペア / 複数ペア / 両建て / 24h 超ギャップの `approximate`）
-- [ ] chaos `x09` の検査範囲に `cli/paper-margin/` を追加、`package.json` の `files`（`x22`）
+- [x] chaos `x09` の検査範囲に `cli/paper-margin/` を追加、`package.json` の `files`（`x22`）
 
 ### ドキュメント（ADR-010 Accepted 後）
 
