@@ -10,7 +10,7 @@ import type { Result } from "../types.js";
 import { bookOf, withBook } from "./book.js";
 import { historyOfFill, historyOfLosscut, type MarginHistoryEntry } from "./history.js";
 import type { PriceRange } from "./losscut.js";
-import { resolvesAfterSpotSale } from "./margin-call.js";
+import { resolvesAfterAction } from "./margin-call.js";
 import type { MarginPairParams } from "./params.js";
 import { scanMargin } from "./scan.js";
 import type { MarginBook } from "./state.js";
@@ -71,7 +71,7 @@ export function applyMarginTick(
   if (
     book.call &&
     opts.spotSold &&
-    resolvesAfterSpotSale(book, lastRanges(book, input), input.params)
+    resolvesAfterAction(book, lastRanges(book, input), input.params)
   ) {
     book = { ...book, call: null };
     events.push({ kind: "margin-call-resolved", at: new Date(nowMs).toISOString() });

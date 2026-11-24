@@ -3,7 +3,7 @@
   "cli_version": "0.0.0-dev",
   "generator": "scripts/gen-agents-catalog.ts",
   "description": "Machine-readable command catalog for the bitbank CLI. Generated from cli/commands/schema (ALL_SCHEMAS) + trade confirm-guard (CONFIRM_PHRASES). `command` is the full invocation path: subcommand groups (trade / tax / paper / profile) are spelled `<group> <name>`, everything else is a bare name. `dangerous: true` marks fund-affecting trade commands that require --execute together with --confirm=<confirm>; paper and profile touch no real funds, so their --confirm flags (paper reset, profile remove) are plain required booleans declared in `params` and are not dangerous. A param with `positional: true` is passed as a bare argument, not a flag. Do not edit by hand — run `npx tsx scripts/gen-agents-catalog.ts`.",
-  "command_count": 49,
+  "command_count": 50,
   "dangerous_count": 5,
   "commands": [
     {
@@ -3673,6 +3673,222 @@
             }
           }
         }
+      }
+    },
+    {
+      "command": "paper create-margin-order",
+      "category": "paper",
+      "auth_required": false,
+      "description": "Place a paper margin order (open/close by side × position-side; market or limit)",
+      "dangerous": false,
+      "params": {
+        "type": "object",
+        "properties": {
+          "pair": {
+            "type": "string",
+            "description": "Margin-enabled trading pair (e.g. btc_jpy)"
+          },
+          "side": {
+            "type": "string",
+            "description": "Order side. Open/close is decided by side × position-side",
+            "enum": [
+              "buy",
+              "sell"
+            ]
+          },
+          "position-side": {
+            "type": "string",
+            "description": "Position side (required): buy×long / sell×short open, sell×long / buy×short close",
+            "enum": [
+              "long",
+              "short"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "description": "Order type",
+            "enum": [
+              "market",
+              "limit"
+            ]
+          },
+          "amount": {
+            "type": "string",
+            "description": "Order amount"
+          },
+          "price": {
+            "type": "string",
+            "description": "Limit price (required for limit orders)"
+          },
+          "intent": {
+            "type": "string",
+            "description": "Optional cross-check; rejected with PARAM if it does not match side × position-side",
+            "enum": [
+              "open",
+              "close"
+            ]
+          }
+        },
+        "required": []
+      },
+      "output": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "object",
+                "description": "Derived from side × position_side (e.g. ロング返済（sell × long）)",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "close"
+                    ]
+                  }
+                }
+              },
+              "fill": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "pair": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "type": "string"
+                  },
+                  "positionSide": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "market",
+                      "limit",
+                      "losscut"
+                    ]
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "fillPrice": {
+                    "type": "number"
+                  },
+                  "feeOccurred": {
+                    "type": "number"
+                  },
+                  "feeCharged": {
+                    "type": "number"
+                  },
+                  "profitLoss": {
+                    "type": "number"
+                  },
+                  "interest": {
+                    "type": "number"
+                  },
+                  "filledAt": {
+                    "type": "string"
+                  }
+                }
+              },
+              "position": {
+                "type": [
+                  "object",
+                  "null"
+                ],
+                "properties": {
+                  "pair": {
+                    "type": "string"
+                  },
+                  "positionSide": {
+                    "type": "string"
+                  },
+                  "openAmount": {
+                    "type": "number"
+                  },
+                  "product": {
+                    "type": "number"
+                  },
+                  "unrealizedFee": {
+                    "type": "number"
+                  },
+                  "unrealizedInterest": {
+                    "type": "number"
+                  },
+                  "openedAt": {
+                    "type": "string"
+                  },
+                  "lastInterestAt": {
+                    "type": "string"
+                  }
+                }
+              },
+              "jpy": {
+                "type": "number"
+              },
+              "marginCallResolved": {
+                "type": "boolean"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "properties": {
+              "operation": {
+                "type": "object",
+                "description": "Derived from side × position_side (e.g. ロング返済（sell × long）)",
+                "properties": {
+                  "label": {
+                    "type": "string"
+                  },
+                  "intent": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "close"
+                    ]
+                  }
+                }
+              },
+              "placed": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "pair": {
+                    "type": "string"
+                  },
+                  "side": {
+                    "type": "string"
+                  },
+                  "positionSide": {
+                    "type": "string"
+                  },
+                  "type": {
+                    "type": "string"
+                  },
+                  "price": {
+                    "type": "number"
+                  },
+                  "amount": {
+                    "type": "number"
+                  },
+                  "createdAt": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
       }
     },
     {

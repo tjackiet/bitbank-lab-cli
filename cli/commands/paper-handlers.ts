@@ -40,6 +40,27 @@ export const paperCommands: Record<string, CommandEntry> = {
       refreshPairs: v["refresh-pairs"] === true,
     })),
   },
+  "create-margin-order": {
+    description: "Place a paper margin order (open/close by side × position-side; market or limit)",
+    options: {
+      pair: str,
+      side: str,
+      "position-side": str,
+      type: str,
+      amount: str,
+      price: str,
+      intent: str,
+    },
+    handler: handler("./paper/create-margin-order.js", "paperCreateMarginOrder", (_a, v) => ({
+      pair: valStr(v, "pair"),
+      side: valStr(v, "side"),
+      positionSide: valStr(v, "position-side"),
+      type: valStr(v, "type"),
+      amount: valStr(v, "amount"),
+      price: valStr(v, "price"),
+      intent: valStr(v, "intent"),
+    })),
+  },
   "active-orders": {
     description: "Show paper open (limit) orders",
     handler: handler("./paper/active-orders.js", "paperActiveOrders", () => ({})),

@@ -9,6 +9,7 @@
 import type { Candle } from "./commands/public/candles-fetch.js";
 import type { HttpOptions } from "./http.js";
 import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
+import { hasMarginBook } from "./paper-margin/book.js";
 import type { MarginTickInput } from "./paper-margin/tick.js";
 import { fetchCoarseCandles } from "./paper-margin-candles.js";
 import { resolveMarginParams } from "./paper-margin-pairs.js";
@@ -37,10 +38,6 @@ export type PrepareMarginTickOptions = {
   getPairs?: GetPairs;
   httpOptions?: HttpOptions;
 };
-
-export function hasMarginBook(state: PaperState): boolean {
-  return state.margin.positions.length > 0 || state.margin.orders.length > 0;
-}
 
 export async function prepareMarginTick(
   state: PaperState,

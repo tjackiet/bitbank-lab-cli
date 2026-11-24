@@ -35,9 +35,9 @@ export function resolvesMarginCall(after: MarginAccount): boolean {
   return !isMarginCallCondition(after);
 }
 
-/** 現物の売却の後、ranges（足の安値・高値）の不利な極値で評価して追証が解けているか。
- *  価格や比率が欠けていれば解けていない扱いにする（解消を早めない側） */
-export function resolvesAfterSpotSale(
+/** 解消の行為（現物の売却・成行の返済）の後、ranges（足の安値・高値。現在値だけなら low = high）の
+ *  不利な極値で評価して追証が解けているか。価格や比率が欠けていれば解けていない扱いにする（解消を早めない側） */
+export function resolvesAfterAction(
   book: MarginBook,
   ranges: ReadonlyMap<string, PriceRange>,
   params: ReadonlyMap<string, Pick<MarginPairParams, "riskRatio">>,

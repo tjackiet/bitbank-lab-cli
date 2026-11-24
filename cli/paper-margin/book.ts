@@ -19,3 +19,8 @@ export function withBook(state: PaperState, book: MarginBook): PaperState {
     margin: { ...state.margin, positions: book.positions, orders: book.orders, call: book.call },
   };
 }
+
+/** 信用の建玉か注文があるか（信用の走査が要る口座か） */
+export function hasMarginBook(state: PaperState): boolean {
+  return state.margin.positions.length > 0 || state.margin.orders.length > 0;
+}

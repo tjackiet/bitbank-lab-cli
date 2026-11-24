@@ -441,15 +441,16 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
 
 ### Step 5: コマンド
 
-- `cli/commands/paper/create-margin-order.ts`
-  - params: `pair` / `side` / `position-side`（必須、`long|short`）/ `type`（`market|limit`）/
-    `amount` / `price` / `intent`（任意）
-  - 拒否するもの: 信用非対応ペア、新規建て停止中、新規建てで保証金不足、返済で返済可能数量
-    （`open_amount − locked_amount`）超過、`CALL` / `DEBT` 中の新規建て。
-    メッセージには本番の対応コードを添える（例:「返済可能数量を超えています（本番では 50062）」）
-  - 結果に `operation: { label, intent }` を載せる
-  - 手数料は円に丸めない。state には完全精度で持ち、出力の手数料系だけ 4 桁で四捨五入する
-    （本番の約定履歴と同じ。§2.4。現物 paper の `computeFill` は JPY を整数に丸めるが、信用には流用しない）
+- **`paper create-margin-order`（実装済み）**: `cli/commands/paper/create-margin-order.ts`
+  - params: `pair` / `side` / `position-side`（必須、`long|short`）/ `type`（`market|limit`）/ `amount` / `price` / `intent`（任意）
+  - lock の外（`margin-order-input.ts` / `margin-order-prep.ts`）: 入力と操作ラベル、pairs による数量の検証、
+    信用非対応ペアは PARAM（本番では 40167）、新規建て停止は新規建てだけを止める（買い新規 50083 / 売り新規 50081）、
+    lazy tick、口座評価に要る全ペアの信用パラメータと現在値（ticker の last）
+  - lock 内（`paper-margin/order-gate.ts` → `order.ts`）: 初期化済みか、信用の状態が最新か（信用の建玉・注文がある口座では
+    直前の tick が now まで走査できたこと）、不足金・追証・新規建て可能額（50061）・返済可能数量（50062）を見てから、
+    指値は `margin.orders` に積み（約定は lazy tick）、成行は last で約定させる（`market-fill.ts`。taker 手数料・円に丸めない）
+  - 成行の返済で追証が解ければ解消し、結果の `marginCallResolved` で返す
+  - 結果に `operation: { label, intent }` を載せる。口座の状態による拒否は一般のエラー（exit 1）、入力の誤りは PARAM（exit 4）
 - `cli/commands/paper/margin-status.ts` / `margin-positions.ts`（lazy tick → 評価 → 出力。`assumptions` 付き）
 - `paper create-order` は `--position-side` を受けたら `PARAM`（「信用は `paper create-margin-order`」）
 - **lazy tick への組み込み（実装済み）**: `cli/paper-fill.ts` の `runTick` が、現物の約定を反映した後に信用の走査を回す

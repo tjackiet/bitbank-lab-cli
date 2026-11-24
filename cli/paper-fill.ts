@@ -13,8 +13,9 @@ import { ymdUtc } from "./date-utils.js";
 import { computeFill, resolveFeeRate } from "./fees.js";
 import type { HttpOptions } from "./http.js";
 import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
+import { hasMarginBook } from "./paper-margin/book.js";
 import { applyMarginTick, type MarginTickReport } from "./paper-margin/tick.js";
-import { hasMarginBook, prepareMarginTick } from "./paper-margin-tick.js";
+import { prepareMarginTick } from "./paper-margin-tick.js";
 import {
   applyFillToBalances,
   defaultStatePath,
