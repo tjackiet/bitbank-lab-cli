@@ -271,7 +271,8 @@
 - [ ] state v4（`cli/paper-margin/state.ts`）と v1〜v3 からの移行
 - [x] `cli/paper-margin/` の建玉計算（`state.ts` の建玉スキーマ / `positions.ts` 加算・評価 / `close.ts` 返済・精算 / `closable.ts` 返済可能数量）
 - [x] `cli/paper-margin/interest.ts`（JST 0 時ごとの利息。`cli/date-utils.ts` の `jstDailyInstants`、積み残しのまま建玉を変える操作の拒否）
-- [ ] `cli/paper-margin/` の残り（account / losscut）
+- [x] `cli/paper-margin/` の口座評価（`account.ts` 保証金率・必要保証金 / `conditions.ts` 追証・強制決済の判定基準 / `new-open.ts` 新規建ての可否）
+- [ ] `cli/paper-margin/losscut.ts`（足の走査・強制決済）と追証の基準時判定
 - [ ] `paper create-margin-order` / `margin-status` / `margin-positions`、`paper create-order` の `--position-side` 拒否
 - [ ] `paper-fill.ts` の建玉 tick・ロスカット、`paper pnl` の `margin` 節、`paper assets` の信用ロック
 - [ ] `defs-paper.ts` / `paper-handlers.ts` 登録、`agents/` 再生成
