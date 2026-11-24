@@ -6,11 +6,8 @@ import {
   type MarginAccount,
   type PendingMarginOrder,
 } from "../../../paper-margin/account.js";
-import {
-  DEFAULT_LOSSCUT_MULTIPLIER,
-  isLosscutCondition,
-  isMarginCallCondition,
-} from "../../../paper-margin/conditions.js";
+import { DEFAULT_LOSSCUT_MULTIPLIER } from "../../../paper-margin/assumptions.js";
+import { isLosscutCondition, isMarginCallCondition } from "../../../paper-margin/conditions.js";
 import { checkNewOpen, newOpenCapacity } from "../../../paper-margin/new-open.js";
 import type { MarginPosition } from "../../../paper-margin/state.js";
 

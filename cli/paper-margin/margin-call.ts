@@ -5,7 +5,8 @@
 // 価格の回復だけでは解消しない（公表ルールの差入方法に無く、本番より強制決済が遅れる向きになるため）。
 import { snapAmount } from "../paper-precision.js";
 import type { MarginAccount } from "./account.js";
-import { isMarginCallCondition, type MarginRules } from "./conditions.js";
+import type { MarginRules } from "./assumptions.js";
+import { isMarginCallCondition } from "./conditions.js";
 import type { MarginCall } from "./state.js";
 
 /** 基準時（JST 15 時）の口座から追証を判定する。発生しなければ null */

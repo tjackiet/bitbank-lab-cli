@@ -1,5 +1,7 @@
 // paper の信用の state スキーマ（ADR-010 / docs/dev/paper-margin-plan.md §3.3・§3.8）。
-// Step 3 で PaperState v4 に組み込む。いまは信用の部分（建玉・信用の指値・追証）のスキーマだけを置く。
+// PaperState v4 の `margin`（cli/paper-state.ts）。信用の注文・約定履歴は現物の openOrders / history とは
+// 別の配列に持つ。現物のコード（computeLocked・paper-fill・computePositions）が信用の注文や売りを
+// 現物として扱わないようにするため。JPY 残高は現物と共有する balances.jpy（差入保証金）。
 //
 // フィールド名は paper の state の慣例どおり camelCase にし、本番 margin-positions の名前
 // （open_amount / product / average_price / unrealized_fee_amount / unrealized_interest_amount）
@@ -7,6 +9,8 @@
 // 持たず、openOrders から導く（closable.ts）。取消・約定のたびに数字を合わせ直さずに済む。
 import { z } from "zod";
 import { PositionSideSchema } from "../margin-operation.js";
+import { defaultMarginAssumptions, MarginAssumptionsSchema } from "./assumptions.js";
+import { MarginHistoryEntrySchema } from "./history.js";
 
 export const MarginPositionSchema = z.object({
   pair: z.string(),
@@ -49,8 +53,28 @@ export const MarginCallSchema = z.object({
   amount: z.number().positive(),
 });
 
+export const MarginStateSchema = z.object({
+  positions: z.array(MarginPositionSchema),
+  orders: z.array(MarginOrderSchema),
+  call: MarginCallSchema.nullable(),
+  history: z.array(MarginHistoryEntrySchema),
+  assumptions: MarginAssumptionsSchema,
+});
+
 export type MarginOrder = z.infer<typeof MarginOrderSchema>;
 export type MarginCall = z.infer<typeof MarginCallSchema>;
+export type MarginState = z.infer<typeof MarginStateSchema>;
+
+/** 建玉も注文も無い信用の状態。仮定値は fixedAt の時点の既定で固定する */
+export function emptyMarginState(fixedAt: string): MarginState {
+  return {
+    positions: [],
+    orders: [],
+    call: null,
+    history: [],
+    assumptions: defaultMarginAssumptions(fixedAt),
+  };
+}
 
 /** 信用の判定に要る口座の状態。jpy は現物と共有する JPY 残高（差入保証金。負なら不足金） */
 export type MarginBook = {

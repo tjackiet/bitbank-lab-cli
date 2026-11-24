@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Candle } from "../../../commands/public/candles-fetch.js";
-import { DEFAULT_MARGIN_RULES } from "../../../paper-margin/conditions.js";
+import { DEFAULT_MARGIN_RULES } from "../../../paper-margin/assumptions.js";
 import type { MarginPairParams } from "../../../paper-margin/params.js";
 import { type ScanInput, scanMargin } from "../../../paper-margin/scan.js";
 import type { MarginBook, MarginOrder, MarginPosition } from "../../../paper-margin/state.js";

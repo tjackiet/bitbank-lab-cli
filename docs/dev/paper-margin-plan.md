@@ -340,19 +340,28 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
   `computePositions` が売り越しで落ちる。信用の実現・未実現損益は `margin` 節として別に足す。
   `total` の意味は変えない（既存の利用者を壊さない）
 - 信用の約定は `paper trade-history` に `positionSide` と、返済時の `profitLoss` / `interest` を付けて載せる。
-  本番の `trade-history` が `position_side` / `profit_loss` / `interest` を返すのに合わせる
+  本番の `trade-history` が `position_side` / `profit_loss` / `interest` を返すのに合わせる。
+  state では現物の `history` と別の `margin.history` に持ち（§3.8）、コマンドの出力で時刻順にまとめる
 
 ### 3.8 数値・state・配置
 
 - **数値は倍精度のまま**にし、`snapAmount` で誤差を潰す（`cli/paper-precision.ts`）。
   ADR-005 の厳密有理数は税務経路に限る（ADR-007 と同じ扱い）
-- **state は v4 にする。** 追加するもの:
-  - `marginPositions`（§3.3 のフィールド + `openedAt` / `lastInterestAt`）
-  - `openOrders[].positionSide?` と `history[].positionSide?` / `profitLoss?` / `interest?`
-  - `margin: { assumptions, payables }`
+- **state は v4 にする（実装済み）。** 現物の各フィールドは v3 のままで、`margin` を足す:
+  - `margin.positions`（§3.3 のフィールド + `openedAt` / `lastInterestAt`）
+  - `margin.orders`（未約定の信用の指値）と `margin.history`（信用の約定。本番 trade-history の信用行と同じ欄）
+  - `margin.call`（発生中の追証）と `margin.assumptions`（公表ルール由来の定数・仮定・出典・固定した時刻）
+  - 不足金は state に持たず、負の `balances.jpy` から導く
 
-  v3 → v4 は空の配列と既定の仮定値で移行する。**v4 を書いた後に古い CLI に戻すと
-  `Invalid paper state` で止まる**（ダウングレード不可）。CHANGELOG に書く
+  **信用の注文と約定を現物の `openOrders` / `history` に混ぜない**（初版の計画からの変更）。
+  現物のコードはそれらを全部現物として扱う: `computeLocked` は信用の買い指値に JPY、売り指値に base 通貨をロックし、
+  `paper-fill.ts` は現物として約定させ、`computePositions` は信用の売りを売り越しとして拒否する。
+  混ぜると全経路にガードが要り、1 つ漏れると静かに壊れる。別の配列なら現物のコードは無改修で済む。
+  一覧を出すコマンド（`active-orders` / `trade-history`）でまとめて見せるのは Step 5
+
+  v3 → v4 は空の配列と既定の仮定値で移行する。仮定値の `fixedAt` は state の `updatedAt` にする
+  （読むだけのコマンドは書き戻さないので、移行時刻を使うと読むたびに値が変わる）。
+  **v4 を書いた後に古い CLI に戻すと `Invalid paper state` で止まる**（ダウングレード不可。CHANGELOG に記載済み）
 - **計算本体は `cli/paper-margin/` に置く。** 既存の例外（`cli/tax/` / `cli/portfolio/` / `cli/brief/`）と同じ形にする
   - chaos `x09` は `cli/commands/paper/` と `cli/paper-*.ts` しか見ていない。**新ディレクトリを検査範囲に足すのは必須。**
     足さないと「paper は private を叩かない」という検査が、新しいコードに効かない
@@ -406,6 +415,9 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
 - `cli/paper-state.ts` は既に 243 行あるので、信用のスキーマは `cli/paper-margin/state.ts` に分ける
   （建玉のスキーマ `MarginPositionSchema` は Step 4 の建玉計算と一緒に先に作成済み）
 - v1 / v2 / v3 → v4 の移行。仮定値の既定は `cli/paper-margin/assumptions.ts` を単一ソースにする
+- **実装済み**: `cli/paper-margin/state.ts`（`MarginStateSchema` / `emptyMarginState`）、`assumptions.ts`、
+  `history.ts`（約定履歴のスキーマと、走査のイベントからの変換）、`book.ts`（PaperState ⇔ MarginBook）。
+  `paper init` は v4 を書く
 
 ### Step 4: 計算本体 `cli/paper-margin/`
 

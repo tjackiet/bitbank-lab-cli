@@ -268,7 +268,7 @@
 - [x] `pairs` / pairs キャッシュが `margin_*` / `stop_margin_*` を通す（キャッシュ version 2）＋ `tool-catalog.json` 再生成
 - [x] `cli/paper-margin/params.ts`（pairs → ペアごとの信用パラメータ。比率の週次切替・fail-closed）
 - [x] `cli/margin-operation.ts`（Phase 7 と共有）
-- [ ] state v4（`cli/paper-margin/state.ts`）と v1〜v3 からの移行
+- [x] state v4（`margin`: 建玉・信用の注文・追証・信用の約定履歴・仮定値）と v1〜v3 からの移行。信用の注文・約定は現物の `openOrders` / `history` と別の配列
 - [x] `cli/paper-margin/` の建玉計算（`state.ts` の建玉スキーマ / `positions.ts` 加算・評価 / `close.ts` 返済・精算 / `closable.ts` 返済可能数量）
 - [x] `cli/paper-margin/interest.ts`（JST 0 時ごとの利息。`cli/date-utils.ts` の `jstDailyInstants`、積み残しのまま建玉を変える操作の拒否）
 - [x] `cli/paper-margin/` の口座評価（`account.ts` 保証金率・必要保証金 / `conditions.ts` 追証・強制決済の判定基準 / `new-open.ts` 新規建ての可否）

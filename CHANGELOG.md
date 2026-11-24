@@ -24,6 +24,10 @@
 
 ### Changed
 
+- ペーパートレードの state（`~/.bitbank/paper-state.json`）を version 4 にした。信用取引（Phase 8）の
+  建玉・注文・追証・約定履歴・仮定値を入れる `margin` を追加（現物の各フィールドは変わらない）。
+  v1〜v3 の state は読み込み時に自動で移行する。**v4 を書いた後に古いバージョンの CLI に戻すと
+  `Invalid paper state` で読めなくなる**（ダウングレード不可）。戻す場合は `paper reset --confirm` で作り直す
 - pairs キャッシュ（`~/.bitbank/pairs-cache.json`）の形式を version 2 にした（信用フィールドを保存）。
   version 1 のキャッシュは次回利用時に 1 度だけ自動で取り直す
 

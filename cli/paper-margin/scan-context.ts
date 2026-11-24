@@ -2,7 +2,7 @@
 import type { Candle } from "../commands/public/candles-fetch.js";
 import type { Result } from "../types.js";
 import { evaluateAccount, type MarginAccount } from "./account.js";
-import type { MarginRules } from "./conditions.js";
+import type { MarginRules } from "./assumptions.js";
 import type { MarginFillEvent } from "./fills.js";
 import type { InterestCharge } from "./interest.js";
 import { type LosscutClose, type PriceRange, worstPrices } from "./losscut.js";
