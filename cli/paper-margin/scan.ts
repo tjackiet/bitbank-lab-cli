@@ -28,7 +28,8 @@ export function scanMargin(input: ScanInput): Result<ScanResult> {
   const { book: start, fromMs, toMs, rules } = input;
   const pairs = new Set([...start.positions, ...start.orders].map((x) => x.pair));
   if (pairs.size === 0) return { success: true, data: { book: start, events: [], interest: [] } };
-  const track = buildPriceTrack(input.candlesByPair, pairs, fromMs, toMs);
+  const candleFromMs = Math.min(input.candleFromMs ?? fromMs, fromMs);
+  const track = buildPriceTrack(input.candlesByPair, pairs, candleFromMs, toMs);
   if (!track.success) return track;
   const ctx: ScanContext = { input, track: track.data, events: [], interest: [] };
   const callTimes = new Set(jstDailyInstants(fromMs, toMs, rules.marginCallHourJst));
@@ -37,7 +38,7 @@ export function scanMargin(input: ScanInput): Result<ScanResult> {
   let book = start;
   for (let i = 0; i < queue.length; i++) {
     const t = queue[i];
-    if (t < fromMs || t > toMs) continue;
+    if (t < candleFromMs || t > toMs) continue;
     const r = step(ctx, book, t, callTimes.has(t));
     if (!r.success) return r;
     const raised = r.data.call !== null && r.data.call !== book.call;

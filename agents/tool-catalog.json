@@ -3447,6 +3447,96 @@
           },
           "lastTickAt": {
             "type": "string"
+          },
+          "margin": {
+            "type": "object",
+            "description": "Present only when the account has margin positions or orders. Fills and losscut closes, plus margin-call / losscut events",
+            "properties": {
+              "filled": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "pair": {
+                      "type": "string"
+                    },
+                    "side": {
+                      "type": "string"
+                    },
+                    "positionSide": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "market",
+                        "limit",
+                        "losscut"
+                      ]
+                    },
+                    "amount": {
+                      "type": "number"
+                    },
+                    "fillPrice": {
+                      "type": "number"
+                    },
+                    "feeOccurred": {
+                      "type": "number"
+                    },
+                    "feeCharged": {
+                      "type": "number"
+                    },
+                    "profitLoss": {
+                      "type": "number"
+                    },
+                    "interest": {
+                      "type": "number"
+                    },
+                    "filledAt": {
+                      "type": "string"
+                    }
+                  }
+                }
+              },
+              "events": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "margin-call",
+                        "margin-call-resolved",
+                        "losscut"
+                      ]
+                    },
+                    "at": {
+                      "type": "string"
+                    },
+                    "deadline": {
+                      "type": "string"
+                    },
+                    "amount": {
+                      "type": "number"
+                    },
+                    "reason": {
+                      "type": "string",
+                      "enum": [
+                        "below-losscut",
+                        "margin-call-expired"
+                      ]
+                    }
+                  }
+                }
+              },
+              "approximate": {
+                "type": "boolean"
+              }
+            }
           }
         }
       }

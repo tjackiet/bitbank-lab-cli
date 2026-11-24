@@ -27,9 +27,12 @@ export type ScanInput = {
   candlesByPair: ReadonlyMap<string, readonly Candle[]>;
   params: ReadonlyMap<string, MarginPairParams>;
   rules: MarginRules;
-  /** 前回 tick の時刻。この時刻の足から見る */
+  /** 前回 tick の時刻。JST 15 時・利息はこの時刻より後から数える */
   fromMs: number;
   toMs: number;
+  /** 足を拾い始める時刻（既定は fromMs）。足の区切りに揃えて渡すと、fromMs をまたぐ足
+   *  （前回 tick の時点では未確定だった足、4hour 足など）も見落とさない */
+  candleFromMs?: number;
 };
 
 /** 走査中に積み上げる結果（events / interest）と、入力・価格への参照 */

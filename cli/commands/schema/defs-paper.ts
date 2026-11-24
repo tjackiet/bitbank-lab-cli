@@ -1,5 +1,6 @@
 // 100行超: paper 9 コマンドの params / output（agents カタログの単一ソース）を宣言的に集約。
 // state（残高・約定履歴・指値）のフィールドを 1 つずつ列挙するため出力項目数に比例して伸びる。
+import { marginTickReport } from "./defs-paper-margin.js";
 import { p, type SchemaDef } from "./types.js";
 
 const s = { type: "string" };
@@ -108,6 +109,7 @@ export const paperSchemas: Record<string, SchemaDef> = {
         filled: { type: "array", items: historyEntry },
         warnings: strings,
         lastTickAt: s,
+        margin: marginTickReport,
       },
     },
   },

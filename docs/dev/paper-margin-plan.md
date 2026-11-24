@@ -452,8 +452,17 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
     （本番の約定履歴と同じ。§2.4。現物 paper の `computeFill` は JPY を整数に丸めるが、信用には流用しない）
 - `cli/commands/paper/margin-status.ts` / `margin-positions.ts`（lazy tick → 評価 → 出力。`assumptions` 付き）
 - `paper create-order` は `--position-side` を受けたら `PARAM`（「信用は `paper create-margin-order`」）
-- `cli/paper-fill.ts`: 信用の指値約定（maker 手数料は `margin_open_*` / `margin_close_*`）、
-  建玉があるときの tick、ロスカット判定の呼び出し
+- **lazy tick への組み込み（実装済み）**: `cli/paper-fill.ts` の `runTick` が、現物の約定を反映した後に信用の走査を回す
+  - 取得（足・pairs）は lock の外の `cli/paper-margin-tick.ts`、state の更新は lock 内の `cli/paper-margin/tick.ts`。
+    pairs → 信用パラメータは `cli/paper-margin-pairs.ts`（比率が期限切れなら 1 度だけ取り直す）、4hour 足は `cli/paper-margin-candles.ts`
+  - 信用の建玉・注文があれば、現物の未約定注文が無くても足を取りに行く。現物だけの口座では信用のために何も取らない
+  - 前回 tick から 24h 以内は 1min 足、超えたら窓全体を 4hour 足で見て `approximate` と警告を出す（現物の 24h 打ち切りはそのまま）
+  - 足は前回 tick を足の区切りに揃えた時刻から拾う（前回の時点で未確定だった足や 4hour 足を見落とさない）。
+    直前の終値を持たせるため、さらに 1 区切りより前から取る
+  - 取得・パラメータ解決・走査に失敗したとき、peek の後に信用の建玉・注文が増えていて準備が無いとき、`--pair` の部分 tick では
+    信用を走査せず `lastTickAt` を進めない（次の tick でやり直す）
+  - この tick で現物の売りが約定し追証が残っていれば、窓の最後の足で解消を判定する（売りの約定時刻までは再現しない近似）
+  - `paper tick` の出力に `margin`（約定・強制決済の決済の履歴行、追証・強制決済の出来事、`approximate`）を足した
 - `paper cancel-order`: 信用の指値も取り消せる（返済注文なら `locked_amount` を戻す）
 - `paper pnl`: 信用の履歴を `perPair` から除外し、`margin` 節を足す（§3.7）
 - `paper assets`: 信用の指値の約定時必要保証金をロックとして見せる

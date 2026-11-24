@@ -4,10 +4,12 @@
 // paper で行えるのは現物の売却と建玉の返済だけで、その行為の直後に条件が解けていれば解消とする。
 // 価格の回復だけでは解消しない（公表ルールの差入方法に無く、本番より強制決済が遅れる向きになるため）。
 import { snapAmount } from "../paper-precision.js";
-import type { MarginAccount } from "./account.js";
+import { evaluateAccount, type MarginAccount } from "./account.js";
 import type { MarginRules } from "./assumptions.js";
 import { isMarginCallCondition } from "./conditions.js";
-import type { MarginCall } from "./state.js";
+import { type PriceRange, worstPrices } from "./losscut.js";
+import type { MarginPairParams } from "./params.js";
+import type { MarginBook, MarginCall } from "./state.js";
 
 /** 基準時（JST 15 時）の口座から追証を判定する。発生しなければ null */
 export function judgeMarginCall(
@@ -31,4 +33,23 @@ export function isMarginCallExpired(call: MarginCall, atMs: number): boolean {
 /** 解消の行為（建玉の返済・現物の売却）の直後の口座で、追証が解けたか。建玉が無くなれば解ける */
 export function resolvesMarginCall(after: MarginAccount): boolean {
   return !isMarginCallCondition(after);
+}
+
+/** 現物の売却の後、ranges（足の安値・高値）の不利な極値で評価して追証が解けているか。
+ *  価格や比率が欠けていれば解けていない扱いにする（解消を早めない側） */
+export function resolvesAfterSpotSale(
+  book: MarginBook,
+  ranges: ReadonlyMap<string, PriceRange>,
+  params: ReadonlyMap<string, Pick<MarginPairParams, "riskRatio">>,
+): boolean {
+  const prices = worstPrices(book.positions, ranges);
+  if (!prices.success) return false;
+  const acc = evaluateAccount({
+    jpy: book.jpy,
+    positions: book.positions,
+    openOrders: book.orders,
+    riskRatio: (pair) => params.get(pair)?.riskRatio,
+    price: (pair) => prices.data.get(pair),
+  });
+  return acc.success && resolvesMarginCall(acc.data);
 }
