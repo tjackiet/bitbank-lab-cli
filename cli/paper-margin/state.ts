@@ -21,7 +21,7 @@ export const MarginPositionSchema = z.object({
   unrealizedInterest: z.number().nonnegative(),
   /** 最初に建てた時刻（ISO 8601） */
   openedAt: z.string(),
-  /** 利息を最後に積んだ時刻（ISO 8601）。日付境界の取り方は interest.ts が決める */
+  /** 利息を最後に積んだ時刻（ISO 8601）。利息は JST 0 時をまたぐたびに積む（ADR-010 決定 7） */
   lastInterestAt: z.string(),
 });
 

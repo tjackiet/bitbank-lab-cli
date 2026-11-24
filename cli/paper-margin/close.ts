@@ -2,9 +2,10 @@
 //
 // - 未実現の手数料・利息は返済数量で按分して精算する。手数料は「按分した新規建て分 + この返済分」で、
 //   本番の信用決済の手数料が「建て分 + 決済分の合算」で請求されるのに合わせる
-//   （docs/dev/tax-research.md の CSV ⇔ API 対応表）
-// - 返済の損益は手数料・利息を引いた後のネット値。本番 trade-history の profit_loss と同じ定義で
-//   （cli/tax/import/to-events-margin.ts 冒頭）、JPY 残高にはこの値だけを足す
+// - 返済の損益は手数料・利息を引いた後のネット値。本番 trade-history の profit_loss と同じ定義で、
+//   JPY 残高にはこの値だけを足す
+// どちらも実口座で検算一致まで確認済み（docs/dev/tax-evidence/ANSWERS.md §4、
+// docs/dev/tax-roadmap.md の信用の実機検証）。按分（部分返済）は実測の外で、平均法からの推定
 import { BALANCE_EPS, hasEnough, snapAmount } from "../paper-precision.js";
 import type { Result } from "../types.js";
 import {
