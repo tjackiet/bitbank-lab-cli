@@ -2,9 +2,9 @@
 
 ## ステータス
 
-Proposed（2026-11-23）
+Accepted（2026-11-24）
 
-計画書 [`docs/dev/paper-margin-plan.md`](../dev/paper-margin-plan.md) の Step 0 の仕様確認は、
+起票は 2026-11-23（Proposed）。計画書 [`docs/dev/paper-margin-plan.md`](../dev/paper-margin-plan.md) の Step 0 の仕様確認は、
 2026-11-24 に #PM-0〜#PM-3 が確定した（最新の `/spot/pairs`、bitbank の信用取引ルールと契約締結前交付書面の原文、
 このリポの税務調査の実測）。#PM-4（評価価格）だけが公表資料に無く、決定 3 の仮定として申告する。
 #PM-5（実口座との算式突合）は公表ルールの検算で、Accepted の条件にはしない。
@@ -188,7 +188,7 @@ paper で行える 2 つの行為の直後に条件を満たしたときだけ�
 - **state は v4 になる。** v3 以前からは自動で移行するが、**v4 を書いた後に古い CLI に戻すと読めない**（ダウングレード不可）
 - **chaos:** `x09` の検査範囲に `cli/paper-margin/` を足す（足さないと新しいコードに検査が効かない）。
   `package.json` の `files` に `cli/paper-margin/` を足す（`x22`）
-- **被例外側への追記（Accepted 時）:** CLAUDE.md の paper 例外節に「信用の新規建て・返済を含む。
+- **被例外側への追記（Accepted 時。2026-11-24 に実施）:** CLAUDE.md の paper 例外節に「信用の新規建て・返済を含む。
   public のみの境界は不変」と本 ADR へのリンクを足す。「JST は表示用のみ」の例外として、利息の境界と追証の基準時（決定 7）も
   CLAUDE.md と `.claude/rules/commands.md` の「日付キーのタイムゾーン」節に書き足す。`.claude/rules/commands.md` の paper 行も同様に更新する。
   ADR-009 は main に入っているので書き換えない（「スコープ外」としていた項目を本 ADR が取り上げた関係は、本 ADR 側にだけ書く）
