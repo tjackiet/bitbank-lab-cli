@@ -289,4 +289,5 @@
 
 ### ドキュメント（ADR-010 Accepted 後）
 
-- [ ] CLAUDE.md paper 例外節 / `commands.md` / `skills/paper-trade/SKILL.md` / `botter-runbook.md` / README / CHANGELOG
+- [x] CLAUDE.md paper 例外節 / `commands.md`（ADR-010 Accepted 時）
+- [x] `skills/paper-trade/SKILL.md`（信用の実行フロー・トリガー・Gotchas）/ `botter-runbook.md` 段階 2 / README（Paper 表・信用の注記・Skill 節）/ `llms.txt` / `cli-conventions.md` / CHANGELOG

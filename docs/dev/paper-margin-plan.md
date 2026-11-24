@@ -520,6 +520,11 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
 - `docs/botter-runbook.md` 段階 2: 信用の練習手順（`paper margin-status` で `assumptions` を確認してから建てる）
 - `README.md` の paper 表、`CHANGELOG.md`（state v4 はダウングレード不可）
 
+**実装済み（2026-11-24）**: 上の全項目に加え、`llms.txt` と `skills/_shared/references/cli-conventions.md` の paper 節、
+README の Skill 節（paper-trade）も更新した。SKILL.md は「信用取引（ペーパー）」節（前提・Step M1〜M4・再現するルール）と
+Gotchas を足し、新規建てと返済の取り違えを防ぐため `--intent` を必ず付ける手順にした。実口座の信用の発注は未対応
+（Phase 7）である旨を Skill・runbook に明記した
+
 ---
 
 ## 5. 本番（Phase 7）との対応

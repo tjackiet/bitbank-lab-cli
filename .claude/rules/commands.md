@@ -24,6 +24,9 @@ trade / paper / profile / tax だけサブコマンド形式にしているの�
 グループ名の一覧は `router.ts` の `GROUP_REGISTRY` が単一ソース（`resolveCommand` が返す `group`）。
 trade の安全ガード自体は `--execute` / `--confirm` フラグ側にある（`trading-safety.md`）。
 paper は実 API を叩かないため `--execute` は存在しないが、`reset` のみ `--confirm` を必須にして state の誤削除を防ぐ。
+paper の信用（ADR-010）は `paper create-margin-order`（`--position-side` 必須）。現物の `paper create-order` は `--position-side` を
+オプションとして持たず、渡されると未知 flag のエラー（PARAM）に `create-margin-order` への案内が付く（`cli/unknown-flags.ts` の
+`misplacedFlagHints`。オプションとして登録して中で拒否すると補完・help・カタログに使えない flag が載るため）。
 profile は実 API を叩かないが、`remove` のみ `--confirm` を必須にして profile の誤削除を防ぐ。secret は flag 受け禁止（shell 履歴に残るため）、env か対話 hidden 入力のみ。
 tax は読み取り専用（private GET のみ）なので `--execute` / `--confirm` は無い。代わりに**参考損益の表示ガード**を持ち、
 アテステーション（`--attest`）・未解決入庫の不在・前年繰越の確定・残高突合の一致がすべて揃った銘柄でのみ数値を出す。
