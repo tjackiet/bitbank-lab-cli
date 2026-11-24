@@ -252,7 +252,7 @@
 ### 計画・意思決定
 
 - [x] 開発計画（`paper-margin-plan.md`）
-- [ ] ADR-010: paper に信用取引を public のみの近似シミュレーションとして足す（Proposed → Step 0 の結果で Accepted）（[010-paper-margin-simulation.md](../adr/010-paper-margin-simulation.md)）
+- [x] ADR-010: paper に信用取引を public のみの近似シミュレーションとして足す（2026-11-24 Accepted。CLAUDE.md / `commands.md` に追記済み）（[010-paper-margin-simulation.md](../adr/010-paper-margin-simulation.md)）
 
 ### 仕様確認（メンテナ）
 
@@ -270,7 +270,8 @@
 - [x] `cli/margin-operation.ts`（Phase 7 と共有）
 - [ ] state v4（`cli/paper-margin/state.ts`）と v1〜v3 からの移行
 - [x] `cli/paper-margin/` の建玉計算（`state.ts` の建玉スキーマ / `positions.ts` 加算・評価 / `close.ts` 返済・精算 / `closable.ts` 返済可能数量）
-- [ ] `cli/paper-margin/` の残り（account / interest / losscut）
+- [x] `cli/paper-margin/interest.ts`（JST 0 時ごとの利息。`cli/date-utils.ts` の `jstDailyInstants`、積み残しのまま建玉を変える操作の拒否）
+- [ ] `cli/paper-margin/` の残り（account / losscut）
 - [ ] `paper create-margin-order` / `margin-status` / `margin-positions`、`paper create-order` の `--position-side` 拒否
 - [ ] `paper-fill.ts` の建玉 tick・ロスカット、`paper pnl` の `margin` 節、`paper assets` の信用ロック
 - [ ] `defs-paper.ts` / `paper-handlers.ts` 登録、`agents/` 再生成

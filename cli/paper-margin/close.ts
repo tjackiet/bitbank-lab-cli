@@ -12,6 +12,7 @@ import type { Result } from "../types.js";
 import {
   averagePrice,
   findPosition,
+  interestNotAccrued,
   invalidFill,
   type MarginFill,
   replacePosition,
@@ -33,7 +34,8 @@ export type CloseSettlement = {
 
 /** 返済の約定を建玉から引き、損益を確定する。返済数量が建玉を EPS 以内で上回る場合は
  *  全量返済とみなす（浮動小数の累積誤差で全量返済が通らなくなるのを防ぐ。issue #30 と同じ）。
- *  返済可能数量（建玉 − locked）の検査は発注時に closable.ts で済ませておく。 */
+ *  返済可能数量（建玉 − locked）の検査は発注時に closable.ts で済ませておく。
+ *  約定時刻までの利息は accrueInterest で積んでおくこと（積み残しがあれば拒否する）。 */
 export function applyClose(
   positions: readonly MarginPosition[],
   f: MarginFill,
@@ -44,6 +46,8 @@ export function applyClose(
   if (!cur) {
     return { success: false, error: `margin close: no ${f.positionSide} position for ${f.pair}` };
   }
+  const pending = interestNotAccrued(cur, f);
+  if (pending) return { success: false, error: `margin close: ${pending}` };
   if (!hasEnough(cur.openAmount, f.amount)) {
     return {
       success: false,

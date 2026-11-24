@@ -406,7 +406,7 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
 | `positions.ts` | 建玉の加算（平均建値）・評価損益（**実装済み**） |
 | `close.ts` | 返済と精算（未実現の手数料・利息の按分、ネット損益の確定）（**実装済み**） |
 | `closable.ts` | `locked_amount` の導出と返済可能数量の検査（本番の 50062 相当）（**実装済み**） |
-| `interest.ts` | JST 0 時をまたぐごとの利息の積み上げ（`product × 日率`。§2.4。JST の境界計算は `cli/date-utils.ts` に置く） |
+| `interest.ts` | JST 0 時をまたぐごとの利息の積み上げ（`product × 日率`。§2.4。JST の境界計算は `cli/date-utils.ts` の `jstDailyInstants`）（**実装済み**）。利息を積み残したまま建玉を変える操作は `positions.ts` / `close.ts` が拒否する |
 | `losscut.ts` | 足の時系列走査・不利な極値での判定・全建玉の決済（§3.5） |
 
 純関数で書き、I/O（ticker / candles / pairs の取得）は呼び出し側に置く。

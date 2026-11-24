@@ -9,8 +9,9 @@ import {
 } from "../../../paper-margin/positions.js";
 import type { MarginPosition } from "../../../paper-margin/state.js";
 
-const T0 = "2026-11-01T00:00:00.000Z";
-const T1 = "2026-11-02T00:00:00.000Z";
+const T0 = "2026-11-01T00:00:00.000Z"; // 09:00 JST
+const T1 = "2026-11-01T05:00:00.000Z"; // 14:00 JST（同じ JST の日。利息の境界をまたがない）
+const NEXT_DAY = "2026-11-02T01:00:00.000Z"; // 10:00 JST 翌日（JST 0 時を 1 回またぐ）
 
 function fill(over: Partial<MarginFill>): MarginFill {
   return {
@@ -192,5 +193,32 @@ describe("applyClose", () => {
     expect(pos).toEqual([]);
     expect(feeCharged).toBeCloseTo(460 + 11 + 22 + 33, 6);
     expect(interestCharged).toBeCloseTo(40, 6);
+  });
+});
+
+describe("interest must be accrued before changing a position", () => {
+  it("rejects adding to a position across a JST midnight that has not been accrued", () => {
+    const opened = ok(applyOpen([], fill({})));
+    const r = applyOpen(opened, fill({ amount: 0.02, at: NEXT_DAY }));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("interest not accrued");
+  });
+
+  it("rejects closing across an unaccrued JST midnight (the interest would be lost)", () => {
+    const opened = ok(applyOpen([], fill({})));
+    const r = applyClose(opened, fill({ at: NEXT_DAY }));
+    expect(r.success).toBe(false);
+    if (!r.success) expect(r.error).toContain("interest not accrued");
+  });
+
+  it("allows both once lastInterestAt has been moved past the midnight", () => {
+    const [p] = ok(applyOpen([], fill({})));
+    const accrued = [{ ...p, lastInterestAt: NEXT_DAY, unrealizedInterest: 40 }];
+    expect(applyOpen(accrued, fill({ amount: 0.02, at: NEXT_DAY })).success).toBe(true);
+    expect(applyClose(accrued, fill({ at: NEXT_DAY })).success).toBe(true);
+  });
+
+  it("creating a new position never needs accrual (it starts at its own fill time)", () => {
+    expect(applyOpen([], fill({ at: NEXT_DAY })).success).toBe(true);
   });
 });

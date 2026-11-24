@@ -8,6 +8,7 @@
 import type { PositionSide } from "../margin-operation.js";
 import { snapAmount } from "../paper-precision.js";
 import type { Result } from "../types.js";
+import { pendingInterestBoundaries } from "./interest.js";
 import type { MarginPosition } from "./state.js";
 
 export type MarginFill = {
@@ -47,6 +48,13 @@ export function invalidFill(f: MarginFill): string | null {
   return null;
 }
 
+/** 利息を積み残したまま建玉を変えようとしていれば理由を返す（interest.ts 冒頭） */
+export function interestNotAccrued(p: MarginPosition, f: MarginFill): string | null {
+  const n = pendingInterestBoundaries(p, Date.parse(f.at)).length;
+  if (n === 0) return null;
+  return `interest not accrued up to ${f.at} (${n} JST midnight(s) pending for ${p.pair} ${p.positionSide})`;
+}
+
 /** 建玉の配列で prev を next に差し替える（順序は保つ） */
 export function replacePosition(
   positions: readonly MarginPosition[],
@@ -57,7 +65,8 @@ export function replacePosition(
 }
 
 /** 新規建ての約定を建玉に足す。既存の建玉があれば数量・quote 量・未実現手数料を加算して
- *  平均建値を更新する（openedAt / lastInterestAt は既存のまま）。 */
+ *  平均建値を更新する（openedAt / lastInterestAt は既存のまま）。既存の建玉に足すときは、
+ *  約定時刻までの利息を accrueInterest で積んでおくこと（積み残しがあれば拒否する）。 */
 export function applyOpen(
   positions: readonly MarginPosition[],
   f: MarginFill,
@@ -79,6 +88,8 @@ export function applyOpen(
     };
     return { success: true, data: [...positions, created] };
   }
+  const pending = interestNotAccrued(cur, f);
+  if (pending) return { success: false, error: `margin open: ${pending}` };
   const merged: MarginPosition = {
     ...cur,
     openAmount: snapAmount(cur.openAmount + f.amount),
