@@ -5,7 +5,8 @@
 // - 返済の損益は手数料・利息を引いた後のネット値。本番 trade-history の profit_loss と同じ定義で、
 //   JPY 残高にはこの値だけを足す
 // どちらも実口座で検算一致まで確認済み（docs/dev/tax-evidence/ANSWERS.md §4、
-// docs/dev/tax-roadmap.md の信用の実機検証）。按分（部分返済）は実測の外で、平均法からの推定
+// docs/dev/tax-roadmap.md の信用の実機検証）。部分返済での手数料の按分は bitbank の信用取引ルールに明記されている
+// （docs/dev/paper-margin-plan.md §2.3）。積み上がった利息の按分はルールに無く、平均法からの推定
 import { BALANCE_EPS, hasEnough, snapAmount } from "../paper-precision.js";
 import type { Result } from "../types.js";
 import {

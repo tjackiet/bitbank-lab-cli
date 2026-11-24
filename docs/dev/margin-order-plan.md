@@ -97,6 +97,12 @@
 - `GET /spot/pairs` に信用対応フラグは**無い**（`is_enabled` / `stop_order` /
   `stop_order_and_cancel` のみ）。信用対応ペアの唯一の情報源は `margin-status` の
   `available_balances[].pair`（確認時点で btc / eth / xrp / doge / sol の 5 ペア）
+- > **注記（2026-11-24、Phase 8 の調査）:** 上の 3 フラグは CLI の `PairSchema` が持つ boolean と同じで、
+  > 未知キーを Zod が落とした後の出力だった可能性が高い。生レスポンスには `stop_margin_long_order` /
+  > `stop_margin_short_order` と `margin_*`（手数料率・利息率・リスク想定比率）があり、
+  > `margin_current_individual_ratio` が非 null なのは信用対応の 5 ペアだけ（2026-07-25・2026-11-24 の 2 回で確認）。
+  > CLI も Phase 8 Step 1 でこれらを通すようにした。非対応ペアを dry-run で事前に弾けるかは別途判断する
+  > （[`paper-margin-plan.md`](paper-margin-plan.md) §2.2）
 - したがって非対応ペアは CLI 側で事前に弾けず、API の 40167 に任せる。dry-run は
   private を叩かない方針（3.4）なので、runbook で「`margin-status` で対象ペアを確認
   してから」と案内する

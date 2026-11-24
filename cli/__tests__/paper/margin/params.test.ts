@@ -74,6 +74,19 @@ describe("marginParamsOf", () => {
     expect(marginParamsOf(noNext, CURRENT_UNTIL + 1).kind).toBe("stale");
   });
 
+  it("keeps using a ratio whose until is the far-future sentinel (sol / doge, no next)", () => {
+    // 2026-11-24 の実 /spot/pairs: sol_jpy / doge_jpy は until = 9999-12-31T23:59:59.999Z、next は null
+    const sol = {
+      ...btc,
+      name: "sol_jpy",
+      margin_current_individual_until: 253402300799999,
+      margin_next_individual_ratio: null,
+      margin_next_individual_until: null,
+    };
+    const r = marginParamsOf(sol, Date.parse("2030-01-01T00:00:00Z"));
+    expect(r.kind === "ok" && r.params.riskRatioUntilMs).toBe(253402300799999);
+  });
+
   it("treats a null risk ratio as a non-margin pair", () => {
     const ltc = { ...MOCK_PAIRS[0], name: "ltc_jpy", margin_current_individual_ratio: null };
     expect(marginParamsOf(ltc, 0)).toEqual({ kind: "unsupported", pair: "ltc_jpy" });
