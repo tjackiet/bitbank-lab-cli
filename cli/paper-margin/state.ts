@@ -1,5 +1,5 @@
 // paper の信用の state スキーマ（ADR-010 / docs/dev/paper-margin-plan.md §3.3・§3.8）。
-// Step 3 で PaperState v4 に組み込む。いまは建玉のスキーマだけを置く。
+// Step 3 で PaperState v4 に組み込む。いまは信用の部分（建玉・信用の指値・追証）のスキーマだけを置く。
 //
 // フィールド名は paper の state の慣例どおり camelCase にし、本番 margin-positions の名前
 // （open_amount / product / average_price / unrealized_fee_amount / unrealized_interest_amount）
@@ -26,3 +26,36 @@ export const MarginPositionSchema = z.object({
 });
 
 export type MarginPosition = z.infer<typeof MarginPositionSchema>;
+
+/** 未約定の信用の指値（新規建て・返済）。paper の指値は GTC で部分約定しない */
+export const MarginOrderSchema = z.object({
+  id: z.string(),
+  pair: z.string(),
+  side: z.enum(["buy", "sell"]),
+  positionSide: PositionSideSchema,
+  type: z.literal("limit"),
+  price: z.number().positive(),
+  amount: z.number().positive(),
+  createdAt: z.string(),
+});
+
+/** 発生中の追証（信用取引ルール: 毎日 15 時に判定、基準時から 24 時間以内に解消） */
+export const MarginCallSchema = z.object({
+  /** 基準時（JST 15 時。ISO 8601） */
+  judgedAt: z.string(),
+  /** 解消期限（基準時 + 24 時間。ISO 8601） */
+  deadline: z.string(),
+  /** 追証額 = 維持必要保証金額 − 受入保証金合計額（基準時点） */
+  amount: z.number().positive(),
+});
+
+export type MarginOrder = z.infer<typeof MarginOrderSchema>;
+export type MarginCall = z.infer<typeof MarginCallSchema>;
+
+/** 信用の判定に要る口座の状態。jpy は現物と共有する JPY 残高（差入保証金。負なら不足金） */
+export type MarginBook = {
+  jpy: number;
+  positions: MarginPosition[];
+  orders: MarginOrder[];
+  call: MarginCall | null;
+};
