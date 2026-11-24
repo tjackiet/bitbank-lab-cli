@@ -53,6 +53,33 @@ export const marginTickReport = {
   },
 };
 
+/** paper pnl の margin 欄（信用の建玉・約定があるときだけ。現物の perPair / total とは別） */
+export const marginPnl = {
+  type: "object",
+  description:
+    "Present only with margin positions or fills. Rows per pair × position side; realizedPnl is net of fees and interest, " +
+    "unrealizedPnl is the price move minus unsettled fees and interest",
+  properties: {
+    perPosition: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          pair: s,
+          positionSide: s,
+          position: n,
+          avgCost: n,
+          currentPrice: n,
+          realizedPnl: n,
+          unrealizedPnl: n,
+          totalPnl: n,
+        },
+      },
+    },
+    total: { type: "object", properties: { realizedPnl: n, unrealizedPnl: n, totalPnl: n } },
+  },
+};
+
 const marginOrder = {
   type: "object",
   properties: {

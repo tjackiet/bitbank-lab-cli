@@ -22,6 +22,9 @@
 - `bitbank paper margin-status` / `paper margin-positions` を追加。本番の `margin-status` / `margin-positions` と同じ名前の欄
   （保証金率・維持必要保証金・新規建て可能額・建玉の locked_amount など）を本番の docs と同じ丸めで出し、paper の判定しきい値
   （`thresholds`）・仮定（`assumptions`）・状態が古いかどうか（`stale`）を添える
+- `bitbank paper trade-history` が信用の約定も時刻順にまとめて出し、`paper pnl` に信用の `margin` 欄（ペア × ロング / ショート
+  ごとの実現・未実現損益）を足した。どちらも信用の取引が無い口座では出力は変わらない。`paper create-order` に `--position-side`
+  を付けたときのエラーに `paper create-margin-order` への案内を添えた
 - `bitbank paper active-orders` / `paper cancel-order` が信用の指値も扱うようにした。一覧では信用の注文だけに
   `positionSide` が付く（現物の注文の出力は変わらない）
 

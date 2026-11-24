@@ -3567,33 +3567,83 @@
       "output": {
         "type": "array",
         "items": {
-          "type": "object",
-          "properties": {
-            "id": {
-              "type": "string"
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pair": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "fillPrice": {
+                  "type": "number"
+                },
+                "feeQuote": {
+                  "type": "number"
+                },
+                "filledAt": {
+                  "type": "string"
+                }
+              }
             },
-            "pair": {
-              "type": "string"
-            },
-            "side": {
-              "type": "string"
-            },
-            "type": {
-              "type": "string"
-            },
-            "amount": {
-              "type": "number"
-            },
-            "fillPrice": {
-              "type": "number"
-            },
-            "feeQuote": {
-              "type": "number"
-            },
-            "filledAt": {
-              "type": "string"
+            {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "pair": {
+                  "type": "string"
+                },
+                "side": {
+                  "type": "string"
+                },
+                "positionSide": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string",
+                  "enum": [
+                    "market",
+                    "limit",
+                    "losscut"
+                  ]
+                },
+                "amount": {
+                  "type": "number"
+                },
+                "fillPrice": {
+                  "type": "number"
+                },
+                "feeOccurred": {
+                  "type": "number"
+                },
+                "feeCharged": {
+                  "type": "number"
+                },
+                "profitLoss": {
+                  "type": "number"
+                },
+                "interest": {
+                  "type": "number"
+                },
+                "filledAt": {
+                  "type": "string"
+                }
+              }
             }
-          }
+          ]
         }
       }
     },
@@ -3681,6 +3731,58 @@
               },
               "totalPnl": {
                 "type": "number"
+              }
+            }
+          },
+          "margin": {
+            "type": "object",
+            "description": "Present only with margin positions or fills. Rows per pair × position side; realizedPnl is net of fees and interest, unrealizedPnl is the price move minus unsettled fees and interest",
+            "properties": {
+              "perPosition": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "pair": {
+                      "type": "string"
+                    },
+                    "positionSide": {
+                      "type": "string"
+                    },
+                    "position": {
+                      "type": "number"
+                    },
+                    "avgCost": {
+                      "type": "number"
+                    },
+                    "currentPrice": {
+                      "type": "number"
+                    },
+                    "realizedPnl": {
+                      "type": "number"
+                    },
+                    "unrealizedPnl": {
+                      "type": "number"
+                    },
+                    "totalPnl": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "total": {
+                "type": "object",
+                "properties": {
+                  "realizedPnl": {
+                    "type": "number"
+                  },
+                  "unrealizedPnl": {
+                    "type": "number"
+                  },
+                  "totalPnl": {
+                    "type": "number"
+                  }
+                }
               }
             }
           }

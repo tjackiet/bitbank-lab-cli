@@ -460,7 +460,9 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
   - paper だけの欄: `assumptions`（使ったリスク想定比率と until・評価価格・公表ルールの値と出典）、`stale`（直前の tick が now まで
     走査できなかった）、`margin_call`、建玉ごとの `current_price` / `unrealized_profit_loss`（本番の API は建玉ごとの評価損益を返さない）
   - `status` は NORMAL / CALL / DEBT。`available_balances` は信用対応の全ペアについての paper の見積り（B − Mm − Mo）/ r
-- `paper create-order` は `--position-side` を受けたら `PARAM`（「信用は `paper create-margin-order`」）
+- **`paper create-order` の `--position-side`（実装済み）**: オプションとして登録せず、未知 flag のエラー（PARAM）に
+  「信用は `paper create-margin-order`」の案内を添える（`cli/unknown-flags.ts` の `misplacedFlagHints`）。オプションとして
+  登録して中で拒否すると、補完・help・agents カタログに使えない flag が載るため。Phase 7 の `trade create-order` にも同じ仕組みを使える
 - **lazy tick への組み込み（実装済み）**: `cli/paper-fill.ts` の `runTick` が、現物の約定を反映した後に信用の走査を回す
   - 取得（足・pairs）は lock の外の `cli/paper-margin-tick.ts`、state の更新は lock 内の `cli/paper-margin/tick.ts`。
     pairs → 信用パラメータは `cli/paper-margin-pairs.ts`（比率が期限切れなら 1 度だけ取り直す）、4hour 足は `cli/paper-margin-candles.ts`
@@ -476,8 +478,15 @@ Mo = Σ 未約定の新規建て指値 amount × 指値価格 × r     # 約定�
   （返済注文の予約数量・新規建て注文の約定時必要保証金は導出なので、注文を消すだけで解放される）。lazy tick が先に約定させた注文は
   現物と同じく「already filled」になる。`active-orders` は現物と信用の未約定注文を作成順にまとめ、信用の注文だけに `positionSide` を付ける
   （混在時は表の列が出るよう、現物の行にもキーを undefined で持たせる。JSON には出ない）
-- `paper pnl`: 信用の履歴を `perPair` から除外し、`margin` 節を足す（§3.7）
-- `paper assets`: 信用の指値の約定時必要保証金をロックとして見せる
+- **`paper pnl`（実装済み）**: `perPair` / `total` は現物だけのまま、信用の建玉・約定があるときだけ `margin` 欄を足す
+  （`paper-margin/pnl.ts`）。行は pair × position_side で、実現損益は約定履歴の profitLoss の合計、未実現損益は値幅から
+  未精算の手数料・利息を引いたもの（現物の行が買いの手数料を avgCost に含めるのと同じく、ここまでの費用を差し引く）。
+  表と CSV は現物の行の後に信用の行（`btc_jpy long (margin)`）と MARGIN TOTAL を続ける。合計は丸める前の値で足す
+- **`paper trade-history`（実装済み）**: 現物と信用の約定を時刻順にまとめる（信用の約定が無ければ従来どおり）。
+  混在時は表で全部の列が出るよう、各行に全部のキーを同じ順で持たせる（JSON では無い欄は出ない）
+- **`paper assets`（変更しない。計画からの変更）**: 信用の必要保証金を locked に含めない。`available` は現物の注文が実際に使える額
+  （現物の発注チェックと同じ `computeLocked`）で、本番も現物の取引を信用の必要保証金で止めない（§3.3）。差し引くと表示と
+  現物の注文の可否が食い違う。信用の必要保証金と新規建て可能額は `paper margin-status` で見る
 
 ### Step 6: 登録とカタログ
 
