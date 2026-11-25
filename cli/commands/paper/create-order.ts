@@ -33,7 +33,7 @@ const InputSchema = z
     price: PositiveDecimalSchema.optional(),
   })
   .refine((v) => v.type !== "limit" || v.price !== undefined, {
-    message: "--price is required for limit orders",
+    error: "--price is required for limit orders",
   });
 
 export type PaperCreateOrderArgs = {
