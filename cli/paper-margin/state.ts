@@ -66,7 +66,10 @@ export const MarginStateSchema = z.object({
   lastScanAt: z.string().optional(),
   /** ペアごとに最後に読めた信用パラメータ（paper-margin-pairs.ts）。pairs から読めなくなったペアの建玉を
    *  評価・返済し続けるための控え（信用の取扱終了・フィールド欠落など）。使ったときは出力で申告する */
-  lastParams: z.record(MarginPairParamsSchema).optional(),
+  lastParams: z.record(z.string(), MarginPairParamsSchema).optional(),
+  /** まだ追証の解消の判定に使っていない現物の売りの約定時刻（ISO 8601）。信用の走査が失敗した tick や、
+   *  信用の走査済み時刻より前の約定がその後で確定した tick の分。次に走査できた tick が判定して空にする */
+  pendingSpotSales: z.array(z.string()).optional(),
 });
 
 export type MarginOrder = z.infer<typeof MarginOrderSchema>;

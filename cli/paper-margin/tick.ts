@@ -33,7 +33,8 @@ export function applyMarginTick(
   state: PaperState,
   input: MarginTickInput,
   nowMs: number,
-  opts: { newId: () => string },
+  /** pendingSpotSales: まだ解消の判定に使っていない現物の売りの約定時刻（spot-sale.ts の spotEventsSince） */
+  opts: { newId: () => string; pendingSpotSales?: readonly string[] },
 ): Result<{ state: PaperState; report: MarginTickReport }> {
   const fromMs = Math.min(marginScannedAtMs(state), nowMs);
   const scan = scanMargin({
@@ -44,7 +45,7 @@ export function applyMarginTick(
     fromMs,
     toMs: nowMs,
     periodMs: input.periodMs,
-    ...spotEventsSince(state.history, fromMs),
+    ...spotEventsSince(state.history, fromMs, opts.pendingSpotSales),
     candleFromMs: Math.max(
       input.candleFromMs,
       Math.floor(fromMs / input.periodMs) * input.periodMs,

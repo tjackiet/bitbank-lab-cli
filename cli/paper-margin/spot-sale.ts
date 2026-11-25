@@ -18,23 +18,32 @@ const raisesJpy = (f: SpotSale) => f.side === "sell" && f.pair.endsWith("_jpy");
 /** 信用の走査の窓（fromMs より後）に約定した現物の、JPY の増減と、指値の売りの約定時刻（scan.ts に渡す）。
  *  現物の約定履歴から導くので、信用の走査に失敗した tick で約定した分も、次に走査できた tick で数えられる。
  *  JPY の増減は約定履歴の値から組み立てる（代金と手数料の円への丸めの順で 1 円ずれることがある。評価の時刻をずらす
- *  ためだけに使い、残高そのものは変えない）。成行の売りは売った時点で判定済みなので、解消の行為には数えない */
+ *  ためだけに使い、残高そのものは変えない）。成行の売りも数える（売った時点で判定できなかった＝信用の状態が古い・
+ *  パラメータや現在値を取れなかったときに、次の走査が売った時刻で判定する。判定済みなら追証はもう無い）。
+ *  pending は、走査の窓より前に約定したのに、まだ解消の判定に使っていない売り（paper-fill.ts。現物の足だけ取れずに
+ *  信用の走査が先へ進んだ後で約定が確定した分など）。窓の頭（fromMs）で判定する（判定が売りより遅れる近似） */
 export function spotEventsSince(
   history: readonly PaperHistoryEntry[],
   fromMs: number,
+  pending: readonly string[] = [],
 ): { spotJpy: { atMs: number; delta: number }[]; spotSaleTimes: number[] } {
   const inWindow = history.filter(
-    (h) => h.pair.endsWith("_jpy") && Date.parse(h.filledAt) > fromMs,
+    (h) => h.pair.endsWith("_jpy") && Date.parse(h.filledAt) >= fromMs,
   );
   const spotJpy = inWindow.map((h) => {
     const notional = h.amount * h.fillPrice;
     const delta = h.side === "sell" ? notional - h.feeQuote : -(notional + h.feeQuote);
     return { atMs: Date.parse(h.filledAt), delta };
   });
-  const spotSaleTimes = inWindow
-    .filter((h) => h.type === "limit" && raisesJpy(h))
-    .map((h) => Date.parse(h.filledAt));
+  const sold = inWindow.filter(raisesJpy).map((h) => Date.parse(h.filledAt));
+  const late = pending.map((at) => Math.max(Date.parse(at), fromMs));
+  const spotSaleTimes = [...new Set([...sold, ...late])].sort((a, b) => a - b);
   return { spotJpy, spotSaleTimes };
+}
+
+/** この tick で約定した現物のうち、追証の解消の行為になる売り（JPY 建て）の約定時刻 */
+export function jpySaleTimes(fills: readonly PaperHistoryEntry[]): string[] {
+  return fills.filter(raisesJpy).map((f) => f.filledAt);
 }
 
 /** 成行の現物の売りを反映した後の state で、追証が解けたか判定し、解けていれば消す */

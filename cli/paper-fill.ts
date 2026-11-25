@@ -14,6 +14,7 @@ import { computeFill, resolveFeeRate } from "./fees.js";
 import type { HttpOptions } from "./http.js";
 import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
 import { hasMarginBook } from "./paper-margin/book.js";
+import { jpySaleTimes } from "./paper-margin/spot-sale.js";
 import { applyMarginTick, type MarginTickReport } from "./paper-margin/tick.js";
 import { prepareMarginTick } from "./paper-margin-tick.js";
 import {
@@ -150,19 +151,28 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
       // 準備が無いときや、走査が失敗したときは進めない（次の tick でやり直す）。現物の足の取得失敗とは独立させる
       // （巻き込むと、走査済みの区間をもう一度走査して、後から建った建玉を前の足で評価してしまう）。
       let marginScanned = !hasMarginBook(working);
+      // この tick で約定した現物の売りは、走査に渡すまで未処理として持つ（走査の窓より前に約定した分も、窓の頭で判定）
+      let pendingSales = [
+        ...new Set([...(working.margin.pendingSpotSales ?? []), ...jpySaleTimes(filled)]),
+      ];
       // lock の外で準備した後に、別の tick が now 以降まで走査を済ませていれば回さない（その区間は済んでいる。
       // 回すと、その tick の後に建った建玉を、now を含む足で評価し直してしまう）
       const scannedAt = working.margin.lastScanAt;
       const coveredByOther = scannedAt !== undefined && Date.parse(scannedAt) >= nowMs;
       if (margin.kind === "ready" && coveredByOther) marginScanned = true;
       else if (margin.kind === "ready") {
-        const m = applyMarginTick(working, margin.input, nowMs, { newId: genId });
+        const m = applyMarginTick(working, margin.input, nowMs, {
+          newId: genId,
+          pendingSpotSales: pendingSales,
+        });
         marginScanned = m.success;
         if (m.success) {
           working = m.data.state;
           marginReport = m.data.report;
+          pendingSales = [];
         } else warnings.push(`margin scan failed: ${m.error}`);
       }
+      if (!hasMarginBook(working)) pendingSales = [];
       // 部分 tick（pair 限定 or fetch 失敗）では lastTickAt を進めない。
       // 進めると未処理 pair / 未処理区間が永久に評価されなくなる。
       const advanceTick = !anyFetchFailed && opts.pair === undefined;
@@ -178,7 +188,11 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
         ...working,
         lastTickAt: persistedLastTickAt,
         updatedAt: newLastTickAt,
-        margin: { ...working.margin, lastScanAt },
+        margin: {
+          ...working.margin,
+          lastScanAt,
+          pendingSpotSales: pendingSales.length > 0 ? pendingSales : undefined,
+        },
       };
       return {
         success: true,

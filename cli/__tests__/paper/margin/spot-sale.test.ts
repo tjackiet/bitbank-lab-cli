@@ -3,7 +3,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paperCreateOrder } from "../../../commands/paper/create-order.js";
 import type { Candle } from "../../../commands/public/candles-fetch.js";
 import { type FetchCandles, runTick } from "../../../paper-fill.js";
@@ -71,10 +71,13 @@ describe("spot sales in the margin scan window (applyMarginTick, from the spot h
     expect(run([spotFill({ filledAt: iso(T0 + 2 * MIN) })]).state.margin.call).not.toBe(null);
   });
 
-  it("does not count a non-JPY sale, a buy, or a market sale (judged when it was made)", () => {
+  it("does not count a non-JPY sale or a buy", () => {
     expect(run([spotFill({ pair: "eth_btc" })]).state.margin.call).not.toBe(null);
     expect(run([spotFill({ side: "buy" })]).state.margin.call).not.toBe(null);
-    expect(run([spotFill({ type: "market" })]).state.margin.call).not.toBe(null);
+  });
+
+  it("counts a market sale too, at its time (in case it could not be judged when it was made)", () => {
+    expect(run([spotFill({ type: "market" })]).state.margin.call).toBe(null);
   });
 
   it("does not count the sale proceeds before the sale (a losscut before it still happens)", () => {
@@ -201,5 +204,97 @@ describe("paper create-order: a spot market sell during a margin call", () => {
     await seedState(statePath, stateAt(LAST, { balances: { jpy: 400_000, btc: 0.02 } }));
     const r = await sell();
     expect(r.success && "marginCallResolved" in r.data).toBe(false);
+  });
+});
+
+describe("spot sales that could not be judged right away", () => {
+  let dir: string;
+  let statePath: string;
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), "paper-spot-sale-late-"));
+    statePath = join(dir, "paper-state.json");
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  // JPY 400,000・ロング 0.1 @ 10,000,000・価格 9,900,000 → B 390,000 < Mm 500,000（追証中）
+  async function seedCall(over: Partial<PaperState> = {}) {
+    const s = stateAt(LAST, { balances: { jpy: 400_000, btc: 0.02, xrp: 200 }, ...over });
+    await seedState(statePath, {
+      ...s,
+      margin: { ...s.margin, positions: [longPosition(LAST)], call: CALL, lastScanAt: LAST },
+    });
+  }
+  const btc = candlesOf([[T0 + MIN, 9_900_000, 9_900_000]]);
+  const xrp = candlesOf([[T0 + MIN, 1_000, 1_000]]);
+  const fetchWhere =
+    (ok: { btc: boolean; xrp: boolean }): FetchCandles =>
+    async (pair, from, to) => {
+      const good = pair === "btc_jpy" ? ok.btc : ok.xrp;
+      if (!good) return { success: false, error: `no candles for ${pair}` };
+      return (pair === "btc_jpy" ? btc : xrp)(pair, from, to);
+    };
+  const xrpSell = {
+    ...{ id: "x1", pair: "xrp_jpy", side: "sell" as const, type: "limit" as const },
+    ...{ price: 1_000, amount: 200, createdAt: LAST },
+  };
+  const tick = (nowMs: number, ok: { btc: boolean; xrp: boolean }) =>
+    runTick({ statePath, nowMs, getPairs: pairsOf(BTC), feeRate: 0, fetchCandles: fetchWhere(ok) });
+  const call = async () => {
+    const r = await loadState(statePath);
+    if (!r.success || !r.data) throw new Error("load failed");
+    return r.data.margin;
+  };
+
+  it("a market sale made on a stale margin state is judged by the next scan, at the time it was made", async () => {
+    await seedCall();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date(T0 + 10 * MIN)); // 約定時刻（nowIso）を T0 + 10 分にする
+    const sold = await paperCreateOrder(
+      {
+        ...{ pair: "btc_jpy", side: "sell", type: "market", amount: "0.02", statePath },
+        ...{
+          getPairs: pairsOf(BTC),
+          nowMs: T0 + 10 * MIN,
+          fetchCandles: fetchWhere({ btc: false, xrp: true }),
+        },
+      },
+      tickerAt(9_900_000),
+    );
+    if (!sold.success || !("fillPrice" in sold.data)) throw new Error(JSON.stringify(sold));
+    expect(sold.data.marginCallResolved).toBe(false); // 信用の状態が古いので、その場では判定できない
+    vi.useRealTimers();
+    const r = await tick(T0 + 20 * MIN, { btc: true, xrp: true });
+    if (!r.success) throw new Error(r.error);
+    expect(r.data.margin?.events).toEqual([
+      { kind: "margin-call-resolved", at: iso(T0 + 10 * MIN) },
+    ]);
+  });
+
+  it("a limit sale confirmed after the margin scan already passed its time is judged at the window start", async () => {
+    // 1 回目: xrp の足だけ取れず、信用は T0 + 10 分まで走査済み。2 回目で xrp の売り（約定 T0 + 2 分）が確定する
+    await seedCall({ openOrders: [xrpSell] });
+    const first = await tick(T0 + 10 * MIN, { btc: true, xrp: false });
+    if (!first.success) throw new Error(first.error);
+    expect((await call()).lastScanAt).toBe(iso(T0 + 10 * MIN));
+    const second = await tick(T0 + 20 * MIN, { btc: true, xrp: true });
+    if (!second.success) throw new Error(second.error);
+    expect(second.data.filled.map((f) => f.id)).toEqual(["x1"]);
+    expect(second.data.margin?.events).toEqual([
+      { kind: "margin-call-resolved", at: iso(T0 + 10 * MIN) },
+    ]);
+  });
+
+  it("keeps such a sale pending while the margin scan keeps failing, and judges it once a scan succeeds", async () => {
+    await seedCall({ openOrders: [xrpSell] });
+    await tick(T0 + 10 * MIN, { btc: true, xrp: false }); // 信用だけ進む
+    await tick(T0 + 20 * MIN, { btc: false, xrp: true }); // 売りは確定、信用は走査できない
+    expect((await call()).pendingSpotSales).toEqual([iso(T0 + 2 * MIN)]);
+    const r = await tick(T0 + 30 * MIN, { btc: true, xrp: true });
+    if (!r.success) throw new Error(r.error);
+    expect(r.data.margin?.events.map((e) => e.kind)).toEqual(["margin-call-resolved"]);
+    expect((await call()).pendingSpotSales).toBeUndefined();
   });
 });

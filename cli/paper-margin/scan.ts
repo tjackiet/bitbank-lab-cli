@@ -35,7 +35,7 @@ export function scanMargin(input: ScanInput): Result<ScanResult> {
   if (!track.success) return track;
   const ctx: ScanContext = { input, track: track.data, events: [], interest: [] };
   const callTimes = new Set(jstDailyInstants(fromMs, toMs, rules.marginCallHourJst));
-  const sales = (input.spotSaleTimes ?? []).filter((t) => t > fromMs && t <= toMs);
+  const sales = (input.spotSaleTimes ?? []).filter((t) => t >= fromMs && t <= toMs);
   // toMs も 1 時刻として処理する（最後の足より後に積んだ利息で強制決済の判定基準を割っていないかを、この tick で見る）
   const times = [...track.data.candleTimes, ...callTimes, ...sales, toMs];
   const queue = [...new Set(times)].sort((a, b) => a - b);
