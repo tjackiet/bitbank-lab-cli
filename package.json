@@ -13,6 +13,7 @@
     "cli/brief/",
     "cli/commands/",
     "cli/completion/",
+    "cli/paper-margin/",
     "cli/portfolio/",
     "cli/tax/",
     "cli/watch/",
