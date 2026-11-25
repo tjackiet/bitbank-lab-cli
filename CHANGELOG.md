@@ -46,6 +46,28 @@
   `Invalid paper state` で読めなくなる**（ダウングレード不可）。戻す場合は `paper reset --confirm` で作り直す
 - pairs キャッシュ（`~/.bitbank/pairs-cache.json`）の形式を version 2 にした（信用フィールドを保存）。
   version 1 のキャッシュは次回利用時に 1 度だけ自動で取り直す
+### Security
+
+- `npm audit --audit-level=high`（`security.yml` の merge gate）で落ちていた high 3 件を
+  同一メジャー内の更新で解消した。runtime 側は `undici` 7.29.0 → 7.30.2（`pubnub` 経由。
+  WebSocket / decompress / retry 周りの DoS・TLS 検証バイパス等。`pubnub` 自体は 12.0.0 の
+  まま）。dev 側は `vitest` / `@vitest/coverage-v8` 4.1.9 → 4.1.12 と、それに伴う
+  `vite` 8.1.0 → 8.3.8・`source-map-js` 1.2.1 → 1.2.4。あわせて moderate の
+  `@vitest/mocker`（vitest に追従）と `fflate` 0.8.2 → 0.8.3（`pubnub` 経由）も解消。
+  CLI の挙動は変わらない
+- 残る high の `zod`（GHSA-mrhx-c7xc-m3w5。3.x に修正版が無く 3.25.76 が最終）を
+  **4.6.7 へ移行**して解消した（`zod/v3` の互換 import では旧実装のままなので使わない）。
+  引数エラーの文言は Zod 4 で既定文言が変わる（例: `Invalid enum value. Expected 'day' |
+  'month', received 'week'` → `Invalid option: expected one of "day"|"month"`）ため、
+  v3 の既定文言を再現する global error map（`cli/zod-messages.ts`）を足して**従来と同じ
+  文言・終了コードを保った**（v3 と同一入力で突き合わせ済み）。`required_error` は
+  `requiredString()`（`cli/validators.ts`）に置き換え。変わるのは内部の診断出力だけで、
+  スキーマ不一致時に `Invalid response: ...` / `Invalid paper state: ...` /
+  `Invalid carryover: ...` / stream の `Schema mismatch ...` 警告などへ埋め込む issue の
+  JSON が Zod 4 の形（`invalid_enum_value` → `invalid_value`、`received` 欄なし等）になる。
+  あわせて API レスポンス・state の検証で `z.number()` が ±Infinity を、`.int()` が
+  2^53 以上を拒否するようになった（JSON は Infinity を表せず、`.int()` の対象は時刻・件数・
+  桁数なので実データには影響しない）
 
 ## [0.5.1] - 2026-09-28
 
