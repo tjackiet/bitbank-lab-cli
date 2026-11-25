@@ -184,7 +184,7 @@ describe("the margin scan has its own watermark (margin.lastScanAt)", () => {
       periodMs: MIN,
       approximate: false,
     };
-    const r = applyMarginTick(fresh, input, T0 + 10 * MIN, { spotFills: [], newId: () => "x" });
+    const r = applyMarginTick(fresh, input, T0 + 10 * MIN, { newId: () => "x" });
     if (!r.success) throw new Error(r.error);
     expect(r.data.report.events).toEqual([]);
     expect(r.data.state.margin.positions).toHaveLength(1);

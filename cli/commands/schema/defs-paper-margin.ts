@@ -158,6 +158,7 @@ export const paperMarginSchemas: Record<string, SchemaDef> = {
       oneOf: [
         {
           type: "object",
+          required: ["operation", "fill"],
           properties: {
             operation,
             fill: marginHistoryEntry,
@@ -166,7 +167,11 @@ export const paperMarginSchemas: Record<string, SchemaDef> = {
             marginCallResolved: b,
           },
         },
-        { type: "object", properties: { operation, placed: marginOrder } },
+        {
+          type: "object",
+          required: ["operation", "placed"],
+          properties: { operation, placed: marginOrder },
+        },
       ],
     },
   },

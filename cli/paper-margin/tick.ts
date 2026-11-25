@@ -4,17 +4,16 @@
 // - 走査の始点は fresh な state の走査済み時刻（margin.lastScanAt）。足の始点も fresh な値で揃え直し、
 //   lock の外で取った後に別の tick が進めた区間を 2 度走査しない
 // - 指値の約定と強制決済の決済は margin.history に積む（tick-report.ts）。読めたパラメータは控えに残す（last-params.ts）
-// - 追証が残っていて、この tick で追証の基準時以降に JPY 建ての現物の売りが約定していれば、窓の終わりの足で
-//   解消を判定する（差入方法の「現物の売却」。spot-sale.ts）
+// - 窓の中で約定した現物（約定履歴から。spot-sale.ts）の JPY は約定時刻から評価に入れ、JPY 建ての指値の売りは
+//   その時刻に追証の解消の行為として判定する（差入方法の「現物の売却」）
 import type { Candle } from "../commands/public/candles-fetch.js";
 import type { PaperState } from "../paper-state.js";
 import type { Result } from "../types.js";
 import { bookOf, marginScannedAtMs, withBook } from "./book.js";
 import { withLastParams } from "./last-params.js";
-import { resolvesAfterAction } from "./margin-call.js";
 import type { MarginPairParams } from "./params.js";
 import { scanMargin } from "./scan.js";
-import { lastRanges, type SpotFill, soldSpotForJpySince } from "./spot-sale.js";
+import { spotEventsSince } from "./spot-sale.js";
 import { type MarginTickReport, reportOfScan } from "./tick-report.js";
 
 export type MarginTickInput = {
@@ -34,7 +33,7 @@ export function applyMarginTick(
   state: PaperState,
   input: MarginTickInput,
   nowMs: number,
-  opts: { spotFills: readonly SpotFill[]; newId: () => string },
+  opts: { newId: () => string },
 ): Result<{ state: PaperState; report: MarginTickReport }> {
   const fromMs = Math.min(marginScannedAtMs(state), nowMs);
   const scan = scanMargin({
@@ -44,6 +43,8 @@ export function applyMarginTick(
     rules: state.margin.assumptions.rules,
     fromMs,
     toMs: nowMs,
+    periodMs: input.periodMs,
+    ...spotEventsSince(state.history, fromMs),
     candleFromMs: Math.max(
       input.candleFromMs,
       Math.floor(fromMs / input.periodMs) * input.periodMs,
@@ -51,16 +52,7 @@ export function applyMarginTick(
   });
   if (!scan.success) return scan;
   const { filled, events } = reportOfScan(scan.data.events, opts.newId);
-  let book = scan.data.book;
-  if (
-    book.call &&
-    soldSpotForJpySince(opts.spotFills, book.call) &&
-    resolvesAfterAction(book, lastRanges(book, input.candlesByPair), input.params)
-  ) {
-    book = { ...book, call: null };
-    events.push({ kind: "margin-call-resolved", at: new Date(nowMs).toISOString() });
-  }
-  const next = withLastParams(withBook(state, book), input.params);
+  const next = withLastParams(withBook(state, scan.data.book), input.params);
   const margin = { ...next.margin, history: [...next.margin.history, ...filled] };
   return {
     success: true,

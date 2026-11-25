@@ -33,6 +33,17 @@ export async function checkOrderPair(
 ): Promise<Result<{ ok: true }>> {
   let pairs = await o.getPairs();
   if (!pairs.success) return pairs;
+  if (!pairs.data.some((p) => p.name === req.pair)) {
+    // pairs から消えたペア（取扱終了など）は、控えのパラメータがあっても返済できない（lazy tick の足も ticker も
+    // 取れないので、口座の評価も約定の価格も決められない）。理由が分かるエラーにする
+    return {
+      success: false,
+      error:
+        `pairs に無いペアです: ${req.pair}（取扱終了など）。paper では足と現在値を取れないので、` +
+        "このペアの注文（返済を含む）は出せません。建玉を消すには paper reset で作り直してください",
+      exitCode: EXIT.PARAM,
+    };
+  }
   const size = validateOrderSize(req.pair, req.type, req.amount, pairs.data, req.price);
   if (!size.success) return { ...size, exitCode: EXIT.PARAM };
   const lookupIn = (list: CachedPair[]) => {

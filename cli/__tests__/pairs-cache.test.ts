@@ -275,21 +275,17 @@ describe("pairs-cache: margin fields (v2)", () => {
     const e = makeEntry("2025-01-01T00:00:00.000Z", [marginPair, nonMargin]);
     await savePairsCache(e, cachePath);
     const r = await loadPairsCache(cachePath);
-    expect(r.success).toBe(true);
-    if (r.success && r.data) {
-      expect(r.data.pairs[0]).toEqual(marginPair);
-      expect(r.data.pairs[1].margin_current_individual_ratio).toBe(null);
-      expect(r.data.pairs[1].margin_long_interest).toBe(null);
-    }
+    if (!r.success || !r.data) throw new Error("the current-format cache must load back");
+    expect(r.data.pairs[0]).toEqual(marginPair);
+    expect(r.data.pairs[1].margin_current_individual_ratio).toBe(null);
+    expect(r.data.pairs[1].margin_long_interest).toBe(null);
   });
 
   it("keeps a pair without margin fields loadable (absent stays undefined, not null)", async () => {
     await savePairsCache(makeEntry("2025-01-01T00:00:00.000Z"), cachePath);
     const r = await loadPairsCache(cachePath);
-    expect(r.success).toBe(true);
-    if (r.success && r.data) {
-      expect(r.data.pairs[0].margin_current_individual_ratio).toBeUndefined();
-      expect("margin_current_individual_ratio" in r.data.pairs[0]).toBe(false);
-    }
+    if (!r.success || !r.data) throw new Error("the current-format cache must load back");
+    expect(r.data.pairs[0].margin_current_individual_ratio).toBeUndefined();
+    expect("margin_current_individual_ratio" in r.data.pairs[0]).toBe(false);
   });
 });

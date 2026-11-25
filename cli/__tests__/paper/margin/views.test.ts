@@ -96,6 +96,13 @@ describe("rounding like the production docs", () => {
     expect(Object.is(truncTo(-1e-12, 2), 0)).toBe(true); // −0 は 0 に
     expect(roundTo(9615931.999999998, 4)).toBe(9615932);
   });
+
+  it("absorbs only binary noise, not meaningful lower digits (no double rounding)", () => {
+    expect(roundTo(1.23444999, 4)).toBe(1.2344);
+    expect(floorTo(1.23449999, 4)).toBe(1.2344);
+    expect(roundTo(1.005, 2)).toBe(1.01); // 1.005 × 100 = 100.49999999999999
+    expect(truncTo(49.999999999999, 2)).toBe(50);
+  });
 });
 
 describe("buildMarginStatus", () => {

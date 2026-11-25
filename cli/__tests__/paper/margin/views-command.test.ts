@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { paperCreateMarginOrder } from "../../../commands/paper/create-margin-order.js";
 import { paperInit } from "../../../commands/paper/init.js";
 import { paperMarginPositions } from "../../../commands/paper/margin-positions.js";
@@ -62,6 +62,9 @@ let statePath: string;
 beforeEach(async () => {
   dir = mkdtempSync(join(tmpdir(), "paper-margin-views-"));
   statePath = join(dir, "paper-state.json");
+  // paperInit は実時計で state を作るので、テストの時刻（T0）に揃えてから作る（実行日時で結果を変えない）
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(T0));
   await paperInit({ jpy: "1000000", statePath });
   const r = await paperCreateMarginOrder(
     {
@@ -79,7 +82,10 @@ beforeEach(async () => {
   );
   if (!r.success) throw new Error(r.error);
 });
-afterEach(() => rmSync(dir, { recursive: true, force: true }));
+afterEach(() => {
+  vi.useRealTimers();
+  rmSync(dir, { recursive: true, force: true });
+});
 
 const later = () => ({ statePath, getPairs, fetchCandles: flat, nowMs: T0 + 5 * 60_000 });
 
@@ -90,6 +96,7 @@ describe("paper margin-status / margin-positions commands", () => {
     expect(r.data.margin_position_profit_loss).toBe(10_000); // (11,000,000 − 10,000,000) × 0.01
     expect(r.data.available_balances.map((b) => b.pair)).toEqual(["btc_jpy"]);
     expect(r.data.stale).toBe(false);
+    expect(r.data.last_scan_at).toBe(new Date(T0 + 5 * 60_000).toISOString()); // T0 から now まで走査した
     expect(r.meta?.statePath).toBe(statePath);
   });
 

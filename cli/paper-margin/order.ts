@@ -49,7 +49,11 @@ export function applyMarginOrder(
   if (!gate.success) return gate;
   const { book, unitPrice } = gate.data;
   const current = withLastParams(gate.data.state, plan.params);
-  const at = new Date(plan.nowMs).toISOString();
+  // lazy tick の後、lock を取るまでの間に別の tick が now より先まで走査を済ませていたら、注文・約定の時刻を
+  // その走査済み時刻に揃える（古い時刻のまま記録すると、走査済みの区間がこの注文・建玉に対して評価されない）
+  const scanned = current.margin.lastScanAt;
+  const atMs = scanned === undefined ? plan.nowMs : Math.max(plan.nowMs, Date.parse(scanned));
+  const at = new Date(atMs).toISOString();
   if (plan.type === "limit") {
     const placed: MarginOrder = {
       id: plan.newId(),
@@ -67,7 +71,7 @@ export function applyMarginOrder(
       data: { state: { ...next, updatedAt: at }, result: { operation: plan.op, placed } },
     };
   }
-  const r = fillMarginMarket(current, { ...plan, id: plan.newId() });
+  const r = fillMarginMarket(current, { ...plan, nowMs: atMs, id: plan.newId() });
   if (!r.success) return r;
   const position =
     findPosition(r.data.state.margin.positions, plan.pair, plan.positionSide) ?? null;

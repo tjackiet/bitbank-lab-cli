@@ -3235,6 +3235,10 @@
         "oneOf": [
           {
             "type": "object",
+            "required": [
+              "id",
+              "fillPrice"
+            ],
             "properties": {
               "id": {
                 "type": "string"
@@ -3274,6 +3278,9 @@
           },
           {
             "type": "object",
+            "required": [
+              "placed"
+            ],
             "properties": {
               "placed": {
                 "type": "object",
@@ -3860,6 +3867,10 @@
         "oneOf": [
           {
             "type": "object",
+            "required": [
+              "operation",
+              "fill"
+            ],
             "properties": {
               "operation": {
                 "type": "object",
@@ -3965,6 +3976,10 @@
           },
           {
             "type": "object",
+            "required": [
+              "operation",
+              "placed"
+            ],
             "properties": {
               "operation": {
                 "type": "object",

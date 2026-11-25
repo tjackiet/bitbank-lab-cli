@@ -150,11 +150,13 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
       // 準備が無いときや、走査が失敗したときは進めない（次の tick でやり直す）。現物の足の取得失敗とは独立させる
       // （巻き込むと、走査済みの区間をもう一度走査して、後から建った建玉を前の足で評価してしまう）。
       let marginScanned = !hasMarginBook(working);
-      if (margin.kind === "ready") {
-        const m = applyMarginTick(working, margin.input, nowMs, {
-          spotFills: filled,
-          newId: genId,
-        });
+      // lock の外で準備した後に、別の tick が now 以降まで走査を済ませていれば回さない（その区間は済んでいる。
+      // 回すと、その tick の後に建った建玉を、now を含む足で評価し直してしまう）
+      const scannedAt = working.margin.lastScanAt;
+      const coveredByOther = scannedAt !== undefined && Date.parse(scannedAt) >= nowMs;
+      if (margin.kind === "ready" && coveredByOther) marginScanned = true;
+      else if (margin.kind === "ready") {
+        const m = applyMarginTick(working, margin.input, nowMs, { newId: genId });
         marginScanned = m.success;
         if (m.success) {
           working = m.data.state;
@@ -167,7 +169,6 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
       const persistedLastTickAt = advanceTick ? newLastTickAt : working.lastTickAt;
       // 信用の走査済み時刻は、一度書いたら戻さない（後の now で走査した別の tick を巻き戻すと、その区間を
       // もう一度走査してしまう）。未設定のとき（init 直後・この欄が入る前の state）は lastTickAt から始める。
-      const scannedAt = working.margin.lastScanAt;
       const lastScanAt = !marginScanned
         ? (scannedAt ?? working.lastTickAt)
         : scannedAt === undefined

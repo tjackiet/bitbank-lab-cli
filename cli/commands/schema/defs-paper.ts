@@ -95,6 +95,7 @@ export const paperSchemas: Record<string, SchemaDef> = {
       oneOf: [
         {
           type: "object",
+          required: ["id", "fillPrice"],
           properties: {
             ...historyEntry.properties,
             balances: numbersByKey,
@@ -105,7 +106,7 @@ export const paperSchemas: Record<string, SchemaDef> = {
             },
           },
         },
-        { type: "object", properties: { placed: openOrder } },
+        { type: "object", required: ["placed"], properties: { placed: openOrder } },
       ],
     },
   },
