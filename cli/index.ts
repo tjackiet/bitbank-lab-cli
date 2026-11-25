@@ -13,6 +13,9 @@ import { handleSpecialCommand, resolveCommand, runCommandHelp } from "./router.j
 import { resolveStartupCredentials } from "./startup-credentials.js";
 import type { Format, Result } from "./types.js";
 import { unknownLongFlags } from "./unknown-flags.js";
+// Zod の既定エラー文言を v3 互換にする global error map。コマンドの遅延 import より前に
+// 登録し、どの経路の parse でも同じ文言になるようにする
+import "./zod-messages.js";
 
 function fail(machine: boolean, msg: string, code: ExitCode): void {
   if (machine) machineOutput({ success: false, error: msg, exitCode: code });
