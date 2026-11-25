@@ -1,12 +1,13 @@
 // paper create-margin-order の lock 内の門番（ADR-010 / docs/dev/paper-margin-plan.md §4 Step 5）。純関数。
 // fresh な state に対して、初期化済みか → 信用の状態が最新か → 口座の評価 → 受け付けてよいか（order-checks.ts）を順に見る。
-// 「信用の状態が最新か」: 信用の建玉・注文がある口座では、直前の lazy tick が now まで信用を走査できたこと
-// （lastTickAt ≥ now）を求める。走査できていない（足の取得失敗など）のに受け付けると、強制決済されるべき口座に
-// 新しい注文を足してしまうおそれがあるため拒否する。
+// 「信用の状態が最新か」: 直前の lazy tick が now まで信用を走査できたこと（margin.lastScanAt ≥ now。book.ts）を求める。
+// 走査できていない（足の取得失敗など）のに受け付けると、強制決済されるべき口座に新しい注文を足してしまうおそれがある。
+// 建玉・注文がまだ無い口座でも求める。走査済み時刻が古いまま建てると、次の tick がその時刻から走査し、
+// 建てる前の足でこの建玉を評価してしまう（建玉が無ければ lazy tick は必ず now まで進めるので、通常は通る）。
 import type { PaperState } from "../paper-state.js";
 import type { Result } from "../types.js";
 import { evaluateAccount } from "./account.js";
-import { bookOf, hasMarginBook } from "./book.js";
+import { bookOf, isMarginStale } from "./book.js";
 import type { MarginOrderPlan } from "./order.js";
 import { checkMarginOrder } from "./order-checks.js";
 import type { MarginBook } from "./state.js";
@@ -22,7 +23,7 @@ export function gateMarginOrder(
       error: "paper state not initialized. Run 'bitbank paper init --jpy=<amount>' first.",
     };
   }
-  if (hasMarginBook(state) && Date.parse(state.lastTickAt) < plan.nowMs) {
+  if (isMarginStale(state, plan.nowMs)) {
     return {
       success: false,
       error:

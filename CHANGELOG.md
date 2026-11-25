@@ -18,10 +18,11 @@
   語彙は本番の `trade create-margin-order`（ADR-009）と同じで、`--position-side` 必須・`--intent` は任意のクロスチェック、
   結果に操作ラベル（例: `ロング返済（sell × long）`）を載せる。成行は ticker の last で即時約定、指値は lazy tick で約定。
   保証金率・追証・強制決済・利息は bitbank の公表ルールどおりに paper の lazy tick が処理する
-  （[ADR-010](docs/adr/010-paper-margin-simulation.md)）。public の API だけを叩く
+  （[ADR-010](docs/adr/010-paper-margin-simulation.md)）。public の API だけを叩く。追証が発生中に JPY 建ての現物を
+  `paper create-order` で成行売りすると、その直後に解消を判定し、結果に `marginCallResolved` を載せる
 - `bitbank paper margin-status` / `paper margin-positions` を追加。本番の `margin-status` / `margin-positions` と同じ名前の欄
   （保証金率・維持必要保証金・新規建て可能額・建玉の locked_amount など）を本番の docs と同じ丸めで出し、paper の判定しきい値
-  （`thresholds`）・仮定（`assumptions`）・状態が古いかどうか（`stale`）を添える
+  （`thresholds`）・仮定（`assumptions`）・信用の走査済み時刻（`last_scan_at`）と状態が古いかどうか（`stale`）を添える
 - `bitbank paper trade-history` が信用の約定も時刻順にまとめて出し、`paper pnl` に信用の `margin` 欄（ペア × ロング / ショート
   ごとの実現・未実現損益）を足した。どちらも信用の取引が無い口座では出力は変わらない。`paper create-order` に `--position-side`
   を付けたときのエラーに `paper create-margin-order` への案内を添えた
@@ -39,7 +40,8 @@
 ### Changed
 
 - ペーパートレードの state（`~/.bitbank/paper-state.json`）を version 4 にした。信用取引（Phase 8）の
-  建玉・注文・追証・約定履歴・仮定値を入れる `margin` を追加（現物の各フィールドは変わらない）。
+  建玉・注文・追証・約定履歴・仮定値・信用の走査済み時刻（`lastScanAt`）・最後に読めた信用パラメータ（`lastParams`）を
+  入れる `margin` を追加（現物の各フィールドは変わらない）。
   v1〜v3 の state は読み込み時に自動で移行する。**v4 を書いた後に古いバージョンの CLI に戻すと
   `Invalid paper state` で読めなくなる**（ダウングレード不可）。戻す場合は `paper reset --confirm` で作り直す
 - pairs キャッシュ（`~/.bitbank/pairs-cache.json`）の形式を version 2 にした（信用フィールドを保存）。

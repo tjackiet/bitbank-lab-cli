@@ -1,18 +1,19 @@
 // paper の lazy tick のうち、信用の走査に要る足と pairs を lock の外で取ってくる
 // （ADR-010 決定 4 / docs/dev/paper-margin-plan.md §3.5）。state の更新は cli/paper-margin/tick.ts（lock 内）。
 // - 信用の建玉か注文があるときだけ動く（現物だけの口座では何も取らない）
-// - 前回 tick から 24h 以内は 1min 足、超えたら窓全体を 4hour 足（年単位ファイル）で取り、approximate を立てる。
+// - 窓の始点は信用の走査を済ませた時刻（margin.lastScanAt。現物の lastTickAt とは別。paper-margin/book.ts）
+// - 前回の走査から 24h 以内は 1min 足、超えたら窓全体を 4hour 足（年単位ファイル）で取り、approximate を立てる。
 //   現物の指値のように 24h で打ち切らない（強制決済の見逃しは静かな誤りになるため）
-// - 足は前回 tick を足の区切りに揃えた時刻から取り、さらに少し前から取って直前の終値を持たせる
-// - pairs → ペアごとの信用パラメータは paper-margin-pairs.ts
-// - 取得や判定に失敗したら failed を返す。runTick は信用の走査をせず lastTickAt も進めない（次の tick で取り直す）
+// - 足は前回の走査を足の区切りに揃えた時刻から取り、さらに少し前から取って直前の終値を持たせる
+// - pairs → ペアごとの信用パラメータは paper-margin-pairs.ts（読めなくなったペアは state の控えで埋めて申告する）
+// - 取得や判定に失敗したら failed を返す。runTick は信用の走査をせず margin.lastScanAt も進めない（次の tick で取り直す）
 import type { Candle } from "./commands/public/candles-fetch.js";
 import type { HttpOptions } from "./http.js";
 import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
-import { hasMarginBook } from "./paper-margin/book.js";
+import { hasMarginBook, marginScannedAtMs } from "./paper-margin/book.js";
 import type { MarginTickInput } from "./paper-margin/tick.js";
 import { fetchCoarseCandles } from "./paper-margin-candles.js";
-import { resolveMarginParams } from "./paper-margin-pairs.js";
+import { fallbackWarning, resolveMarginParams } from "./paper-margin-pairs.js";
 import type { PaperState } from "./paper-state.js";
 import type { Result } from "./types.js";
 
@@ -53,7 +54,7 @@ export async function prepareMarginTick(
   const pairs = [
     ...new Set([...state.margin.positions, ...state.margin.orders].map((x) => x.pair)),
   ];
-  const fromMs = Math.min(Date.parse(state.lastTickAt), o.nowMs);
+  const fromMs = Math.min(marginScannedAtMs(state), o.nowMs);
   const approximate = o.nowMs - fromMs > ONE_DAY_MS;
   const period = approximate ? FOUR_HOURS_MS : MIN_MS;
   const candleFromMs = Math.floor(fromMs / period) * period;
@@ -61,7 +62,7 @@ export async function prepareMarginTick(
     ? (o.fetchCoarseCandles ?? fetchCoarseCandles(o.httpOptions))
     : o.fetchCandles;
   const warnings = approximate
-    ? [`margin: gap > 24h since lastTickAt; evaluated with 4hour candles (approximate)`]
+    ? [`margin: gap > 24h since the last margin scan; evaluated with 4hour candles (approximate)`]
     : [];
   const candlesByPair = new Map<string, Candle[]>();
   for (const pair of pairs) {
@@ -79,11 +80,18 @@ export async function prepareMarginTick(
     getPairs: o.getPairs ?? (() => getPairsWithCache({ httpOptions: o.httpOptions })),
     refreshPairs:
       o.getPairs ?? (() => getPairsWithCache({ refresh: true, httpOptions: o.httpOptions })),
+    lastKnown: state.margin.lastParams,
   });
   if (!params.success) return { kind: "failed", warnings: [...warnings, params.error] };
   return {
     kind: "ready",
-    input: { candlesByPair, params: params.data, candleFromMs, approximate },
-    warnings,
+    input: {
+      candlesByPair,
+      params: params.data.params,
+      candleFromMs,
+      periodMs: period,
+      approximate,
+    },
+    warnings: [...warnings, ...fallbackWarning(params.data.fallbacks)],
   };
 }

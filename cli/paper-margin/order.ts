@@ -6,6 +6,7 @@ import type { PaperState } from "../paper-state.js";
 import type { Result } from "../types.js";
 import { withBook } from "./book.js";
 import type { MarginHistoryEntry } from "./history.js";
+import { withLastParams } from "./last-params.js";
 import { fillMarginMarket } from "./market-fill.js";
 import { gateMarginOrder } from "./order-gate.js";
 import type { MarginPairParams } from "./params.js";
@@ -46,7 +47,8 @@ export function applyMarginOrder(
 ): Result<{ state: PaperState; result: PaperMarginFill | PaperMarginPlaced }> {
   const gate = gateMarginOrder(state, plan);
   if (!gate.success) return gate;
-  const { state: current, book, unitPrice } = gate.data;
+  const { book, unitPrice } = gate.data;
+  const current = withLastParams(gate.data.state, plan.params);
   const at = new Date(plan.nowMs).toISOString();
   if (plan.type === "limit") {
     const placed: MarginOrder = {

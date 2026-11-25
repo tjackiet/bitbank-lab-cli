@@ -1,5 +1,7 @@
 // paper の信用の注文を、出す直前の口座の状態で受け付けてよいか（ADR-010 / docs/dev/paper-margin-plan.md §3.6）。純関数。
-// - 不足金（JPY 残高が負）がある間は新規の注文をすべて拒否する（paper に入金は無いので、解消は paper reset だけ）
+// - 不足金（JPY 残高が負）がある間は新規建てを拒否する。返済は許す。不足金は強制決済の後だけでなく、損の大きい建玉を
+//   返済して JPY が負になり、含み益のある別の建玉が残ったときにも出る。その建玉を返済できないと、不足金を埋める手段が
+//   paper reset しか無くなる（本番でも不足金で止まるのは新規建て）
 // - 追証が発生中なら新規建てを拒否する。返済は許す（返済は追証を解消する行為の 1 つ）
 // - 新規建ては B ≥ Mm + Mo + 注文金額 × r（new-open.ts。本番の 50061 相当）
 // - 返済は返済可能数量まで（closable.ts。本番の 50062 相当）
@@ -28,13 +30,15 @@ export function checkMarginOrder(input: {
   account: MarginAccount;
 }): Result<{ ok: true }> {
   const { book, op, req } = input;
-  if (book.jpy < 0) {
-    return {
-      success: false,
-      error: `不足金 ${-book.jpy} 円があるため、新しい注文は出せません（paper には入金が無いので paper reset で作り直す）`,
-    };
-  }
   if (op.intent === "open") {
+    if (book.jpy < 0) {
+      return {
+        success: false,
+        error:
+          `不足金 ${-book.jpy} 円があるため、新規建てはできません。返済はできます` +
+          "（建玉が無ければ、paper には入金が無いので paper reset で作り直す）",
+      };
+    }
     if (book.call) {
       return {
         success: false,

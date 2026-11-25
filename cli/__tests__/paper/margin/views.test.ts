@@ -130,6 +130,15 @@ describe("buildMarginStatus", () => {
     ]);
   });
 
+  it("shows 0 capacity where create-margin-order would refuse an open (margin call, stopped side)", () => {
+    const call = { judgedAt: T, deadline: "2026-11-03T00:00:00.000Z", amount: 1 };
+    const during = ok(buildMarginStatus(state({ call }), PARAMS, PRICES, NOW));
+    expect(during.available_balances.every((x) => x.long === 0 && x.short === 0)).toBe(true);
+    const stopped = new Map(PARAMS).set("btc_jpy", { ...params("btc_jpy"), stopNewLong: true });
+    const v = ok(buildMarginStatus(state(), stopped, PRICES, NOW));
+    expect(v.available_balances[0]).toEqual({ pair: "btc_jpy", long: 0, short: 347_199.2 });
+  });
+
   it("carries the assumptions with the risk ratios and valuation prices it used", () => {
     const v = ok(buildMarginStatus(state(), PARAMS, PRICES, NOW));
     expect(v.assumptions.riskRatios.btc_jpy).toEqual({

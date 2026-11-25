@@ -290,10 +290,17 @@ describe("paper create-margin-order: rejections", () => {
     expect((await state()).margin.call).toBe(null);
   });
 
-  it("refuses every order while there is a shortfall (negative JPY)", async () => {
+  it("while there is a shortfall (negative JPY), refuses opens but still lets a remaining position be closed", async () => {
+    // 損の大きい建玉の返済で JPY が負になり、別の建玉が残った場面。残りを返済できないと paper reset しか手が無くなる
+    // 含み益のある建玉（10,000,000 → 20,000,000）が残るので、JPY が負でも B は強制決済の基準を上回る
+    await order({});
     await patch((s) => ({ ...s, balances: { jpy: -5_000 } }));
-    const r = await order({});
-    expect(!r.success && r.error).toContain("不足金");
+    const later = { nowMs: T0 + 5 * MIN, fetchCandles: flat(20_000_000, T0 + MIN) };
+    const open = await order({ ...later, amount: "0.0001" }, 20_000_000);
+    expect(!open.success && open.error).toContain("不足金");
+    const close = await order({ ...later, side: "sell" }, 20_000_000);
+    if (!close.success || !("fill" in close.data)) throw new Error(JSON.stringify(close));
+    expect(close.data.position).toBe(null);
   });
 
   it("refuses when the lazy tick could not bring the margin state up to now", async () => {

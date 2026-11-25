@@ -3265,6 +3265,10 @@
                 "additionalProperties": {
                   "type": "number"
                 }
+              },
+              "marginCallResolved": {
+                "type": "boolean",
+                "description": "Present only while a paper margin call is active: whether this JPY sale resolved it (ADR-010)"
               }
             }
           },
@@ -3541,6 +3545,13 @@
                         "below-losscut",
                         "margin-call-expired"
                       ]
+                    },
+                    "canceled": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      },
+                      "description": "losscut only: ids of the margin orders canceled by the losscut"
                     }
                   }
                 }
@@ -4130,7 +4141,7 @@
               }
             }
           },
-          "last_tick_at": {
+          "last_scan_at": {
             "type": "string"
           },
           "stale": {
@@ -4248,7 +4259,7 @@
               }
             }
           },
-          "last_tick_at": {
+          "last_scan_at": {
             "type": "string"
           },
           "stale": {

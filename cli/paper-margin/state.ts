@@ -11,6 +11,7 @@ import { z } from "zod";
 import { PositionSideSchema } from "../margin-operation.js";
 import { defaultMarginAssumptions, MarginAssumptionsSchema } from "./assumptions.js";
 import { MarginHistoryEntrySchema } from "./history.js";
+import { MarginPairParamsSchema } from "./params.js";
 
 export const MarginPositionSchema = z.object({
   pair: z.string(),
@@ -59,6 +60,13 @@ export const MarginStateSchema = z.object({
   call: MarginCallSchema.nullable(),
   history: z.array(MarginHistoryEntrySchema),
   assumptions: MarginAssumptionsSchema,
+  /** 信用の走査を済ませた時刻（ISO 8601）。現物の lastTickAt とは別に進める（book.ts の marginScannedAtMs）。
+   *  現物の足の取得に失敗しても信用の走査は進められ、同じ区間を 2 度走査しないようにするため。
+   *  無ければ lastTickAt から（この欄が入る前に書かれた v4 の state） */
+  lastScanAt: z.string().optional(),
+  /** ペアごとに最後に読めた信用パラメータ（paper-margin-pairs.ts）。pairs から読めなくなったペアの建玉を
+   *  評価・返済し続けるための控え（信用の取扱終了・フィールド欠落など）。使ったときは出力で申告する */
+  lastParams: z.record(MarginPairParamsSchema).optional(),
 });
 
 export type MarginOrder = z.infer<typeof MarginOrderSchema>;

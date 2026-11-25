@@ -6,11 +6,12 @@
 // - margin_call_percentage / losscut_percentage は本番の値の意味を実口座で確かめていないので同名では出さない。
 //   代わりに公表ルールから導いた paper の判定しきい値を thresholds に出す（追証は Mm / P、強制決済は Mm × 掛け目 / P）
 // - status は NORMAL / CALL / DEBT（paper の強制決済は一瞬で終わるので LOSSCUT は残らない）
-// - available_balances は paper の見積り（B − Mm − Mo）/ r。本番は審査で決まるご利用可能額でも頭打ちになる
+// - available_balances は paper の見積り（B − Mm − Mo）/ r。本番は審査で決まるご利用可能額でも頭打ちになる。
+//   追証・不足金の間と、新規建て停止中の向きは 0（create-margin-order が受け付けないので）
 import type { PaperState } from "../paper-state.js";
 import type { Result } from "../types.js";
-import { evaluateAccount } from "./account.js";
-import { bookOf, hasMarginBook } from "./book.js";
+import { evaluateAccount, type MarginAccount } from "./account.js";
+import { bookOf, hasMarginBook, isMarginStale, marginScannedAtMs } from "./book.js";
 import { newOpenCapacity } from "./new-open.js";
 import type { MarginPairParams } from "./params.js";
 import { ceilTo, floorTo, truncTo } from "./rounding.js";
@@ -40,11 +41,15 @@ export type MarginStatusView = {
   };
   margin_call: MarginCall | null;
   payables: { amount: number };
-  last_tick_at: string;
+  /** 信用の走査を済ませた時刻（margin.lastScanAt。現物の lastTickAt とは別） */
+  last_scan_at: string;
   /** 信用の建玉・注文があるのに、直前の tick が now まで走査できなかった */
   stale: boolean;
   assumptions: PaperState["margin"]["assumptions"] & {
-    riskRatios: Record<string, { ratio: number; until: string; source: "current" | "next" }>;
+    riskRatios: Record<
+      string,
+      { ratio: number; until: string; source: MarginPairParams["riskRatioSource"] }
+    >;
     valuationPrices: Record<string, number>;
   };
 };
@@ -72,6 +77,8 @@ export function buildMarginStatus(
   const held = a.openPositionProduct;
   const pct = (x: number) => (held > 0 ? ceilTo((x / held) * 100, 2) : null);
   const pairs = [...params.keys()].sort();
+  // 追証・不足金の間は新規建てを受け付けない（order-checks.ts）ので、新規建て可能額も 0 にする
+  const blocked = a.payables > 0 || book.call !== null;
   const view: MarginStatusView = {
     status: a.payables > 0 ? "DEBT" : book.call ? "CALL" : "NORMAL",
     total_margin_balance: truncTo(a.totalMarginBalance, 4),
@@ -88,18 +95,15 @@ export function buildMarginStatus(
     total_open_order_maintenance_margin: ceilTo(a.openOrderMaintenanceMargin, 4),
     total_long_open_order_maintenance_margin: ceilTo(sides.order.long, 4),
     total_short_open_order_maintenance_margin: ceilTo(sides.order.short, 4),
-    available_balances: pairs.map((pair) => {
-      const cap = truncTo(newOpenCapacity(a, params.get(pair)?.riskRatio ?? 1), 4);
-      return { pair, long: cap, short: cap };
-    }),
+    available_balances: pairs.map((pair) => availableOf(pair, a, params.get(pair), blocked)),
     thresholds: {
       margin_call_below_percentage: pct(a.positionMaintenanceMargin),
       losscut_below_percentage: pct(a.positionMaintenanceMargin * k),
     },
     margin_call: book.call,
     payables: { amount: a.payables },
-    last_tick_at: state.lastTickAt,
-    stale: hasMarginBook(state) && Date.parse(state.lastTickAt) < nowMs,
+    last_scan_at: new Date(marginScannedAtMs(state)).toISOString(),
+    stale: hasMarginBook(state) && isMarginStale(state, nowMs),
     assumptions: {
       ...state.margin.assumptions,
       riskRatios: Object.fromEntries(
@@ -119,4 +123,16 @@ export function buildMarginStatus(
     },
   };
   return { success: true, data: view };
+}
+
+/** 新規建て可能額。create-margin-order が受け付けない向き（追証・不足金の間、新規建て停止中の向き）は 0 */
+function availableOf(
+  pair: string,
+  a: MarginAccount,
+  p: MarginPairParams | undefined,
+  blocked: boolean,
+): { pair: string; long: number; short: number } {
+  if (!p || blocked) return { pair, long: 0, short: 0 };
+  const cap = truncTo(newOpenCapacity(a, p.riskRatio), 4);
+  return { pair, long: p.stopNewLong ? 0 : cap, short: p.stopNewShort ? 0 : cap };
 }

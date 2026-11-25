@@ -9,7 +9,7 @@
 // 信用（ADR-010）の建玉・注文があれば、現物の約定を反映した後に信用の走査も回す。取得は lock の外
 // （paper-margin-tick.ts）、state の更新は lock 内（paper-margin/tick.ts）。
 import { type Candle, fetchOne } from "./commands/public/candles-fetch.js";
-import { ymdUtc } from "./date-utils.js";
+import { ymdUtcRange } from "./date-utils.js";
 import { computeFill, resolveFeeRate } from "./fees.js";
 import type { HttpOptions } from "./http.js";
 import { type CachedPair, getPairsWithCache } from "./pairs-cache.js";
@@ -121,8 +121,8 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
     getPairs: opts.getPairs,
     httpOptions: opts.httpOptions,
   });
-  // 準備に失敗しても anyFetchFailed は立てない。lock 内の marginPending が、fresh な state に信用の
-  // 建玉・注文がある限り lastTickAt を止める（peek の後に全部閉じられていれば止める理由が無い）。
+  // 準備に失敗しても anyFetchFailed は立てない（現物の lastTickAt とは関係ない）。lock 内で、fresh な state に
+  // 信用の建玉・注文がある限り margin.lastScanAt を止める（peek の後に全部閉じられていれば止める理由が無い）。
   warnings.push(...margin.warnings);
   const res = await updateState<TickResult>(
     (state) => {
@@ -145,28 +145,39 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
       );
       let working = spotDone;
       let marginReport: MarginTickReport | undefined;
-      // 信用の走査は口座全体で 1 回。peek の後に信用の建玉・注文が増えていて準備が無いときや、
-      // 走査が失敗したときは、その区間を未処理として lastTickAt を進めない（次の tick でやり直す）。
-      let marginPending = margin.kind !== "ready" && hasMarginBook(working);
+      // 信用の走査は口座全体で 1 回。現物の lastTickAt とは別の走査済み時刻（margin.lastScanAt）を持ち、走査できたとき
+      // （または信用の建玉・注文が無く、走査するものが無いとき）だけ now へ進める。peek の後に信用の建玉・注文が増えて
+      // 準備が無いときや、走査が失敗したときは進めない（次の tick でやり直す）。現物の足の取得失敗とは独立させる
+      // （巻き込むと、走査済みの区間をもう一度走査して、後から建った建玉を前の足で評価してしまう）。
+      let marginScanned = !hasMarginBook(working);
       if (margin.kind === "ready") {
-        const spotSold = filled.some((f) => f.side === "sell");
-        const m = applyMarginTick(working, margin.input, nowMs, { spotSold, newId: genId });
+        const m = applyMarginTick(working, margin.input, nowMs, {
+          spotFills: filled,
+          newId: genId,
+        });
+        marginScanned = m.success;
         if (m.success) {
           working = m.data.state;
           marginReport = m.data.report;
-        } else {
-          warnings.push(`margin scan failed: ${m.error}`);
-          marginPending = true;
-        }
+        } else warnings.push(`margin scan failed: ${m.error}`);
       }
-      // 部分 tick（pair 限定 or fetch 失敗 or 信用の未処理）では lastTickAt を進めない。
+      // 部分 tick（pair 限定 or fetch 失敗）では lastTickAt を進めない。
       // 進めると未処理 pair / 未処理区間が永久に評価されなくなる。
-      const advanceTick = !anyFetchFailed && !marginPending && opts.pair === undefined;
+      const advanceTick = !anyFetchFailed && opts.pair === undefined;
       const persistedLastTickAt = advanceTick ? newLastTickAt : working.lastTickAt;
+      // 信用の走査済み時刻は、一度書いたら戻さない（後の now で走査した別の tick を巻き戻すと、その区間を
+      // もう一度走査してしまう）。未設定のとき（init 直後・この欄が入る前の state）は lastTickAt から始める。
+      const scannedAt = working.margin.lastScanAt;
+      const lastScanAt = !marginScanned
+        ? (scannedAt ?? working.lastTickAt)
+        : scannedAt === undefined
+          ? newLastTickAt
+          : laterIso(scannedAt, nowMs);
       const newState: PaperState = {
         ...working,
         lastTickAt: persistedLastTickAt,
         updatedAt: newLastTickAt,
+        margin: { ...working.margin, lastScanAt },
       };
       return {
         success: true,
@@ -187,6 +198,11 @@ export async function runTick(opts: TickOptions = {}): Promise<Result<TickResult
     for (const msg of res.data.warnings) process.stderr.write(`Warning: ${msg}\n`);
   }
   return res;
+}
+
+/** iso と ms の遅い方（ISO 8601） */
+function laterIso(iso: string, ms: number): string {
+  return Date.parse(iso) >= ms ? iso : new Date(ms).toISOString();
 }
 
 function uniquePairs(orders: OpenOrder[], filter?: string): string[] {
@@ -266,11 +282,10 @@ function defaultFetchCandles(httpOpts?: HttpOptions): FetchCandles {
   return async (pair, fromMs, toMs) => {
     // bitbank の 1min candle は UTC 基準の YYYYMMDD で配信されるため
     // ホスト TZ ではなく UTC で日付セグメントを組み立てる。
-    // fromMs〜toMs は呼び出し側で 24h 以内に cap されているので
-    // UTC 日付は最大 2 つ（同日 or 隣接日）にしかならない。
-    const dates = new Set<string>([ymdUtc(fromMs), ymdUtc(toMs)]);
+    // 窓にかかる UTC 日付をすべて取る。現物の指値は 24h で cap されるが、信用の走査は前回から 24h 以内の窓を
+    // 足の区切り + 1 時間前から取るので 25h 近くになり、UTC 日付を 3 つまたぐことがある（中日を飛ばさない）。
     const all: Candle[] = [];
-    for (const d of [...dates].sort()) {
+    for (const d of ymdUtcRange(fromMs, toMs)) {
       const r = await fetchOne(pair, "1min", d, httpOpts, true);
       if (!r.success) return r;
       for (const c of r.data) {

@@ -7,22 +7,32 @@
 // 判定は fail-closed に倒す。欠落・想定外の値は「不明」として返し、黙って既定値で埋めない
 // （古いキャッシュや API 形状の変化で、非対応ペアを対応と取り違えないため）。
 // 法人のリスク想定比率は使わない（個人口座が前提。docs/dev/paper-margin-plan.md §1）。
+import { z } from "zod";
 import type { CachedPair } from "../pairs-cache.js";
 
-export type MarginPairParams = {
-  pair: string;
+// state（margin.lastParams）にも控えとして保存するので Zod で持つ
+export const MarginPairParamsSchema = z.object({
+  pair: z.string(),
   /** 個人のリスク想定比率。維持必要保証金 = 建玉数量 × 平均建値 × riskRatio */
-  riskRatio: number;
+  riskRatio: z.number(),
   /** riskRatio の適用終了日時（Unix ms、この時刻を含む） */
-  riskRatioUntilMs: number;
-  /** current を使ったか、current の適用終了後なので next に切り替えたか */
-  riskRatioSource: "current" | "next";
-  fee: { openMaker: number; openTaker: number; closeMaker: number; closeTaker: number };
-  /** 利息率 /日（小数か % かは計画書 #PM-3 で確定する） */
-  interestPerDay: { long: number; short: number };
-  stopNewLong: boolean;
-  stopNewShort: boolean;
-};
+  riskRatioUntilMs: z.number(),
+  /** current を使ったか、current の適用終了後なので next に切り替えたか。
+   *  last-known は pairs から読めず、最後に読めた控え（state の margin.lastParams）を使った */
+  riskRatioSource: z.enum(["current", "next", "last-known"]),
+  fee: z.object({
+    openMaker: z.number(),
+    openTaker: z.number(),
+    closeMaker: z.number(),
+    closeTaker: z.number(),
+  }),
+  /** 利息率 /日（小数。0.0004 = 0.04%） */
+  interestPerDay: z.object({ long: z.number(), short: z.number() }),
+  stopNewLong: z.boolean(),
+  stopNewShort: z.boolean(),
+});
+
+export type MarginPairParams = z.infer<typeof MarginPairParamsSchema>;
 
 export type MarginParamsLookup =
   | { kind: "ok"; params: MarginPairParams }

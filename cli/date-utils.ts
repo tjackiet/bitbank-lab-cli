@@ -62,6 +62,14 @@ export function ymdUtc(ms: number): string {
   return `${y}${String(m).padStart(2, "0")}${String(day).padStart(2, "0")}`;
 }
 
+/** fromMs〜toMs にかかる UTC の日付（YYYYMMDD）を古い順にすべて返す。区間が空なら [] */
+export function ymdUtcRange(fromMs: number, toMs: number): string[] {
+  if (!Number.isFinite(fromMs) || !Number.isFinite(toMs) || toMs < fromMs) return [];
+  const out: string[] = [];
+  for (let d = ymdUtc(fromMs); d <= ymdUtc(toMs); d = shiftDate(d, 1, "1min")) out.push(d);
+  return out;
+}
+
 /** ms（UNIX epoch）を UTC の YYYY 文字列で返す */
 export function yearUtc(ms: number): string {
   return String(new Date(ms).getUTCFullYear());

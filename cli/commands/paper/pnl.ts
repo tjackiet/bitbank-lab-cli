@@ -53,8 +53,9 @@ export async function paperPnl(args: PaperPnlArgs = {}): Promise<Result<PaperPnl
   }
   const jpyHistory = sr.data.history.filter((h) => h.pair.endsWith("_jpy"));
   const jpyPairs = [...allPairs].filter((p) => p.endsWith("_jpy"));
-  const marginHeld = sr.data.margin.positions.map((p) => p.pair);
-  const targetPairs = [...new Set([...jpyPairs, ...marginHeld])].filter(
+  // 信用の行は全量返済済みのペアにも currentPrice を出す（現物の行が売り切ったペアにも出すのと同じ）
+  const marginPairs = [...sr.data.margin.positions, ...sr.data.margin.history].map((x) => x.pair);
+  const targetPairs = [...new Set([...jpyPairs, ...marginPairs])].filter(
     (p) => !args.pair || p === args.pair,
   );
   const fetchFn = args.fetchTicker ?? defaultFetchTicker;

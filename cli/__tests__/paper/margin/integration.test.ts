@@ -159,7 +159,7 @@ describe("paper pnl", () => {
         positionSide: "long",
         position: 0,
         avgCost: 0,
-        currentPrice: 0,
+        currentPrice: 11_000_000, // 全量返済済みのペアにも現在値を出す（現物の売り切ったペアと同じ）
         realizedPnl: 1_000,
         unrealizedPnl: 0,
         totalPnl: 1_000,

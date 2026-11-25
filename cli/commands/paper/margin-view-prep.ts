@@ -1,5 +1,6 @@
 // paper margin-status / margin-positions の共通の準備（ADR-010 / docs/dev/paper-margin-plan.md §3.7）。
-// lazy tick → state を読む → 信用対応の全ペアのパラメータ（建玉・注文のペアは取れなければ失敗）→
+// lazy tick → state を読む → 信用対応の全ペアのパラメータ（建玉・注文のペアは pairs か state の控えから。どちらにも
+// 無ければ失敗）→
 // 建玉のあるペアの現在値（ticker の last）。public の API だけを叩く。
 import type { HttpOptions } from "../../http.js";
 import { type CachedPair, getPairsWithCache } from "../../pairs-cache.js";
@@ -8,7 +9,7 @@ import { type MarginPairParams, marginParamsOf } from "../../paper-margin/params
 import { resolveMarginParams } from "../../paper-margin-pairs.js";
 import { defaultStatePath, loadState, type PaperState } from "../../paper-state.js";
 import type { Result } from "../../types.js";
-import { fetchLastPrices } from "./margin-order-prep.js";
+import { fetchLastPrices } from "./last-prices.js";
 
 export type MarginViewArgs = {
   statePath?: string;
@@ -54,11 +55,15 @@ export async function prepareMarginView(
     args.getPairs ?? (() => getPairsWithCache({ refresh: true, httpOptions: opts }));
   const held = [...new Set(state.margin.positions.map((p) => p.pair))];
   const booked = [...new Set([...held, ...state.margin.orders.map((o) => o.pair)])];
-  const required = await resolveMarginParams(booked, { nowMs, getPairs, refreshPairs });
+  const required = await resolveMarginParams(booked, {
+    ...{ nowMs, getPairs, refreshPairs },
+    lastKnown: state.margin.lastParams,
+  });
   if (!required.success) return required;
   const listed = await getPairs();
   if (!listed.success) return listed;
-  const params = new Map([...allMarginParams(listed.data, nowMs), ...required.data]);
+  // 控えを使ったペアは assumptions.riskRatios の source が last-known になる（status.ts）
+  const params = new Map([...allMarginParams(listed.data, nowMs), ...required.data.params]);
   const prices = await fetchLastPrices(held, opts);
   if (!prices.success) return prices;
   return { success: true, data: { path, nowMs, state, params, prices: prices.data } };

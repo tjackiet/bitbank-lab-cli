@@ -2,7 +2,7 @@
 // 信用の state（建玉・注文・約定履歴）のフィールドを 1 つずつ列挙するため出力項目数に比例して伸びる（defs-paper.ts と同じ）。
 //
 // paper の信用（ADR-010）の出力スキーマ。
-// 欄は cli/paper-margin/ の型（history.ts の MarginHistoryEntry、tick.ts の MarginTickReport）に合わせる。
+// 欄は cli/paper-margin/ の型（history.ts の MarginHistoryEntry、tick-report.ts の MarginTickReport）に合わせる。
 // 信用のコマンド（create-margin-order / margin-status / margin-positions）の定義もここに置く。
 import { p, type SchemaDef } from "./types.js";
 
@@ -46,6 +46,11 @@ export const marginTickReport = {
           deadline: s,
           amount: n,
           reason: { type: "string", enum: ["below-losscut", "margin-call-expired"] },
+          canceled: {
+            type: "array",
+            items: s,
+            description: "losscut only: ids of the margin orders canceled by the losscut",
+          },
         },
       },
     },
@@ -203,7 +208,7 @@ export const paperMarginSchemas: Record<string, SchemaDef> = {
           properties: { judgedAt: s, deadline: s, amount: n },
         },
         payables: { type: "object", properties: { amount: n } },
-        last_tick_at: s,
+        last_scan_at: s,
         stale: {
           type: "boolean",
           description: "True if the last tick could not process margin up to now",
@@ -252,7 +257,7 @@ export const paperMarginSchemas: Record<string, SchemaDef> = {
             },
           },
         },
-        last_tick_at: s,
+        last_scan_at: s,
         stale: b,
         assumptions,
       },

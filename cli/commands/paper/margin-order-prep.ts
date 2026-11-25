@@ -1,16 +1,15 @@
 // paper create-margin-order の、lock の外の取得と検証（ADR-010 / docs/dev/paper-margin-plan.md §4 Step 5）。
-// public の API だけを叩く: pairs（数量の検証・信用対応・新規建て停止）と ticker（口座評価と成行の約定に使う現在値）。
+// public の API だけを叩く: pairs（数量の検証・信用対応・新規建て停止）。現在値（ticker）は last-prices.ts。
 // - 数量・価格の桁は現物と同じ検証（order-validate.ts の validateOrderSize）
 // - 信用非対応のペアは PARAM（本番では 40167）。比率が期限切れなら pairs を 1 度だけ取り直す
+// - 信用パラメータを読めなくなったペアでも、state に控えがあれば返済だけは通す（新規建ては止める）
 // - 新規建て停止（stop_margin_long_order / stop_margin_short_order）は新規建てだけを止める。返済は止めない
 //   （本番の停止エラーは方向別: 買い新規 50083 / 売り新規 50081）
 import { EXIT } from "../../exit-codes.js";
-import type { HttpOptions } from "../../http.js";
 import type { MarginIntent, PositionSide } from "../../margin-operation.js";
 import type { CachedPair } from "../../pairs-cache.js";
-import { marginParamsOf } from "../../paper-margin/params.js";
+import { type MarginPairParams, marginParamsOf } from "../../paper-margin/params.js";
 import type { Result } from "../../types.js";
-import { ticker } from "../public/ticker.js";
 import { validateOrderSize } from "./order-validate.js";
 
 type GetPairs = () => Promise<Result<CachedPair[]>>;
@@ -24,7 +23,13 @@ export async function checkOrderPair(
     positionSide: PositionSide;
     intent: MarginIntent;
   },
-  o: { nowMs: number; getPairs: GetPairs; refreshPairs: GetPairs },
+  o: {
+    nowMs: number;
+    getPairs: GetPairs;
+    refreshPairs: GetPairs;
+    /** state に残る、このペアの最後に読めた信用パラメータ（paper-margin-pairs.ts） */
+    lastKnown?: MarginPairParams;
+  },
 ): Promise<Result<{ ok: true }>> {
   let pairs = await o.getPairs();
   if (!pairs.success) return pairs;
@@ -41,6 +46,11 @@ export async function checkOrderPair(
     pairs = await o.refreshPairs();
     if (!pairs.success) return pairs;
     lookup = lookupIn(pairs.data);
+  }
+  // 取扱終了・フィールド欠落などで読めなくなったペアでも、控えがあれば返済は通す（建玉を閉じられなくしない）。
+  // 口座評価には控えのパラメータを使う（paper-margin-pairs.ts）。新規建ては下の検査で止める
+  if (lookup.kind !== "ok" && req.intent === "close" && o.lastKnown) {
+    return { success: true, data: { ok: true } };
   }
   if (lookup.kind === "unsupported") {
     return {
@@ -68,22 +78,4 @@ export async function checkOrderPair(
     };
   }
   return { success: true, data: { ok: true } };
-}
-
-/** 口座評価と成行の約定に使う現在値（ticker の last） */
-export async function fetchLastPrices(
-  pairs: readonly string[],
-  opts?: HttpOptions,
-): Promise<Result<Map<string, number>>> {
-  const out = new Map<string, number>();
-  for (const pair of pairs) {
-    const t = await ticker({ pair }, opts);
-    if (!t.success) return t;
-    const last = Number(t.data.last);
-    if (!t.data.last || !Number.isFinite(last) || last <= 0) {
-      return { success: false, error: `ticker for ${pair} has no positive last price` };
-    }
-    out.set(pair, last);
-  }
-  return { success: true, data: out };
 }

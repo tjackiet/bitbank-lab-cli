@@ -93,7 +93,18 @@ export const paperSchemas: Record<string, SchemaDef> = {
     // market は ticker で即時 fill、limit は openOrders に積むだけなので出力形が分かれる。
     output: {
       oneOf: [
-        { type: "object", properties: { ...historyEntry.properties, balances: numbersByKey } },
+        {
+          type: "object",
+          properties: {
+            ...historyEntry.properties,
+            balances: numbersByKey,
+            marginCallResolved: {
+              type: "boolean",
+              description:
+                "Present only while a paper margin call is active: whether this JPY sale resolved it (ADR-010)",
+            },
+          },
+        },
         { type: "object", properties: { placed: openOrder } },
       ],
     },

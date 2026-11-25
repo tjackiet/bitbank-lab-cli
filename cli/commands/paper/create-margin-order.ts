@@ -14,13 +14,14 @@ import {
   type PaperMarginFill,
   type PaperMarginPlaced,
 } from "../../paper-margin/order.js";
-import { resolveMarginParams } from "../../paper-margin-pairs.js";
+import { fallbackWarning, resolveMarginParams } from "../../paper-margin-pairs.js";
 import { withStatePath } from "../../paper-result.js";
 import { defaultStatePath, genId, loadState } from "../../paper-state.js";
 import { updateState } from "../../paper-state-mutate.js";
 import type { Result } from "../../types.js";
+import { fetchLastPrices } from "./last-prices.js";
 import { type PaperCreateMarginOrderArgs, parseMarginOrderInput } from "./margin-order-input.js";
-import { checkOrderPair, fetchLastPrices } from "./margin-order-prep.js";
+import { checkOrderPair } from "./margin-order-prep.js";
 
 export type { PaperCreateMarginOrderArgs } from "./margin-order-input.js";
 
@@ -39,10 +40,19 @@ export async function paperCreateMarginOrder(
   const getPairs = args.getPairs ?? (() => getPairsWithCache({ httpOptions: opts }));
   const refreshPairs =
     args.getPairs ?? (() => getPairsWithCache({ refresh: true, httpOptions: opts }));
-  const order = { pair, type, amount, price, positionSide, intent: op.data.intent };
-  const pre = await checkOrderPair(order, { nowMs, getPairs, refreshPairs });
-  if (!pre.success) return pre;
   const path = args.statePath ?? defaultStatePath();
+  // pairs から信用パラメータを読めなくなったペアでも、控え（margin.lastParams）があれば返済だけは通す
+  const before = await loadState(path);
+  if (!before.success) return before;
+  const lastKnown = before.data?.margin.lastParams;
+  const order = { pair, type, amount, price, positionSide, intent: op.data.intent };
+  const pre = await checkOrderPair(order, {
+    nowMs,
+    getPairs,
+    refreshPairs,
+    lastKnown: lastKnown?.[pair],
+  });
+  if (!pre.success) return pre;
   const tick = await runTick({
     statePath: path,
     fetchCandles: args.fetchCandles,
@@ -58,13 +68,17 @@ export async function paperCreateMarginOrder(
   const held = (peek.data?.margin.positions ?? []).map((p) => p.pair);
   const ordered = (peek.data?.margin.orders ?? []).map((o) => o.pair);
   const booked = [...new Set([...held, ...ordered, pair])];
-  const params = await resolveMarginParams(booked, { nowMs, getPairs, refreshPairs });
+  const params = await resolveMarginParams(booked, {
+    ...{ nowMs, getPairs, refreshPairs },
+    lastKnown: peek.data?.margin.lastParams,
+  });
   if (!params.success) return params;
+  for (const w of fallbackWarning(params.data.fallbacks)) process.stderr.write(`Warning: ${w}\n`);
   const prices = await fetchLastPrices([...new Set([...held, pair])], opts);
   if (!prices.success) return prices;
   const plan: MarginOrderPlan = {
     ...{ pair, side, positionSide, type, amount, price, op: op.data },
-    ...{ params: params.data, prices: prices.data, nowMs, newId: genId },
+    ...{ params: params.data.params, prices: prices.data, nowMs, newId: genId },
   };
   const r = await updateState<Placed>(
     (state) => {

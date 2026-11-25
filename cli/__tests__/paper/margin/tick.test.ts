@@ -117,7 +117,12 @@ describe("runTick with a margin book", () => {
     });
     if (!r.success) throw new Error(r.error);
     expect(r.data.margin?.events).toEqual([
-      { kind: "losscut", at: new Date(P(LAST_TICK) + MIN).toISOString(), reason: "below-losscut" },
+      {
+        kind: "losscut",
+        at: new Date(P(LAST_TICK) + MIN).toISOString(),
+        reason: "below-losscut",
+        canceled: [],
+      },
     ]);
     const s = await load();
     expect(s.margin.positions).toEqual([]);
@@ -194,7 +199,7 @@ describe("runTick with a margin book", () => {
     expect(r.data.warnings.some((w) => w.includes("4hour candles (approximate)"))).toBe(true);
   });
 
-  it("does not advance lastTickAt or touch margin when the candles cannot be fetched", async () => {
+  it("does not advance the margin scan or touch margin when the candles cannot be fetched", async () => {
     await seed();
     const failing: FetchCandles = async () => ({ success: false, error: "boom" });
     const r = await runTick({
@@ -204,14 +209,17 @@ describe("runTick with a margin book", () => {
       getPairs: pairsOf([BTC]),
     });
     if (!r.success) throw new Error(r.error);
-    expect(r.data.lastTickAt).toBe(LAST_TICK);
     expect(
       r.data.warnings.some((w) => w.includes("margin: fetch candles for btc_jpy failed")),
     ).toBe(true);
-    expect((await load()).margin.positions).toHaveLength(1);
+    const s = await load();
+    expect(s.margin.positions).toHaveLength(1);
+    // 現物の lastTickAt（現物に指値が無いので進む）とは別に、信用の走査済み時刻は止まる
+    expect(s.lastTickAt).toBe(new Date(NOW).toISOString());
+    expect(s.margin.lastScanAt).toBe(LAST_TICK);
   });
 
-  it("does not advance lastTickAt when pairs carry no margin parameters", async () => {
+  it("does not advance the margin scan when pairs carry no margin parameters (and no last-known copy)", async () => {
     await seed();
     const r = await runTick({
       statePath,
@@ -220,7 +228,7 @@ describe("runTick with a margin book", () => {
       getPairs: pairsOf(MOCK_PAIRS),
     });
     if (!r.success) throw new Error(r.error);
-    expect(r.data.lastTickAt).toBe(LAST_TICK);
+    expect((await load()).margin.lastScanAt).toBe(LAST_TICK);
     expect(r.data.warnings.some((w) => w.includes("no margin params for btc_jpy"))).toBe(true);
   });
 
@@ -251,6 +259,7 @@ describe("runTick with a margin book", () => {
     if (!r.success) throw new Error(r.error);
     expect(r.data.warnings.some((w) => w.includes("margin: skipped for --pair"))).toBe(true);
     expect(r.data.lastTickAt).toBe(LAST_TICK);
+    expect((await load()).margin.lastScanAt).toBe(LAST_TICK);
   });
 
   it("a spot sell filled in the tick resolves a margin call when B ≥ Mm at the end", async () => {

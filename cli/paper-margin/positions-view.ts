@@ -10,7 +10,7 @@
 //   paper の値は assumptions.rules.losscutMultiplier
 import type { PositionSide } from "../margin-operation.js";
 import type { PaperState } from "../paper-state.js";
-import { bookOf, hasMarginBook } from "./book.js";
+import { bookOf, hasMarginBook, isMarginStale, marginScannedAtMs } from "./book.js";
 import { lockedAmountOf } from "./closable.js";
 import { averagePrice, unrealizedPnl } from "./positions.js";
 import { roundTo } from "./rounding.js";
@@ -36,7 +36,8 @@ export type MarginPositionsView = {
     current_price: number | null;
     unrealized_profit_loss: number | null;
   }>;
-  last_tick_at: string;
+  /** 信用の走査を済ませた時刻（margin.lastScanAt。現物の lastTickAt とは別） */
+  last_scan_at: string;
   stale: boolean;
   assumptions: PaperState["margin"]["assumptions"];
 };
@@ -82,8 +83,8 @@ export function buildMarginPositions(
     notice,
     payables: { amount: payables },
     positions,
-    last_tick_at: state.lastTickAt,
-    stale: hasMarginBook(state) && Date.parse(state.lastTickAt) < nowMs,
+    last_scan_at: new Date(marginScannedAtMs(state)).toISOString(),
+    stale: hasMarginBook(state) && isMarginStale(state, nowMs),
     assumptions: state.margin.assumptions,
   };
 }

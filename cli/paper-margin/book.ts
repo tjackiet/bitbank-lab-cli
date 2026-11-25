@@ -24,3 +24,13 @@ export function withBook(state: PaperState, book: MarginBook): PaperState {
 export function hasMarginBook(state: PaperState): boolean {
   return state.margin.positions.length > 0 || state.margin.orders.length > 0;
 }
+
+/** 信用の走査を済ませた時刻（Unix ms）。margin.lastScanAt が無い state は lastTickAt から */
+export function marginScannedAtMs(state: PaperState): number {
+  return Date.parse(state.margin.lastScanAt ?? state.lastTickAt);
+}
+
+/** 信用の状態が nowMs まで最新か（建玉・注文が無くても、走査の済んだ時刻で判定する） */
+export function isMarginStale(state: PaperState, nowMs: number): boolean {
+  return marginScannedAtMs(state) < nowMs;
+}
