@@ -33,17 +33,7 @@ export async function checkOrderPair(
 ): Promise<Result<{ ok: true }>> {
   let pairs = await o.getPairs();
   if (!pairs.success) return pairs;
-  if (!pairs.data.some((p) => p.name === req.pair)) {
-    // pairs から消えたペア（取扱終了など）は、控えのパラメータがあっても返済できない（lazy tick の足も ticker も
-    // 取れないので、口座の評価も約定の価格も決められない）。理由が分かるエラーにする
-    return {
-      success: false,
-      error:
-        `pairs に無いペアです: ${req.pair}（取扱終了など）。paper では足と現在値を取れないので、` +
-        "このペアの注文（返済を含む）は出せません。建玉を消すには paper reset で作り直してください",
-      exitCode: EXIT.PARAM,
-    };
-  }
+  if (!listed(pairs.data, req.pair)) return unlisted(req.pair);
   const size = validateOrderSize(req.pair, req.type, req.amount, pairs.data, req.price);
   if (!size.success) return { ...size, exitCode: EXIT.PARAM };
   const lookupIn = (list: CachedPair[]) => {
@@ -56,6 +46,8 @@ export async function checkOrderPair(
   if (lookup.kind === "stale") {
     pairs = await o.refreshPairs();
     if (!pairs.success) return pairs;
+    // 取り直した pairs から消えていれば、控えがあっても返済に進ませない（最初の pairs が古いキャッシュだった場合）
+    if (!listed(pairs.data, req.pair)) return unlisted(req.pair);
     lookup = lookupIn(pairs.data);
   }
   // 取扱終了・フィールド欠落などで読めなくなったペアでも、控えがあれば返済は通す（建玉を閉じられなくしない）。
@@ -89,4 +81,18 @@ export async function checkOrderPair(
     };
   }
   return { success: true, data: { ok: true } };
+}
+
+const listed = (list: readonly CachedPair[], pair: string) => list.some((p) => p.name === pair);
+
+/** pairs から消えたペア（取扱終了など）は、控えのパラメータがあっても返済できない（lazy tick の足も ticker も
+ *  取れないので、口座の評価も約定の価格も決められない）。理由が分かるエラーにする */
+function unlisted(pair: string): Result<never> {
+  return {
+    success: false,
+    error:
+      `pairs に無いペアです: ${pair}（取扱終了など）。paper では足と現在値を取れないので、` +
+      "このペアの注文（返済を含む）は出せません。建玉を消すには paper reset で作り直してください",
+    exitCode: EXIT.PARAM,
+  };
 }

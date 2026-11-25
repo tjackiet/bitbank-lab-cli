@@ -105,6 +105,35 @@ describe("spot sales in the margin scan window (applyMarginTick, from the spot h
   });
 });
 
+describe("the JPY of a later spot sale, rebuilt from the history", () => {
+  it("is over- rather than under-estimated, so a losscut right at the threshold before it is not missed", () => {
+    // 代金 1,000.4 円・丸める前の手数料 0.60024 円 → 実際の受取は round(999.79976) = 1,000 円、履歴の手数料は 1 円。
+    // 売る前の JPY 249,999.8 円は基準 250,000 円を割る。履歴から 1,000.4 − 1 = 999.4 円と戻すと 250,000.4 円で見逃す
+    const lookup = marginParamsOf(BTC, T0);
+    if (lookup.kind !== "ok") throw new Error(lookup.kind);
+    const sale = spotFill({
+      amount: 0.0001,
+      fillPrice: 10_004_000,
+      feeQuote: 1,
+      filledAt: iso(T0 + 8 * MIN),
+    });
+    const state = stateAt(
+      LAST,
+      { balances: { jpy: 250_999.8 }, history: [sale] },
+      { positions: [longPosition(LAST)] },
+    );
+    const flat = { timestamp: T0 + 2 * MIN, open: 1e7, high: 1e7, low: 1e7, close: 1e7, vol: 1 };
+    const input = {
+      candlesByPair: new Map([["btc_jpy", [flat]]]),
+      params: new Map([["btc_jpy", lookup.params]]),
+      ...{ candleFromMs: T0, periodMs: MIN, approximate: false },
+    };
+    const r = applyMarginTick(state, input, T0 + 10 * MIN, { newId: () => "x" });
+    if (!r.success) throw new Error(r.error);
+    expect(r.data.report.events.map((e) => e.kind)).toEqual(["losscut"]);
+  });
+});
+
 describe("a spot sale filled while the margin scan was failing", () => {
   let dir: string;
   let statePath: string;

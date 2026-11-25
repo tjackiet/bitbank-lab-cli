@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { paperCreateMarginOrder } from "../../../commands/paper/create-margin-order.js";
+import { checkOrderPair } from "../../../commands/paper/margin-order-prep.js";
 import type { Candle } from "../../../commands/public/candles-fetch.js";
 import { EXIT } from "../../../exit-codes.js";
 import { runTick } from "../../../paper-fill.js";
@@ -133,6 +134,24 @@ describe("a pair that is no longer in pairs", () => {
     statePath = join(dir, "paper-state.json");
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
+
+  it("also refuses when the pair disappears from the pairs refetched for a stale risk ratio", async () => {
+    // 最初の pairs（古いキャッシュ）には載っていて比率が期限切れ、取り直した pairs からは消えている。控えがあっても通さない
+    const stale = { ...BTC, margin_current_individual_until: P("2026-11-01T00:00:00Z") };
+    const r = await checkOrderPair(
+      {
+        ...{ pair: "btc_jpy", type: "market" as const, amount: 0.01 },
+        ...{ positionSide: "long" as const, intent: "close" as const },
+      },
+      {
+        nowMs: P("2026-11-02T00:00:00Z"),
+        getPairs: pairsOf(stale),
+        refreshPairs: pairsOf(),
+        lastKnown: lookup.params,
+      },
+    );
+    expect(!r.success && r.error).toContain("pairs に無いペアです");
+  });
 
   it("refuses with an explicit PARAM error, closes included (no candles or ticker to price it)", async () => {
     await seedState(statePath, stateAt("2026-11-02T00:00:00.000Z"));

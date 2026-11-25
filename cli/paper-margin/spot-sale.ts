@@ -13,12 +13,16 @@ import type { MarginPairParams } from "./params.js";
 /** 約定した現物の売買（JPY 建てかどうか・向き） */
 type SpotSale = { pair: string; side: "buy" | "sell" };
 
+/** 代金と手数料をそれぞれ円に丸めた差の最大（0.5 + 0.5） */
+const ROUNDING_YEN = 1;
+
 const raisesJpy = (f: SpotSale) => f.side === "sell" && f.pair.endsWith("_jpy");
 
 /** 信用の走査の窓（fromMs より後）に約定した現物の、JPY の増減と、指値の売りの約定時刻（scan.ts に渡す）。
  *  現物の約定履歴から導くので、信用の走査に失敗した tick で約定した分も、次に走査できた tick で数えられる。
- *  JPY の増減は約定履歴の値から組み立てる（代金と手数料の円への丸めの順で 1 円ずれることがある。評価の時刻をずらす
- *  ためだけに使い、残高そのものは変えない）。成行の売りも数える（売った時点で判定できなかった＝信用の状態が古い・
+ *  JPY の増減は約定履歴の値から組み立てる。実際の増減は代金と手数料を別々に円へ丸めた値なので（fees.ts の computeFill）、
+ *  履歴からは ±1 円の幅でしか戻せない。評価が強制決済の早く起きる側にずれるよう、売りの代金は 1 円多め、買いの支払いは
+ *  1 円少なめに見積もる（その時刻より前の評価から除く額を大きめにする）。評価の時刻をずらすためだけに使い、残高は変えない。成行の売りも数える（売った時点で判定できなかった＝信用の状態が古い・
  *  パラメータや現在値を取れなかったときに、次の走査が売った時刻で判定する。判定済みなら追証はもう無い）。
  *  pending は、走査の窓より前に約定したのに、まだ解消の判定に使っていない売り（paper-fill.ts。現物の足だけ取れずに
  *  信用の走査が先へ進んだ後で約定が確定した分など）。窓の頭（fromMs）で判定する（判定が売りより遅れる近似） */
@@ -32,7 +36,10 @@ export function spotEventsSince(
   );
   const spotJpy = inWindow.map((h) => {
     const notional = h.amount * h.fillPrice;
-    const delta = h.side === "sell" ? notional - h.feeQuote : -(notional + h.feeQuote);
+    const delta =
+      h.side === "sell"
+        ? notional - h.feeQuote + ROUNDING_YEN
+        : -(notional + h.feeQuote - ROUNDING_YEN);
     return { atMs: Date.parse(h.filledAt), delta };
   });
   const sold = inWindow.filter(raisesJpy).map((h) => Date.parse(h.filledAt));
