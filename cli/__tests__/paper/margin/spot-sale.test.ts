@@ -249,11 +249,11 @@ describe("spot sales that could not be judged right away", () => {
   });
 
   // JPY 400,000・ロング 0.1 @ 10,000,000・価格 9,900,000 → B 390,000 < Mm 500,000（追証中）
-  async function seedCall(over: Partial<PaperState> = {}) {
+  async function seedCall(over: Partial<PaperState> = {}, call = CALL) {
     const s = stateAt(LAST, { balances: { jpy: 400_000, btc: 0.02, xrp: 200 }, ...over });
     await seedState(statePath, {
       ...s,
-      margin: { ...s.margin, positions: [longPosition(LAST)], call: CALL, lastScanAt: LAST },
+      margin: { ...s.margin, positions: [longPosition(LAST)], call, lastScanAt: LAST },
     });
   }
   const btc = candlesOf([[T0 + MIN, 9_900_000, 9_900_000]]);
@@ -314,6 +314,17 @@ describe("spot sales that could not be judged right away", () => {
     expect(second.data.margin?.events).toEqual([
       { kind: "margin-call-resolved", at: iso(T0 + 10 * MIN) },
     ]);
+  });
+
+  it("does not count such a late sale when it was filled before the call was judged (only the time is moved)", async () => {
+    // 追証の基準時は T0 + 5 分、xrp の売りは T0 + 2 分。窓の頭（T0 + 10 分）に寄せても、基準時より前の売りは数えない
+    await seedCall({ openOrders: [xrpSell] }, { ...CALL, judgedAt: iso(T0 + 5 * MIN) });
+    await tick(T0 + 10 * MIN, { btc: true, xrp: false });
+    const r = await tick(T0 + 20 * MIN, { btc: true, xrp: true });
+    if (!r.success) throw new Error(r.error);
+    expect(r.data.filled.map((f) => f.id)).toEqual(["x1"]);
+    expect(r.data.margin?.events).toEqual([]);
+    expect((await call()).call).not.toBe(null);
   });
 
   it("keeps such a sale pending while the margin scan keeps failing, and judges it once a scan succeeds", async () => {

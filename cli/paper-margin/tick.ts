@@ -45,7 +45,7 @@ export function applyMarginTick(
     fromMs,
     toMs: nowMs,
     periodMs: input.periodMs,
-    ...spotEventsSince(state.history, fromMs, opts.pendingSpotSales),
+    ...spotEventsSince(state.history, fromMs, pendingAfterCall(state, opts.pendingSpotSales)),
     candleFromMs: Math.max(
       input.candleFromMs,
       Math.floor(fromMs / input.periodMs) * input.periodMs,
@@ -62,4 +62,13 @@ export function applyMarginTick(
       report: { filled, events, approximate: input.approximate },
     },
   };
+}
+
+/** 持ち越した売りのうち、走査の開始時点の追証の基準時以降に約定したもの。基準時より前の売りは、その代金も含めて
+ *  追証が判定されているので、解消の行為には数えない（窓の頭に寄せて数えると、値戻しだけで解消してしまう） */
+function pendingAfterCall(state: PaperState, pending: readonly string[] = []): string[] {
+  const call = state.margin.call;
+  if (!call) return [...pending];
+  const judgedAt = Date.parse(call.judgedAt);
+  return pending.filter((at) => Date.parse(at) >= judgedAt);
 }
