@@ -12,6 +12,16 @@
 
 ## [Unreleased]
 
+### Security
+
+- `npm audit --audit-level=high`（`security.yml` の merge gate）で落ちていた high 3 件を
+  同一メジャー内の更新で解消した。runtime 側は `undici` 7.29.0 → 7.30.2（`pubnub` 経由。
+  WebSocket / decompress / retry 周りの DoS・TLS 検証バイパス等。`pubnub` 自体は 12.0.0 の
+  まま）。dev 側は `vitest` / `@vitest/coverage-v8` 4.1.9 → 4.1.12 と、それに伴う
+  `vite` 8.1.0 → 8.3.8・`source-map-js` 1.2.1 → 1.2.4。あわせて moderate の
+  `@vitest/mocker`（vitest に追従）と `fflate` 0.8.2 → 0.8.3（`pubnub` 経由）も解消。
+  CLI の挙動は変わらない
+
 ## [0.5.1] - 2026-09-28
 
 ### Added

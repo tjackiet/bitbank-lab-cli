@@ -43,10 +43,10 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.1",
     "@types/node": "^25.9.1",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@vitest/coverage-v8": "^4.1.12",
     "lefthook": "2.1.9",
     "typescript": "^5.7.0",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.12"
   },
   "engines": {
     "node": ">=22"
